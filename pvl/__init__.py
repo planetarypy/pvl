@@ -11,7 +11,7 @@ from ._collections import (
     Units,
 )
 
-__author__ = 'Trevor Olson'
+__author__ = 'The PlanetaryPy Developers'
 __email__ = 'trevor@heytrevor.com'
 __version__ = '0.1.0'
 __all__ = [
