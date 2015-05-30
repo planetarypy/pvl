@@ -15,7 +15,7 @@ setup(
     version='0.1.0',
     description='Python implementation of PVL (Parameter Value Language)',
     long_description=readme + '\n\n' + history,
-    author='Trevor Olson',
+    author='The PlanetaryPy Developers',
     author_email='trevor@heytrevor.com',
     url='https://github.com/planetarypy/pvl',
     packages=[
