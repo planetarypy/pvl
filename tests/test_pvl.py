@@ -3,6 +3,7 @@ import os
 import datetime
 import pytz
 import six
+import glob
 
 import pvl
 from pvl import (
@@ -14,6 +15,7 @@ from pvl import (
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data/')
+PDS_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'pds3')
 
 
 def test_assignment():
@@ -592,3 +594,10 @@ def test_cube_label():
     assert label['IsisCube']['Core']['Pixels']['ByteOrder'] == 'Lsb'
     assert label['IsisCube']['Core']['Pixels']['Base'] == 0.0
     assert label['IsisCube']['Core']['Pixels']['Multiplier'] == 1.0
+
+def test_load_all_sample_labels():
+    files = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
+    for file in files:
+        with open(file, 'r') as f:
+            label = pvl.load(f)
+            assert isinstance(label, Label)

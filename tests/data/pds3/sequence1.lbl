@@ -1,0 +1,10 @@
+PDS_VERSION_ID = PDS3
+/* test for simple 1D integer sequence */
+CLOWNS_IDS = (1, 3, 7)
+/* test for simple 2D integer sequence */
+CLOWNS_WEIGHTS = ((1, 170), (3, 350), (7, 232))
+/* test for simple 1D float sequence */
+FCLOWNS_IDS = (1.5, 3.0, 7.)
+/* test for simple 2D integer sequence */
+FCLOWNS_WEIGHTS = ((1.5, 170.45), (3.0, 350.12), (7., 232.0))
+END

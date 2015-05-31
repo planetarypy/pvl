@@ -1,0 +1,7 @@
+PDS_VERSION_ID = PDS3
+FLOAT1         = 0.0 <KM>
+FLOAT2         = 123. <M>
+
+FLOAT3         = +1234.56 <M/S>  /* this is a test comment */
+FLOAT4         = -.9981 <M**2>
+END

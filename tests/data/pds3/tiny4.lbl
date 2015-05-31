@@ -1,0 +1,6 @@
+PDS_VERSION_ID = PDS3
+
+/* this is a test */
+RECORD_BYTES   = 89 /* Largest actual record in the file */
+
+END

@@ -1,0 +1,11 @@
+PDS_VERSION_ID = PDS3
+
+CLOWNS_IDS     = (1, 3, 7)
+
+CLOWNS_WEIGHTS1 = ((1, 170 <lbs>), (3, 350 <lbs>), (7, 232 <lbs>))
+CLOWNS_WEIGHTS2 = (170 <lbs>, 350 <lbs>, 232 <lbs>)
+
+FCLOWNS_IDS = (1.5, 3.0, 7.)
+
+FCLOWNS_WEIGHTS = ((1.5, 170.45), (3.0, 350.12), (7., 232.0))
+END

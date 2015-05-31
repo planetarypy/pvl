@@ -1,0 +1,29 @@
+PDS_VERSION_ID       = PDS3
+
+/* FILE DATA ELEMENTS */
+
+RECORD_TYPE          = FIXED_LENGTH
+RECORD_BYTES         = 824
+LABEL_RECORDS        = 1
+FILE_RECORDS         = 601
+
+/* POINTERS TO DATA OBJECTS */
+
+^IMAGE               = 2
+
+/* IMAGE DATA ELEMENTS */
+
+OBJECT               = IMAGE
+  LINES              = 600
+  LINE_SAMPLES       = 824
+  SAMPLE_TYPE        = MSB_INTEGER
+  SAMPLE_BITS        = 8
+  MEAN               = 51.67785396440129
+  MEDIAN             = 50.00000
+  MINIMUM            = 0
+  MAXIMUM            = 255
+  STANDARD_DEVIATION = 16.97019
+  CHECKSUM           = 25549531
+END_OBJECT           = IMAGE
+
+END

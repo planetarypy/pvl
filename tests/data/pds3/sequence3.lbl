@@ -1,0 +1,3 @@
+PDS_VERSION_ID = PDS3
+MIXED_SEQ = (1, TWO, "Three", 4.0)
+END

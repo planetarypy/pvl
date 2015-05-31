@@ -1,0 +1,9 @@
+PDS_VERSION_ID = PDS3
+FLOAT5         = -1.E-3
+
+FLOAT6         = -1.e-3        /*    this is a test comment    */
+
+FLOAT7         = -0.45e6
+FLOAT8         = 31459e1
+
+END
