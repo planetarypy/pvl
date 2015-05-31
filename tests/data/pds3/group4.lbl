@@ -1,0 +1,18 @@
+PDS_VERSION_ID       = PDS3
+
+FILENAME             = "ImageFile-00112.IMG"
+
+OBJECT               = IMAGE
+  MAXIMUM            = 255
+  STANDARD_DEVIATION = 16.97019
+  CHECKSUM           = 25549531
+END_OBJECT           = IMAGE
+
+WINDOW               = 12.455
+
+GROUP                = SHUTTER_TIMES
+  START              = 1234567
+  STOP               = 2123232
+END_GROUP            = SHUTTER_TIMES
+
+END

@@ -1,0 +1,5 @@
+PDS_VERSION_ID = PDS3
+CLOWN_NAMES = ("Willy", "Wally")
+CLOWN_MISSIONS = (MER, MSL)
+CLOWN = "Skippy the clown"
+END

@@ -1,0 +1,13 @@
+PDS_VERSION_ID = PDS3
+INTEGER1       = 1
+FLOAT          = 2.3
+COMMENT1       = "THING TEST"
+COMMENT2       = "Alive."
+COMMENT_1      = "THING TEST"
+COMMENT_2      = "Alive."
+MULTILINE      = "This is a test
+                  of the emergency broadcasting system."
+HYPHENATED     = "The planet Jupi-
+                 ter is very big"
+EMPTY_STRING   = ""
+END

@@ -1,0 +1,16 @@
+PDS_VERSION_ID       = PDS3
+
+OBJECT               = IMAGE          /* OBJECT start comment */
+  MAXIMUM            = 255
+  STANDARD_DEVIATION = 16.97019
+  /* comment in OBJECT */
+  CHECKSUM           = 25549531
+END_OBJECT           = IMAGE
+
+GROUP                = SHUTTER_TIMES  /* GROUP start comment */
+  START              = 1234567
+  /* comment in GROUP */
+  STOP               = 2123232
+END_GROUP            = SHUTTER_TIMES
+
+END

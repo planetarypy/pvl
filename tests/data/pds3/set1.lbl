@@ -1,0 +1,9 @@
+PDS_VERSION_ID = PDS3
+EMPTY_SET      = {}
+SINGLE_SET     = {1.5}
+TRIPLE_SET     = {1.5, 2.5, 3.5}
+INT_SET        = {1, 2}
+FLOAT_SET      = {2.33, 3.4}
+STR_SET        = {"one", "two"}
+SYM_SET        = {ONE, TWO}
+END

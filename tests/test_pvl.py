@@ -3,6 +3,7 @@ import os
 import datetime
 import pytz
 import six
+import glob
 
 import pvl
 from pvl import (
@@ -14,6 +15,7 @@ from pvl import (
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data/')
+PDS_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'pds3')
 
 
 def test_assignment():
@@ -592,3 +594,33 @@ def test_cube_label():
     assert label['IsisCube']['Core']['Pixels']['ByteOrder'] == 'Lsb'
     assert label['IsisCube']['Core']['Pixels']['Base'] == 0.0
     assert label['IsisCube']['Core']['Pixels']['Multiplier'] == 1.0
+
+
+def test_based_integer():
+    infile = os.path.join(PDS_DATA_DIR, "simple_image_1.lbl")
+    label = pvl.load(infile)
+    assert label['RECORD_TYPE'] == 'FIXED_LENGTH'
+    assert label['RECORD_BYTES'] == 824
+    assert label['LABEL_RECORDS'] == 1
+    assert label['FILE_RECORDS'] == 601
+    assert label['IMAGE']['LINES'] == 600
+    assert label['IMAGE']['LINE_SAMPLES'] == 824
+    image_group = label['IMAGE']
+    assert image_group['SAMPLE_TYPE'] == 'MSB_INTEGER'
+    assert image_group['SAMPLE_BITS'] == 8
+    assert abs(image_group['MEAN'] - 51.6778539644) <= 0.00001
+    assert image_group['MEDIAN'] == 50.0
+    assert image_group['MINIMUM'] == 0
+    assert image_group['MAXIMUM'] == 255
+    assert image_group['STANDARD_DEVIATION'] == 16.97019
+    assert image_group['CHECKSUM'] == 25549531
+
+
+def test_load_all_sample_labels():
+    files = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
+    for infile in files:
+        try:
+            label = pvl.load(infile)
+        except:
+            raise
+        assert isinstance(label, Label)

@@ -1,0 +1,3 @@
+PDS_VERSION_ID = PDS3
+MSL:COMMENT    = "THING TEST"       /* can we handle a string and a comment? */
+END

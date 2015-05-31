@@ -1,0 +1,6 @@
+PDS_VERSION_ID = PDS3
+FLOAT1         = 0.0
+FlOAT2         = 123.
+FLOAT3         = +1234.56
+FLOAT4         = -.9981
+END

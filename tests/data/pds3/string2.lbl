@@ -1,0 +1,10 @@
+PDS_VERSION_ID = PDS3
+INTEGER1       = 1
+FLOAT          = 2.3
+COMMENT1       = "THING TEST"
+COMMENT2       = "Alive."
+COMMENT_1      = "THING TEST"
+COMMENT_2      = "Alive."
+COMMENT_2_A    = "Alive Again."
+SYMBOL_STR     = 'JBD-123'
+END

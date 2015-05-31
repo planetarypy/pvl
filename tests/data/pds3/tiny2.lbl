@@ -1,0 +1,5 @@
+PDS_VERSION_ID = PDS3
+RECORD_TYPE    = STREAM
+RECORD_BYTES   = 89 /* Largest actual record in the file */
+FILE_RECORDS   = 20
+END
