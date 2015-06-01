@@ -29,7 +29,7 @@ lint:
 	flake8 pvl tests
 
 test:
-	py.test
+	py.test tests
 
 test-all:
 	tox
