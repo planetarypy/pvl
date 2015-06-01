@@ -600,7 +600,7 @@ def test_cube_label():
     assert label['IsisCube']['Core']['Pixels']['Multiplier'] == 1.0
 
 
-def test_based_integer():
+def test_pds3_sample_image():
     infile = os.path.join(PDS_DATA_DIR, "simple_image_1.lbl")
     label = pvl.load(infile)
     assert label['RECORD_TYPE'] == 'FIXED_LENGTH'
