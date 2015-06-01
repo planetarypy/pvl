@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import six
 from ._collections import LabelGroup, Units
+from ._strings import needs_quotes, quote_string
 
 
 class LabelEncoder(object):
@@ -113,9 +114,9 @@ class LabelEncoder(object):
         return str(value).encode('utf-8')
 
     def encode_string(self, value):
-        if value.isalpha():
-            return value.encode('utf-8')
-        return repr(value.encode('utf-8'))
+        if needs_quotes(value):
+            return quote_string(value)
+        return value.encode('utf-8')
 
     def encode_bool(self, value):
         if value:

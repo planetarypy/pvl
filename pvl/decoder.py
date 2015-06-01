@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from six import b
-
-import re
 import itertools
-import datetime
-import pytz
 
 from .stream import BufferedStream, ByteStream
 from ._collections import Label, LabelGroup, LabelObject, Units
+from ._datetimes import parse_datetime
+from ._numbers import parse_number
+from ._strings import unquote_string
 
 
 class ParseError(ValueError):
@@ -24,35 +23,6 @@ class ParseError(ValueError):
         self.pos = pos
         self.lineno = lineno
         self.colno = colno
-
-
-RE_FRAGMENTS = {
-    'int': r'(?:[-+]?[0-9]+)',
-    'float': r'(?:[-+]?(?:[0-9]+\.[0-9]*|[0-9]*\.[0-9]+))',
-    'day_of_month': r'(0[1-9]|[1-2][0-9]|3[0-1])',
-    'day_of_year': r'(00[1-9]|0[1-9][0-9]|[1-2][0-9][0-9]|3[0-5][0-9]|36[0-6])',
-    'hour': r'([0-1][0-9]|2[0-3])',
-    'minute': r'([0-5][0-9])',
-    'month': r'(0[1-9]|1[0-2])',
-    # 60 is allowed for leap seconds
-    'seconds': r'(?:([0-5][0-9]|60)(?:\.([0-9]*))?)',
-    'year': r'([0-9][0-9][0-9][0-9])',
-    'tz': r'(Z|z|[+-][0-1]?[0-9]|[+-]2[0-3])'
-}
-
-RE_FRAGMENTS['date_month_day'] = r'%(year)s-%(month)s-%(day_of_month)s' % RE_FRAGMENTS  # noqa
-RE_FRAGMENTS['date_day_of_year'] = r'%(year)s-%(day_of_year)s' % RE_FRAGMENTS
-RE_FRAGMENTS['time'] = r'%(hour)s:%(minute)s(?:\:%(seconds)s)?%(tz)s?' % RE_FRAGMENTS  # noqa
-
-INTEGER_RE = r'^%(int)s$' % RE_FRAGMENTS
-FLOAT_RE = r'^%(float)s$' % RE_FRAGMENTS
-EXPONENT_RE = r'(?:%(int)s|%(float)s)(?:e|E)(?:%(int)s)' % RE_FRAGMENTS
-LINE_CONTINUATION_RE = r'-(?:\r\n|\n|\r)[ \t\v\f]*'
-TIME_RE = r'^%(time)s$' % RE_FRAGMENTS
-DATE_MONTH_DAY_RE = r'^%(date_month_day)s$' % RE_FRAGMENTS
-DATE_DAY_OF_YEAR_RE = r'^%(date_day_of_year)s$' % RE_FRAGMENTS
-DATETIME_MONTH_DAY_RE = r'^%(date_month_day)sT%(time)s$' % RE_FRAGMENTS
-DATETIME_DAY_OF_YEAR_RE = r'^%(date_day_of_year)sT%(time)s$' % RE_FRAGMENTS
 
 
 def char_set(chars):
@@ -107,24 +77,6 @@ class LabelDecoder(object):
     octal_chars = char_set('01234567')
     decimal_chars = char_set('0123456789')
     hex_chars = char_set('0123456789ABCDEFabcdef')
-
-    integer_re = re.compile(b(INTEGER_RE))
-    float_re = re.compile(b(FLOAT_RE))
-    exponent_re = re.compile(b(EXPONENT_RE))
-    line_continuation_re = re.compile(b(LINE_CONTINUATION_RE))
-    time_re = re.compile(b(TIME_RE))
-    date_month_day_re = re.compile(b(DATE_MONTH_DAY_RE))
-    date_day_of_year_re = re.compile(b(DATE_DAY_OF_YEAR_RE))
-    datetime_month_day_re = re.compile(b(DATETIME_MONTH_DAY_RE))
-    datetime_day_of_year_re = re.compile(b(DATETIME_DAY_OF_YEAR_RE))
-
-    formatting_chars = {
-        b'\\n': b'\n',
-        b'\\t': b'\t',
-        b'\\f': b'\f',
-        b'\\v': b'\v',
-        b'\\\\': b'\\',
-    }
 
     def peek(self, stream, n, offset=0):
         return stream.peek(n + offset)[offset:offset + n]
@@ -635,13 +587,7 @@ class LabelDecoder(object):
         return self.format_quoated_string(value)
 
     def format_quoated_string(self, value):
-        value = self.line_continuation_re.sub(b'', value)
-        value = b' '.join(value.split()).strip()
-
-        for escape, char in self.formatting_chars.items():
-            value = value.replace(escape, char)
-
-        return value.decode('utf-8')
+        return unquote_string(value)
 
     def has_unquoated_string(self, stream):
         next = self.peek(stream, 1)
@@ -680,29 +626,15 @@ class LabelDecoder(object):
         if self.is_boolean(value):
             return self.parse_boolean(value)
 
-        if self.is_integer(value):
-            return self.parse_integer(value)
+        try:
+            return self.parse_number(value)
+        except ValueError:
+            pass
 
-        if self.is_float(value):
-            return self.parse_float(value)
-
-        if self.is_exponent(value):
-            return self.parse_exponent(value)
-
-        if self.is_time(value):
-            return self.parse_time(value)
-
-        if self.is_date_month_day(value):
-            return self.parse_date_month_day(value)
-
-        if self.is_date_day_of_year(value):
-            return self.parse_date_day_of_year(value)
-
-        if self.is_datetime_month_day(value):
-            return self.parse_datetime_month_day(value)
-
-        if self.is_datetime_day_of_year(value):
-            return self.parse_datetime_day_of_year(value)
+        try:
+            return self.parse_datetime(value)
+        except ValueError:
+            pass
 
         return value.decode('utf-8')
 
@@ -718,89 +650,8 @@ class LabelDecoder(object):
     def parse_boolean(self, value):
         return value in self.true_tokens
 
-    def is_integer(self, value):
-        return bool(self.integer_re.match(value))
+    def parse_number(self, value):
+        return parse_number(value)
 
-    def parse_integer(self, value):
-        return int(value, 10)
-
-    def is_float(self, value):
-        return bool(self.float_re.match(value))
-
-    def parse_float(self, value):
-        return float(value)
-
-    def is_exponent(self, value):
-        return bool(self.exponent_re.match(value))
-
-    def parse_exponent(self, value):
-        return float(value)
-
-    def is_time(self, value):
-        return bool(self.time_re.match(value))
-
-    def parse_time(self, value):
-        match = self.time_re.match(value)
-        hour, minute, second, microsecond, timezone = match.groups()
-        second = second or '0'
-        microsecond = (microsecond or b'0').ljust(6, b'0')[:6]
-        return datetime.time(
-            hour=int(hour, 10),
-            minute=int(minute, 10),
-            second=int(second, 10),
-            microsecond=int(microsecond, 10),
-            tzinfo=self.parse_timezone(timezone),
-        )
-
-    def is_date_month_day(self, value):
-        return bool(self.date_month_day_re.match(value))
-
-    def parse_date_month_day(self, value):
-        year, month, day = self.date_month_day_re.match(value).groups()
-        return datetime.date(
-            year=int(year, 10),
-            month=int(month, 10),
-            day=int(day, 10),
-        )
-
-    def is_date_day_of_year(self, value):
-        return bool(self.date_day_of_year_re.match(value))
-
-    def parse_date_day_of_year(self, value):
-        year, days = self.date_day_of_year_re.match(value).groups()
-        year = int(year)
-        days = int(days) - 1
-        return datetime.date(year, 1, 1) + datetime.timedelta(days=days)
-
-    def is_datetime_month_day(self, value):
-        return bool(self.datetime_month_day_re.match(value))
-
-    def parse_datetime_month_day(self, value):
-        date, time = value.split(b'T')
-        return datetime.datetime.combine(
-            self.parse_date_month_day(date),
-            self.parse_time(time),
-        )
-
-    def is_datetime_day_of_year(self, value):
-        return bool(self.datetime_day_of_year_re.match(value))
-
-    def parse_datetime_day_of_year(self, value):
-        date, time = value.split(b'T')
-        return datetime.datetime.combine(
-            self.parse_date_day_of_year(date),
-            self.parse_time(time),
-        )
-
-    def parse_timezone(self, timezone):
-        if not timezone:
-            return None
-
-        if timezone.upper() == b'Z':
-            return pytz.utc
-
-        offset = int(timezone, 10)
-        if offset == 0:
-            return pytz.utc
-
-        return pytz.FixedOffset(60 * offset)
+    def parse_datetime(self, value):
+        return parse_datetime(value)
