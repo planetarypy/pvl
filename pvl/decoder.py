@@ -127,7 +127,7 @@ class LabelDecoder(object):
     }
 
     def peek(self, stream, n, offset=0):
-        return stream.peek(n + offset)[offset:n]
+        return stream.peek(n + offset)[offset:offset + n]
 
     def raise_error(self, msg, stream):
         raise ParseError(msg, stream.pos, stream.lineno, stream.colno)
