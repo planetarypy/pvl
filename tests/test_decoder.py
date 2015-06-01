@@ -23,6 +23,10 @@ def test_assignment():
     assert isinstance(label, Label)
     assert label['foo'] == 'bar'
 
+    label = pvl.loads('Group_Foo=bar')
+    assert isinstance(label, Label)
+    assert label['Group_Foo'] == 'bar'
+
 
 def test_spaceing():
     label = pvl.loads("""
