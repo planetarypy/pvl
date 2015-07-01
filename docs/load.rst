@@ -52,7 +52,7 @@ To view the isis label dictonary::
 
 Not all image labels are formatted the same so different labels will have 
 different information that you can obtain. To view what information you can
-extract use the .keys() function::
+extract use the ``.keys()`` function::
  
  >>> from pvl import load
  >>> img = '1p205337908eff73u6p2438r2m1.img'
@@ -71,8 +71,8 @@ Now you can just copy and paste from this list::
  >>> lbl['INSTRUMENT_ID']
  u'PANCAM_RIGHT'
 
-The list load(img).keys() returns is out of order, to see the keys in the order 
-of the dictionary use .items() function::
+The list ``load(img).keys()`` returns is out of order, to see the keys in the 
+order of the dictionary use ``.items()`` function::
 
  >>> from pvl import load
  >>> img = '1p205337908eff73u6p2438r2m1.img'
@@ -87,9 +87,9 @@ of the dictionary use .items() function::
  ^IMAGE
  DATA_SET_ID
 
-We can take advantage of the fact load(img).items() returns a list in order and 
-use the index number of the key instead of copying and pasting. This will make
-extracting more than one piece of information at time more conveniant. For
+We can take advantage of the fact ``load(img).items()`` returns a list in order 
+and use the index number of the key instead of copying and pasting. This will 
+make extracting more than one piece of information at time more conveniant. For
 example, if you want to print out the first 5 pieces of information::
  
  >>> from pvl import load
@@ -126,17 +126,14 @@ pvl.load also works for cube files::
  >>> print load(img)[keys[0]]['Bytes']
  65536
 
-Another way of using load is to use python's `with open()` command. This is
+Another way of using load is to use python's ``with open()`` command. This is
 espicially useful if you plan on altering the label using pvl.dump
 (documentation coming soon). Otherwise the using this method is very similar to
-using the methods described above.
+using the methods described above::
 
-.. code-block:: python
-    :linenos:
-
-    from pvl import load
-    with open('pattern.cub','r') as r:
+ >>> from pvl import load
+ >>> with open('pattern.cub','r') as r:
         print load(r)['Label']['Bytes']
-    65536
+ 65536
 
 

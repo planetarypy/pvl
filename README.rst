@@ -76,18 +76,22 @@ General::
 This module parses an isis label from a string and returns a dictionary 
 containingv information from the label. 
 
- How to use Moduel::
+How to use Moduel::
  
  >>> from pvl import load
- >>> img = """String
- containing the label
+ >>> img = """String containing the 
 
- of the isis image"""
+ label of the 
+
+ isis image"""
+
  >>> loads(img).keys()
  >>> load(img)['key']
  value
 
+
 Example::
+
  >>> from pvl import loads
  string = """Object = IsisCube
    Object = Core
