@@ -9,7 +9,7 @@ Parsing
 pvl.load
 --------
 
-This module parses an isis label from a stream and returns a dictionary 
+This module parses an image label from a stream and returns a dictionary 
 containing information from the label. This documentation will explain how to 
 use the module as well as some sample code to use the module efficiently.
 

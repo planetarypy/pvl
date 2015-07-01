@@ -15,6 +15,7 @@ Contents:
    installation
    usage
    parsing
+   encode
    contributing
    authors
    history
