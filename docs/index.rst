@@ -14,9 +14,12 @@ Contents:
    readme
    installation
    usage
+   load
+   loads
    contributing
    authors
    history
+   
 
 Indices and tables
 ==================
