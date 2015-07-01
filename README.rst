@@ -37,25 +37,25 @@ This module parses an isis label from a stream and returns a dictionary
 containing information from the label. The stream must be a string of the image 
 file name with the path to the file included.
 
- >>> from pvl import load
+ >>> import pvl
  >>> img = 'img_file.ext'
- >>> load(img)
+ >>> pvl.load(img)
  Image Label
- >>> load(img)['key']
+ >>> pvl.load(img)['key']
  value
 
- >>> from pvl import load
+ >>> import pvl
  >>> img = 'path\to\img_file.ext'
  >>> with open(img, 'r+') as r:
-         print load(r)['key']
+         print pvl.load(r)['key']
  Value
 
 Example::
 
- >>> from pvl import load
+ >>> import pvl
  >>> img = '1p205337908eff73u6p2438r2m1.img'
- >>> load(img)
- >>> load(img).keys()
+ >>> pvl.load(img)
+ >>> pvl.load(img).keys()
  [u'INSTRUMENT_ID',
  u'SUBFRAME_REQUEST_PARMS',
  u'SOLAR_LONGITUDE',
@@ -66,7 +66,7 @@ Example::
  >>> load(img)['INSTRUMENT_ID']
  u'PANCAM_RIGHT'
 
-See full documentation :doc:`load`
+See full documentation :doc:`parsing`
 
 pvl.loads
 +++++++++
@@ -78,21 +78,21 @@ containingv information from the label.
 
 How to use Moduel::
  
- >>> from pvl import load
+ >>> import pvl
  >>> img = """String containing the 
 
  label of the 
 
  isis image"""
 
- >>> loads(img).keys()
- >>> load(img)['key']
+ >>> pvl.loads(img).keys()
+ >>> pvl.loads(img)['key']
  value
 
 
 Example::
 
- >>> from pvl import loads
+ >>> import pvl
  string = """Object = IsisCube
    Object = Core
      StartByte   = 65537
@@ -107,11 +107,11 @@ Example::
    Bytes = 65536
  End_Object
  End"""
- >>> print loads(string).keys()
+ >>> print pvl.loads(string).keys()
  [u'Label', u'IsisCube']
- >>> print loads(string)['Label']
+ >>> print pvl.loads(string)['Label']
  LabelObject([
   (u'Bytes', 65536)
  ])
 
-See full documentation :doc:`loads`
+See full documentation :doc:`parsing`

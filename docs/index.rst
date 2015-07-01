@@ -14,8 +14,7 @@ Contents:
    readme
    installation
    usage
-   load
-   loads
+   parsing
    contributing
    authors
    history
