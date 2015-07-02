@@ -115,3 +115,76 @@ Example::
  ])
 
 See full documentation :doc:`parsing`
+
+pvl.dump
+++++++++
+
+This module allows you to modify an existing iamge label and then write the
+new label to the file or to a new file.
+
+Simple Use
++++++++++++
+
+How to use module::
+
+ >>> import pvl
+ >>> img = 'path/to/image.ext'
+ >>> label = pvl.load(img)
+ # Change information
+ >>> label['Existing_Key'] = 'Different_Value'
+ # Add Information
+ >>> label['New_Key'] = 'New_Value'
+ # Write out new label to file
+ >>> with open(img,'w') as stream:
+         pvl.dump(label,stream)
+
+Example::
+
+ >>> import pvl
+ >>> img = 'pattern.cub'
+ >>> label = pvl.load(img)
+ >>> label['IsisCube']['Core']['Format'] = 'Changed_Value'
+ >>> label['IsisCube']['Core']['New_SubKey'] = 'New_SubValue'
+ >>> with open(img,'w') as stream:
+         pvl.dump(label,stream)
+ >>> new_label = pvl.load(img)
+ >>> print new_label['IsisCube']['Core']['New_SubKey']
+ New_SubValue
+ >>> print new_label['IsisCube']['Core']['Format']
+ Changed_Value
+
+See full documentation :doc:`encode`
+
+pvl.dumps
++++++++++
+
+This module takes a label dictionary and converts the dictionary to a string.
+
+How to use module::
+
+ >>> import pvl
+ >>> img = 'path/to/image.ext'
+ >>> label = pvl.load(img)
+ >>> label_string = pvl.dumps(label)
+ >>> print label_String
+ Existing_Key = Different_Value
+ New_Key = New_Value
+
+Example::
+ 
+ >>> import pvl
+ >>> img = 'pattern.cub'
+ >>> label = pvl.load(img)
+ >>> label['New_Key'] = 'New_Value'
+ >>> label_string = pvl.dumps(label)
+ >>> print label_string
+ Object = IsisCube
+  Object = Core
+    StartByte = 65537
+  End_Object
+ End_object
+ New_Key = New_Value
+ End
+
+
+See full documentation :doc:`encode
