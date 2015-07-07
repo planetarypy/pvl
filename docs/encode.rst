@@ -2,11 +2,13 @@
 Encoding Label
 ==============
 
-This documentaiton explains how you can use ``pvl.dump`` and ``pvl.dumps`` so 
+This documentation explains how you can use ``pvl.dump`` and ``pvl.dumps`` so 
 you can change, add, and/or write out the label to another file. This 
-documentaiton assumes that you know what :doc:`pvl.load and pvl.loads <parsing>`
+documentation assumes that you know what :doc:`pvl.load and pvl.loads <parsing>`
 are and how to use them. Read the documentation on :doc:`pvl.load and pvl.loads 
-<parsing>` if you do not. 
+<parsing>` if you do not. The examples use an IsisCube image label format,
+however this module can write/alter any PVL compliant label.
+
 
 .. contents:: `Table of Contents`
   :local:
@@ -15,7 +17,7 @@ are and how to use them. Read the documentation on :doc:`pvl.load and pvl.loads
 pvl.dump
 ---------
 
-This module allows you to modify an existing iamge label and then write the
+This module allows you to modify an existing image label and then write the
 new label to the file or to a new file.
 
 Simple Use
@@ -111,9 +113,6 @@ Simple Use
 
 How to use module::
 
- >>> import pvl
- >>> img = 'path/to/image.ext'
- >>> label = pvl.load(img)
  >>> import pvl
  >>> img = 'path/to/image.ext'
  >>> label = pvl.load(img)

@@ -1,6 +1,6 @@
-========
-Parsing
-========
+==============
+Parsing Label
+==============
 
 .. contents:: `Table of Contents`
   :local:
@@ -9,14 +9,14 @@ Parsing
 pvl.load
 --------
 
-This module parses an image label from a stream and returns a dictionary 
+This module parses an PVL compliant label from a stream and returns a dictionary 
 containing information from the label. This documentation will explain how to 
 use the module as well as some sample code to use the module efficiently.
 
 Simple Use
 +++++++++++
 
-How to use Moduel::
+How to use Module::
  
  >>> import pvl
  >>> img = 'path\to\img_file.ext'
@@ -40,7 +40,7 @@ Must be a string of the image file name with the file path included.
 Detailed Use
 ++++++++++++++
 
-To view the isis label dictonary::
+To view the image label as a dictionary::
 
  >>> import pvl
  >>> img = '1p205337908eff73u6p2438r2m1.img'
@@ -93,7 +93,7 @@ order of the dictionary use ``.items()`` function::
 
 We can take advantage of the fact ``.items()`` returns a list in order 
 and use the index number of the key instead of copying and pasting. This will 
-make extracting more than one piece of information at time more conveniant. For
+make extracting more than one piece of information at time more convenient. For
 example, if you want to print out the first 5 pieces of information::
  
  >>> import pvl
@@ -107,14 +107,14 @@ example, if you want to print out the first 5 pieces of information::
  FILE_RECORDS 1043
  LABEL_RECORDS 12
 
-Some values have sub dictionaries. You can acces those by::
+Some values have sub dictionaries. You can access those by::
  
  >>> print pvl.load(img)[keys[1]].keys()
  [u'LINE_SAMPLES', u'FIRST_LINE_SAMPLE', u'LINES', u'GROUP_APPLICABILITY_FLAG', u'SUBFRAME_TYPE', u'SOURCE_ID', u'FIRST_LINE']
  >>> print pvl.load(img)[keys[1]]['SOURCE_ID']
  GROUND COMMANDED
 
-pvl.load also works for cube files::
+``pvl.load`` also works for Isis Cube files::
 
  >>> import pvl
  >>> img = 'pattern.cub'
@@ -130,10 +130,9 @@ pvl.load also works for cube files::
  >>> print pvl.load(img)[keys[0]]['Bytes']
  65536
 
-Another way of using load is to use python's ``with open()`` command. This is
-espicially useful if you plan on altering the label using pvl.dump
-(documentation coming soon). Otherwise the using this method is very similar to
-using the methods described above::
+Another way of using ``pvl.load`` is to use python's ``with open()`` command. 
+Otherwise the using this method is very similar to using the methods described 
+above::
 
  >>> import pvl
  >>> with open('pattern.cub','r') as r:
@@ -144,20 +143,20 @@ using the methods described above::
 pvl.loads
 ---------
 
-This module parses an isis label from a string and returns a dictionary 
-containingv information from the label. This documentation will explain how to 
+This module parses an PVL compliant label from a string and returns a dictionary 
+containing information from the label. This documentation will explain how to 
 use the module as well as some sample code to use the module efficiently.
 
 Simple Use
 +++++++++++
 
-How to use Moduel::
+How to use Module::
  
  >>> import pvl
  >>> img = """String
  containing the label
 
- of the isis image"""
+ of the image"""
  >>> pvl.loads(img).keys()
  >>> pvl.loads(img)['key']
  value
@@ -170,7 +169,7 @@ Must be a string of the of the label.
 Detailed Use
 ++++++++++++++
 
-To view the isis label dictonary::
+To view the image label dictionary::
 
  >>> import pvl
  >>> string = """Object = IsisCube
@@ -220,5 +219,3 @@ And what is in the subdirectory::
 
  >>> print pvl.loads(string)['Label']['Bytes']
  65536
-
-

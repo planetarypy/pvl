@@ -31,9 +31,7 @@ How to use Module
 pvl.load
 +++++++++
 
-General:: 
-
-This module parses an isis label from a stream and returns a dictionary 
+This module parses an PVL compliant label from a stream and returns a dictionary 
 containing information from the label. The stream must be a string of the image 
 file name with the path to the file included.
 
@@ -71,10 +69,8 @@ See full documentation :doc:`parsing`
 pvl.loads
 +++++++++
 
-General::
-
-This module parses an isis label from a string and returns a dictionary 
-containingv information from the label. 
+This module parses an PVL compliant label from a string and returns a dictionary 
+containing information from the label. 
 
 How to use Moduel::
  
@@ -83,7 +79,7 @@ How to use Moduel::
 
  label of the 
 
- isis image"""
+  image"""
 
  >>> pvl.loads(img).keys()
  >>> pvl.loads(img)['key']
@@ -119,7 +115,7 @@ See full documentation :doc:`parsing`
 pvl.dump
 ++++++++
 
-This module allows you to modify an existing iamge label and then write the
+This module allows you to modify an existing image label and then write the
 new label to the file or to a new file.
 
 Simple Use
@@ -187,4 +183,4 @@ Example::
  End
 
 
-See full documentation :doc:`encode
+See full documentation :doc:`encode`
