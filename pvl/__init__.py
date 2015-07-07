@@ -1,4 +1,51 @@
 # -*- coding: utf-8 -*-
+"""Python implementation of PVL (Parameter Value Language).
+
+PVL is a markup language, similar to xml, commonly employed for entries in the
+Planetary Database System used by NASA to store mission data, among other uses.
+This package supports both encoding a decoding a superset of PVL, including the
+USGS Isis Cube Label and NASA PDS 3 Label dialects.
+
+Basic Usage
+-----------
+
+Decoding pvl modules::
+
+    >>> import pvl
+    >>> module = pvl.loads('''
+    ...   foo = bar
+    ...   items = (1, 2, 3)
+    ...   END
+    ... ''')
+    >>> print module
+    PVLModule([
+      (u'foo', u'bar')
+      (u'items', [1, 2, 3])
+    ])
+    >>> print module['foo']
+    bar
+
+Encoding pvl modules::
+
+    >>> import pvl
+    >>> print pvl.dumps({
+    ...   'foo': 'bar',
+    ...   'items': [1, 2, 3]
+    ... })
+    items = (1, 2, 3)
+    foo = bar
+    END
+
+Building pvl modules::
+
+    >>> import pvl
+    >>> module = pvl.PVLModule({'foo': 'bar'})
+    >>> module.append('items', [1, 2, 3])
+    >>> print pvl.dumps(module)
+    foo = bar
+    items = (1, 2, 3)
+    END
+"""
 import io
 import six
 
@@ -30,7 +77,7 @@ def load(stream, cls=PVLDecoder, **kwargs):
     """Deserialize ``stream`` as a pvl module.
 
     :param stream: a ``.read()``-supporting file-like object containing a
-        module. if ``stream`` is a string it will be treated as a filename
+        module. If ``stream`` is a string it will be treated as a filename
 
     :param cls: the decoder class used to deserialize the pvl module. You may
         use the default ``PVLDecoder`` class or provide a custom sublcass.
@@ -64,7 +111,7 @@ def dump(module, stream, cls=PVLEncoder, **kwargs):
     :param module: a ```PVLModule``` or ```dict``` like object to serialize
 
     :param stream: a ``.write()``-supporting file-like object to serialize the
-        module to
+        module to. If ``stream`` is a string it will be treated as a filename
 
     :param cls: the encoder class used to serialize the pvl module. You may use
         the default ``PVLEncoder`` class or provided encoder formats such as the
