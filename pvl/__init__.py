@@ -26,7 +26,7 @@ __all__ = [
 ]
 
 
-def load(stream):
+def load(stream, cls=LabelDecoder, **kwargs):
     """Parse an isis label from a stream.
 
     :param stream: a ``.read()``-supporting file-like object containing a label.
@@ -34,11 +34,11 @@ def load(stream):
     """
     if isinstance(stream, six.string_types):
         with open(stream, 'rb') as fp:
-            return LabelDecoder().decode(fp)
-    return LabelDecoder().decode(stream)
+            return cls(**kwargs).decode(fp)
+    return cls(**kwargs).decode(stream)
 
 
-def loads(data, encoding='utf-8'):
+def loads(data, encoding='utf-8', cls=LabelDecoder, **kwargs):
     """Parse an isis label from a string.
 
     :param data: an isis label as a string
@@ -47,14 +47,17 @@ def loads(data, encoding='utf-8'):
     """
     if not isinstance(data, bytes):
         data = data.encode(encoding)
-    return LabelDecoder().decode(data)
+    return cls(**kwargs).decode(data)
 
 
-def dump(label, stream):
-    LabelEncoder().encode(label, stream)
+def dump(label, stream, cls=LabelEncoder, **kwargs):
+    if isinstance(stream, six.string_types):
+        with open(stream, 'wb') as fp:
+            return cls(**kwargs).encode(label, fp)
+    cls(**kwargs).encode(label, stream)
 
 
-def dumps(label):
+def dumps(label, cls=LabelEncoder, **kwargs):
     stream = io.BytesIO()
-    LabelEncoder().encode(label, stream)
+    cls(**kwargs).encode(label, stream)
     return stream.getvalue()
