@@ -29,7 +29,7 @@ Installation
 
 At the command line::
 
-    $ pip install gnsq
+    $ pip install pvl
 
 
 Basic Usage
