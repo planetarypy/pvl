@@ -2,13 +2,13 @@
 pvl
 ===============================
 
-.. image:: https://badge.fury.io/py/pvl.svg
-    :target: http://badge.fury.io/py/pvl
+.. image:: https://img.shields.io/pypi/v/pvl.svg?style=flat-square
+    :target: https://pypi.python.org/pypi/pvl
 
-.. image:: https://travis-ci.org/planetarypy/pvl.svg?branch=master
+.. image:: https://img.shields.io/travis/planetarypy/pvl.svg?style=flat-square
         :target: https://travis-ci.org/planetarypy/pvl
 
-.. image:: https://pypip.in/d/pvl/badge.png
+.. image:: https://img.shields.io/pypi/dm/pvl.svg?style=flat-square
         :target: https://pypi.python.org/pypi/pvl
 
 Python implementation of PVL (Parameter Value Language)
