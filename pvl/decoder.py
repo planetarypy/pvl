@@ -3,7 +3,7 @@ from six import b
 import itertools
 
 from .stream import BufferedStream, ByteStream
-from ._collections import Label, LabelGroup, LabelObject, Units
+from ._collections import PVLModule, PVLGroup, PVLObject, Units
 from ._datetimes import parse_datetime
 from ._numbers import parse_number
 from ._strings import unquote_string
@@ -29,7 +29,7 @@ def char_set(chars):
     return set([b(c) for c in chars])
 
 
-class LabelDecoder(object):
+class PVLDecoder(object):
     whitespace = char_set(' \r\n\t\v\f')
     newline_chars = char_set('\r\n')
     reserved_chars = char_set('&<>\'{},[]=!#()%";|')
@@ -155,9 +155,9 @@ class LabelDecoder(object):
         else:
             stream = BufferedStream(stream)
 
-        label = Label(self.parse_block(stream, self.has_end))
+        module = PVLModule(self.parse_block(stream, self.has_end))
         self.skip_end(stream)
-        return label
+        return module
 
     def parse_block(self, stream, has_end):
         """
@@ -321,7 +321,7 @@ class LabelDecoder(object):
         self.parse_end_assignment(stream, name)
         self.skip_statement_delimiter(stream)
 
-        return name.decode('utf-8'), LabelGroup(statements)
+        return name.decode('utf-8'), PVLGroup(statements)
 
     def has_end_group(self, stream):
         """
@@ -352,7 +352,7 @@ class LabelDecoder(object):
         self.parse_end_assignment(stream, name)
         self.skip_statement_delimiter(stream)
 
-        return name.decode('utf-8'), LabelObject(statements)
+        return name.decode('utf-8'), PVLObject(statements)
 
     def has_end_object(self, stream):
         """

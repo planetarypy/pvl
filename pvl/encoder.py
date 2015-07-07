@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import six
-from ._collections import LabelGroup, Units
+from ._collections import PVLGroup, Units
 from ._strings import needs_quotes, quote_string
 
 
-class LabelEncoder(object):
+class PVLEncoder(object):
     group = b'BEGIN_GROUP'
     end_group = b'END_GROUP'
     object = b'BEGIN_OBJECT'
@@ -20,8 +20,8 @@ class LabelEncoder(object):
     def indent(self, level, stream):
         stream.write(level * self.indentation)
 
-    def encode(self, label, stream):
-        self.encode_block(label, 0, stream)
+    def encode(self, module, stream):
+        self.encode_block(module, 0, stream)
         stream.write(self.end_statement)
 
     def encode_block(self, block, level, stream):
@@ -29,7 +29,7 @@ class LabelEncoder(object):
             self.encode_statement(key, value, level, stream)
 
     def encode_statement(self, key, value, level, stream):
-        if isinstance(value, LabelGroup):
+        if isinstance(value, PVLGroup):
             return self.encode_group(key, value, level, stream)
 
         if isinstance(value, dict):
@@ -154,7 +154,7 @@ class LabelEncoder(object):
         raise TypeError(repr(value) + " is not serializable")
 
 
-class IsisCubeLabelEncoder(LabelEncoder):
+class IsisCubeLabelEncoder(PVLEncoder):
     group = b'Group'
     end_group = b'End_Group'
     object = b'Object'
@@ -172,7 +172,7 @@ class IsisCubeLabelEncoder(LabelEncoder):
         stream.write(self.newline)
 
 
-class PDSLabelEncoder(LabelEncoder):
+class PDSLabelEncoder(PVLEncoder):
     group = b'GROUP'
     end_group = b'END'
     object = b'OBJECT'
@@ -192,9 +192,9 @@ class PDSLabelEncoder(LabelEncoder):
 
         return length
 
-    def encode(self, label, stream):
-        self.assignment_col = self._detect_assignment_col(label)
-        super(PDSLabelEncoder, self).encode(label, stream)
+    def encode(self, module, stream):
+        self.assignment_col = self._detect_assignment_col(module)
+        super(PDSLabelEncoder, self).encode(module, stream)
 
     def encode_raw_assignment(self, key, value, level, stream):
         indented_key = (level * self.indentation) + key

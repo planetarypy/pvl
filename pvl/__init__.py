@@ -2,12 +2,12 @@
 import io
 import six
 
-from .decoder import LabelDecoder
-from .encoder import LabelEncoder
+from .decoder import PVLDecoder
+from .encoder import PVLEncoder
 from ._collections import (
-    Label,
-    LabelGroup,
-    LabelObject,
+    PVLModule,
+    PVLGroup,
+    PVLObject,
     Units,
 )
 
@@ -19,18 +19,18 @@ __all__ = [
     'loads',
     'dump',
     'dumps',
-    'Label',
-    'LabelGroup',
-    'LabelObject',
+    'PVLModule',
+    'PVLGroup',
+    'PVLObject',
     'Units',
 ]
 
 
-def load(stream, cls=LabelDecoder, **kwargs):
-    """Parse an isis label from a stream.
+def load(stream, cls=PVLDecoder, **kwargs):
+    """Parse an pvl module from a stream.
 
-    :param stream: a ``.read()``-supporting file-like object containing a label.
-        if ``stream`` is a string it will be treated as a filename
+    :param stream: a ``.read()``-supporting file-like object containing a
+        module. if ``stream`` is a string it will be treated as a filename
     """
     if isinstance(stream, six.string_types):
         with open(stream, 'rb') as fp:
@@ -38,26 +38,35 @@ def load(stream, cls=LabelDecoder, **kwargs):
     return cls(**kwargs).decode(stream)
 
 
-def loads(data, encoding='utf-8', cls=LabelDecoder, **kwargs):
-    """Parse an isis label from a string.
+def loads(data, encoding='utf-8', cls=PVLDecoder, **kwargs):
+    """Parse an pvl module from a string.
 
-    :param data: an isis label as a string
+    :param data: an pvl module as a string
 
-    :returns: a dictionary representation of the given isis label
+    :returns: a dictionary representation of the given pvl module
     """
     if not isinstance(data, bytes):
         data = data.encode(encoding)
     return cls(**kwargs).decode(data)
 
 
-def dump(label, stream, cls=LabelEncoder, **kwargs):
+def dump(module, stream, cls=PVLEncoder, **kwargs):
     if isinstance(stream, six.string_types):
         with open(stream, 'wb') as fp:
-            return cls(**kwargs).encode(label, fp)
-    cls(**kwargs).encode(label, stream)
+            return cls(**kwargs).encode(module, fp)
+    cls(**kwargs).encode(module, stream)
 
 
-def dumps(label, cls=LabelEncoder, **kwargs):
+def dumps(module, cls=PVLEncoder, **kwargs):
     stream = io.BytesIO()
-    cls(**kwargs).encode(label, stream)
+    cls(**kwargs).encode(module, stream)
     return stream.getvalue()
+
+
+# Depreciated aliases
+# TODO: add warnings for these?
+Label = PVLModule
+LabelGroup = PVLGroup
+LabelObject = PVLObject
+LabelEncoder = PVLEncoder
+LabelDecoder = PVLEncoder

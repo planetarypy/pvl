@@ -132,15 +132,15 @@ class OrderedMultiDict(dict, MutableMapping):
             return iter(self.__items)
 
 
-class Label(OrderedMultiDict):
+class PVLModule(OrderedMultiDict):
     pass
 
 
-class LabelGroup(OrderedMultiDict):
+class PVLGroup(OrderedMultiDict):
     pass
 
 
-class LabelObject(OrderedMultiDict):
+class PVLObject(OrderedMultiDict):
     pass
 
 
