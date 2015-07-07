@@ -72,6 +72,16 @@ Building pvl modules::
     items = (1, 2, 3)
     END
 
+
+Contributing
+------------
+
+Feedback, issues, and contributions are always gratefully welcomed. See the
+`contributing guide`_ for details on how to help and setup a development
+environment.
+
+
 .. _PlanetaryPy Toolkit: https://github.com/planetarypy
 .. _USGS Isis Cube Label: http://isis.astrogeology.usgs.gov/
 .. _NASA PDS 3 Label: https://pds.nasa.gov
+.. _contributing guide: https://github.com/planetarypy/pvl/blob/master/CONTRIBUTING.rst
