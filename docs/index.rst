@@ -14,9 +14,12 @@ Contents:
    readme
    installation
    usage
+   parsing
+   encode
    contributing
    authors
    history
+   
 
 Indices and tables
 ==================
