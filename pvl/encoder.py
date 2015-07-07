@@ -5,11 +5,11 @@ from ._strings import needs_quotes, quote_string
 
 
 class LabelEncoder(object):
-    group = b'Group'
-    end_group = b'End_Group'
-    object = b'Object'
-    end_object = b'End_Object'
-    end_statement = b'End'
+    group = b'BEGIN_GROUP'
+    end_group = b'END_GROUP'
+    object = b'BEGIN_OBJECT'
+    end_object = b'END_OBJECT'
+    end_statement = b'END'
     null = b'NULL'
     true = b'TRUE'
     false = b'FALSE'
@@ -38,42 +38,60 @@ class LabelEncoder(object):
         self.encode_assignment(key, value, level, stream)
 
     def encode_group(self, key, value, level, stream):
-        # Group begin
-        self.indent(level, stream)
-        stream.write(self.group)
-        stream.write(self.assignment)
-        stream.write(key.encode('utf-8'))
-        stream.write(self.newline)
-
-        # Body
+        self.encode_group_begin(key, value, level, stream)
         self.encode_block(value, level + 1, stream)
+        self.encode_group_end(key, value, level, stream)
 
-        # Group end
-        self.indent(level, stream)
-        stream.write(self.end_group)
-        stream.write(self.newline)
+    def encode_group_begin(self, key, value, level, stream):
+        self.encode_raw_assignment(
+            key=self.group,
+            value=key.encode('utf-8'),
+            level=level,
+            stream=stream
+        )
+
+    def encode_group_end(self, key, value, level, stream):
+        self.encode_raw_assignment(
+            key=self.end_group,
+            value=key.encode('utf-8'),
+            level=level,
+            stream=stream
+        )
 
     def encode_object(self, key, value, level, stream):
-        # Object begin
-        self.indent(level, stream)
-        stream.write(self.object)
-        stream.write(self.assignment)
-        stream.write(key.encode('utf-8'))
-        stream.write(self.newline)
-
-        # Body
+        self.encode_object_begin(key, value, level, stream)
         self.encode_block(value, level + 1, stream)
+        self.encode_object_end(key, value, level, stream)
 
-        # Object end
-        self.indent(level, stream)
-        stream.write(self.end_object)
-        stream.write(self.newline)
+    def encode_object_begin(self, key, value, level, stream):
+        self.encode_raw_assignment(
+            key=self.object,
+            value=key.encode('utf-8'),
+            level=level,
+            stream=stream
+        )
+
+    def encode_object_end(self, key, value, level, stream):
+        self.encode_raw_assignment(
+            key=self.end_object,
+            value=key.encode('utf-8'),
+            level=level,
+            stream=stream
+        )
 
     def encode_assignment(self, key, value, level, stream):
+        self.encode_raw_assignment(
+            key=key.encode('utf-8'),
+            value=self.encode_value(value),
+            level=level,
+            stream=stream
+        )
+
+    def encode_raw_assignment(self, key, value, level, stream):
         self.indent(level, stream)
-        stream.write(key.encode('utf-8'))
+        stream.write(key)
         stream.write(self.assignment)
-        stream.write(self.encode_value(value))
+        stream.write(value)
         stream.write(self.newline)
 
     def encode_value(self, value):
@@ -136,9 +154,51 @@ class LabelEncoder(object):
         raise TypeError(repr(value) + " is not serializable")
 
 
+class IsisCubeLabelEncoder(LabelEncoder):
+    group = b'Group'
+    end_group = b'End_Group'
+    object = b'Object'
+    end_object = b'End_Object'
+    end_statement = b'End'
+
+    def encode_group_end(self, key, value, level, stream):
+        self.indent(level, stream)
+        stream.write(self.end_group)
+        stream.write(self.newline)
+
+    def encode_object_end(self, key, value, level, stream):
+        self.indent(level, stream)
+        stream.write(self.end_object)
+        stream.write(self.newline)
+
+
 class PDSLabelEncoder(LabelEncoder):
     group = b'GROUP'
     end_group = b'END'
     object = b'OBJECT'
     end_object = b'END'
     end_statement = b'END'
+
+    def _detect_assignment_col(self, block, indent=0):
+        block_items = six.iteritems(block)
+        return max(self._key_length(k, v, indent) for k, v in block_items)
+
+    def _key_length(self, key, value, indent):
+        length = indent + len(key)
+
+        if isinstance(value, dict):
+            indent += len(self.indentation)
+            return max(length, self._detect_assignment_col(value, indent))
+
+        return length
+
+    def encode(self, label, stream):
+        self.assignment_col = self._detect_assignment_col(label)
+        super(PDSLabelEncoder, self).encode(label, stream)
+
+    def encode_raw_assignment(self, key, value, level, stream):
+        indented_key = (level * self.indentation) + key
+        stream.write(indented_key.ljust(self.assignment_col))
+        stream.write(self.assignment)
+        stream.write(value)
+        stream.write(self.newline)
