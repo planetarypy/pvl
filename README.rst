@@ -31,7 +31,7 @@ How to use Module
 pvl.load
 +++++++++
 
-This module parses an PVL compliant label from a stream and returns a dictionary 
+This module parses a PVL compliant label from a stream and returns a dictionary 
 containing information from the label. The stream must be a string of the image 
 file name with the path to the file included.
 
@@ -64,12 +64,13 @@ Example::
  >>> load(img)['INSTRUMENT_ID']
  u'PANCAM_RIGHT'
 
-See full documentation :doc:`parsing`
+See full documentation `pvl.loads <http://pvl.readthedocs.org/en/latest/parsing.
+html#pvl-load>`_
 
 pvl.loads
 +++++++++
 
-This module parses an PVL compliant label from a string and returns a dictionary 
+This module parses a PVL compliant label from a string and returns a dictionary 
 containing information from the label. 
 
 How to use Moduel::
@@ -110,7 +111,8 @@ Example::
   (u'Bytes', 65536)
  ])
 
-See full documentation :doc:`parsing`
+See full documentation `pvl.loads <http://pvl.readthedocs.org/en/latest/parsing.
+html#pvl-loads>`_
 
 pvl.dump
 ++++++++
@@ -149,7 +151,8 @@ Example::
  >>> print new_label['IsisCube']['Core']['Format']
  Changed_Value
 
-See full documentation :doc:`encode`
+See full documentation `pvl.dump <http://pvl.readthedocs.org/en/latest/encode.
+html#pvl-dump>`_
 
 pvl.dumps
 +++++++++
@@ -183,4 +186,5 @@ Example::
  End
 
 
-See full documentation :doc:`encode`
+See full documentation `pvl.dumps <http://pvl.readthedocs.org/en/latest/encode.
+html#pvl-dumps>`_

@@ -9,7 +9,7 @@ Parsing Label
 pvl.load
 --------
 
-This module parses an PVL compliant label from a stream and returns a dictionary 
+This module parses a PVL compliant label from a stream and returns a dictionary 
 containing information from the label. This documentation will explain how to 
 use the module as well as some sample code to use the module efficiently.
 
@@ -143,7 +143,7 @@ above::
 pvl.loads
 ---------
 
-This module parses an PVL compliant label from a string and returns a dictionary 
+This module parses a PVL compliant label from a string and returns a dictionary 
 containing information from the label. This documentation will explain how to 
 use the module as well as some sample code to use the module efficiently.
 
