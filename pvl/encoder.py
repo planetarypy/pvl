@@ -174,10 +174,7 @@ class IsisCubeLabelEncoder(PVLEncoder):
 
 class PDSLabelEncoder(PVLEncoder):
     group = b'GROUP'
-    end_group = b'END'
     object = b'OBJECT'
-    end_object = b'END'
-    end_statement = b'END'
 
     def _detect_assignment_col(self, block, indent=0):
         block_items = six.iteritems(block)
