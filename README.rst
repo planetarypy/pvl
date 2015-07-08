@@ -35,13 +35,16 @@ At the command line::
 Basic Usage
 -----------
 
-Decoding pvl modules::
+pvl exposes an API familiar to users of the standard library json module.
+
+Decoding is primarily done through ``pvl.load`` for file like objects and
+``pvl.loads`` for strings::
 
     >>> import pvl
     >>> module = pvl.loads("""
-    ...   foo = bar
-    ...   items = (1, 2, 3)
-    ...   END
+    ...     foo = bar
+    ...     items = (1, 2, 3)
+    ...     END
     ... """)
     >>> print module
     PVLModule([
@@ -51,18 +54,19 @@ Decoding pvl modules::
     >>> print module['foo']
     bar
 
-Encoding pvl modules::
+Similarly, encoding pvl modules is done through ``pvl.dump`` and ``pvl.dumps``::
 
     >>> import pvl
     >>> print pvl.dumps({
-    ...   'foo': 'bar',
-    ...   'items': [1, 2, 3]
+    ...     'foo': 'bar',
+    ...     'items': [1, 2, 3]
     ... })
     items = (1, 2, 3)
     foo = bar
     END
 
-Building pvl modules::
+``PVLModule`` objects may also be pragmatically built up to control the order
+of parameters as well as duplicate keys::
 
     >>> import pvl
     >>> module = pvl.PVLModule({'foo': 'bar'})
@@ -70,6 +74,28 @@ Building pvl modules::
     >>> print pvl.dumps(module)
     foo = bar
     items = (1, 2, 3)
+    END
+
+A ``PVLModule`` is a `dict` like container that preserves ordering as well as
+allows multiple values for the same key. It provides a similar similar semantics
+to a ``list`` of key/value ``tuples`` but with ``dict`` style access::
+
+    >>> import pvl
+    >>> module = pvl.PVLModule([
+    ...     ('foo', 'bar'),
+    ...     ('items', [1, 2, 3]),
+    ...     ('foo', 'remember me?'),
+    ... ])
+    >>> print module['foo']
+    bar
+    >>> print module.getlist('foo')
+    ['bar', 'remember me?']
+    >>> print module.items()
+    [('foo', 'bar'), ('items', [1, 2, 3]), ('foo', u'remember me?')]
+    >>> print pvl.dumps(module)
+    foo = bar
+    items = (1, 2, 3)
+    foo = "remember me?"
     END
 
 
