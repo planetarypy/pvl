@@ -115,6 +115,9 @@ to a ``list`` of key/value ``tuples`` but with ``dict`` style access::
     foo = "remember me?"
     END
 
+For more information on custom serilization and deseralization see the
+`full documentation`_.
+
 
 Contributing
 ------------
@@ -128,4 +131,5 @@ environment.
 .. _USGS Isis Cube Label: http://isis.astrogeology.usgs.gov/
 .. _NASA PDS 3 Label: https://pds.nasa.gov
 .. _image: https://github.com/planetarypy/pvl/raw/master/tests/data/pattern.cub
+.. _full documentation: http://pvl.readthedocs.org
 .. _contributing guide: https://github.com/planetarypy/pvl/blob/master/CONTRIBUTING.rst
