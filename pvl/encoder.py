@@ -5,9 +5,9 @@ from ._strings import needs_quotes, quote_string
 
 
 class PVLEncoder(object):
-    group = b'BEGIN_GROUP'
+    begin_group = b'BEGIN_GROUP'
     end_group = b'END_GROUP'
-    object = b'BEGIN_OBJECT'
+    begin_object = b'BEGIN_OBJECT'
     end_object = b'END_OBJECT'
     end_statement = b'END'
     null = b'NULL'
@@ -44,7 +44,7 @@ class PVLEncoder(object):
 
     def encode_group_begin(self, key, value, level, stream):
         self.encode_raw_assignment(
-            key=self.group,
+            key=self.begin_group,
             value=key.encode('utf-8'),
             level=level,
             stream=stream
@@ -65,7 +65,7 @@ class PVLEncoder(object):
 
     def encode_object_begin(self, key, value, level, stream):
         self.encode_raw_assignment(
-            key=self.object,
+            key=self.begin_object,
             value=key.encode('utf-8'),
             level=level,
             stream=stream
@@ -155,9 +155,9 @@ class PVLEncoder(object):
 
 
 class IsisCubeLabelEncoder(PVLEncoder):
-    group = b'Group'
+    begin_group = b'Group'
     end_group = b'End_Group'
-    object = b'Object'
+    begin_object = b'Object'
     end_object = b'End_Object'
     end_statement = b'End'
 
@@ -173,8 +173,8 @@ class IsisCubeLabelEncoder(PVLEncoder):
 
 
 class PDSLabelEncoder(PVLEncoder):
-    group = b'GROUP'
-    object = b'OBJECT'
+    begin_group = b'GROUP'
+    begin_object = b'OBJECT'
 
     def _detect_assignment_col(self, block, indent=0):
         block_items = six.iteritems(block)
