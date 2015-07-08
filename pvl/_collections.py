@@ -2,6 +2,7 @@
 import sys
 import pprint
 from collections import Mapping, MutableMapping, namedtuple
+from six.moves import zip
 
 
 PY3 = sys.version_info[0] == 3
@@ -130,6 +131,25 @@ class OrderedMultiDict(dict, MutableMapping):
 
         def iteritems(self):
             return iter(self.__items)
+
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return False
+
+        items1 = self.items()
+        items2 = other.items()
+
+        if len(items1) != len(items2):
+            return False
+
+        for ((key1, value1), (key2, value2)) in zip(items1, items2):
+            if key1 != key2:
+                return False
+
+            if value1 != value2:
+                return False
+
+        return True
 
 
 class PVLModule(OrderedMultiDict):
