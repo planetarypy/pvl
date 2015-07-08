@@ -54,6 +54,23 @@ Decoding is primarily done through ``pvl.load`` for file like objects and
     >>> print module['foo']
     bar
 
+You may also use ``pvl.load`` to read a label directly from an image_::
+
+    >>> import pvl
+    >>> label = pvl.load('pattern.cub')
+    >>> print label
+    PVLModule([
+      (u'IsisCube',
+       PVLObject([
+        (u'Core',
+         PVLObject([
+          (u'StartByte', 65537)
+          (u'Format', u'Tile')
+    # output truncated...
+    >>> print label['IsisCube']['Core']['StartByte']
+    65537
+
+
 Similarly, encoding pvl modules is done through ``pvl.dump`` and ``pvl.dumps``::
 
     >>> import pvl
@@ -76,7 +93,7 @@ of parameters as well as duplicate keys::
     items = (1, 2, 3)
     END
 
-A ``PVLModule`` is a `dict` like container that preserves ordering as well as
+A ``PVLModule`` is a ``dict`` like container that preserves ordering as well as
 allows multiple values for the same key. It provides a similar similar semantics
 to a ``list`` of key/value ``tuples`` but with ``dict`` style access::
 
@@ -110,4 +127,5 @@ environment.
 .. _PlanetaryPy Toolkit: https://github.com/planetarypy
 .. _USGS Isis Cube Label: http://isis.astrogeology.usgs.gov/
 .. _NASA PDS 3 Label: https://pds.nasa.gov
+.. _image: https://github.com/planetarypy/pvl/raw/master/tests/data/pattern.cub
 .. _contributing guide: https://github.com/planetarypy/pvl/blob/master/CONTRIBUTING.rst
