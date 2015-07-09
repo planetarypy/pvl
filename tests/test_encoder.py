@@ -14,3 +14,21 @@ def test_dump():
     for infile in files:
         label = pvl.load(infile)
         assert label == pvl.loads(pvl.dumps(label))
+
+
+def test_cube_dump():
+    files = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
+
+    for infile in files:
+        label = pvl.load(infile)
+        encoder = pvl.encoder.IsisCubeLabelEncoder
+        assert label == pvl.loads(pvl.dumps(label, cls=encoder))
+
+
+def test_pds_dump():
+    files = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
+
+    for infile in files:
+        label = pvl.load(infile)
+        encoder = pvl.encoder.PDSLabelEncoder
+        assert label == pvl.loads(pvl.dumps(label, cls=encoder))
