@@ -101,7 +101,6 @@ class OrderedMultiDict(dict, MutableMapping):
     update = MutableMapping.update
     pop = MutableMapping.pop
     popitem = MutableMapping.popitem
-    clear = MutableMapping.clear
 
     if PY3:
         def keys(self):
@@ -131,6 +130,10 @@ class OrderedMultiDict(dict, MutableMapping):
 
         def iteritems(self):
             return ItemsView(self)
+
+    def clear(self):
+        dict_clear(self)
+        self.__items.clear()
 
     def discard(self, key):
         try:
