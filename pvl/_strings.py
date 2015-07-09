@@ -68,6 +68,9 @@ def quote_string(value, encoding='utf-8'):
 
 
 def needs_quotes(value):
+    if not value:
+        return True
+
     if is_number(value):
         return True
 
