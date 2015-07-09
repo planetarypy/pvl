@@ -11,6 +11,7 @@ dict_setitem = dict.__setitem__
 dict_getitem = dict.__getitem__
 dict_delitem = dict.__delitem__
 dict_contains = dict.__contains__
+dict_clear = dict.clear
 
 
 class MappingView(object):
@@ -87,7 +88,7 @@ class OrderedMultiDict(dict, MutableMapping):
         self.__items[index + 1:] = tail
 
     def __getitem__(self, key):
-        return dict_getitem(self, key)[0][1]
+        return dict_getitem(self, key)[0]
 
     def __delitem__(self, key):
         dict_delitem(self, key)
@@ -140,13 +141,12 @@ class OrderedMultiDict(dict, MutableMapping):
     def append(self, key, value):
         """Adds a (name, value) pair, doesn't overwrite the value if it already
         exists."""
-        item = (key, value)
-        self.__items.append(item)
+        self.__items.append((key, value))
 
         try:
-            dict_getitem(self, key).append(item)
+            dict_getitem(self, key).append(value)
         except KeyError:
-            dict_setitem(self, key, [item])
+            dict_setitem(self, key, [value])
 
     def extend(self, *args, **kwargs):
         """Add key value pairs for an iterable."""
@@ -172,7 +172,7 @@ class OrderedMultiDict(dict, MutableMapping):
         """Returns a list of all the values for the named field. Returns an
         empty list if the key doesn't exist."""
         try:
-            return [item[1] for item in dict_getitem(self, key)]
+            return list(dict_getitem(self, key))
         except KeyError:
             return []
 
