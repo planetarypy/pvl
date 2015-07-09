@@ -129,7 +129,7 @@ class PVLEncoder(object):
         return self.null
 
     def encode_number(self, value):
-        return str(value).encode('utf-8')
+        return repr(value).encode('utf-8')
 
     def encode_string(self, value):
         if needs_quotes(value):
