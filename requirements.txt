@@ -4,5 +4,6 @@
 # Install our development requirements
 flake8
 pytest
+pytest-cov
 tox
 wheel>=0.22
