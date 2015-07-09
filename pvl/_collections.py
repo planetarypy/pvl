@@ -97,6 +97,9 @@ class OrderedMultiDict(dict, MutableMapping):
     def __iter__(self):
         return iter(self.__items)
 
+    def __len__(self):
+        return len(self.__items)
+
     get = MutableMapping.get
     update = MutableMapping.update
     pop = MutableMapping.pop
