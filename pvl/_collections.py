@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
 import pprint
+import six
 from collections import Mapping, MutableMapping, namedtuple
-from six.moves import zip
 
 
 PY3 = sys.version_info[0] == 3
@@ -11,6 +11,48 @@ dict_setitem = dict.__setitem__
 dict_getitem = dict.__getitem__
 dict_delitem = dict.__delitem__
 dict_contains = dict.__contains__
+
+
+class MappingView(object):
+    def __init__(self, mapping):
+        self._mapping = mapping
+
+    def __len__(self):
+        return len(self._mapping)
+
+    def __repr__(self):
+        return '%s(%r)' % (type(self).__name__, self._mapping)
+
+
+class KeysView(MappingView):
+    def __contains__(self, key):
+        return key in self._mapping
+
+    def __iter__(self):
+        for key, _ in self._mapping:
+            yield key
+
+
+class ItemsView(MappingView):
+    def __contains__(self, item):
+        key, value = item
+        return value in self._mapping.getlist(key)
+
+    def __iter__(self):
+        for item in self._mapping:
+            yield item
+
+
+class ValuesView(MappingView):
+    def __contains__(self, value):
+        for _, v in self._mapping:
+            if v == value:
+                return True
+        return False
+
+    def __iter__(self):
+        for _, value in self._mapping:
+            yield value
 
 
 class OrderedMultiDict(dict, MutableMapping):
@@ -51,16 +93,43 @@ class OrderedMultiDict(dict, MutableMapping):
         dict_delitem(self, key)
         self.__items = [item for item in self.__items if item[0] != key]
 
-    values = MutableMapping.values
+    def __iter__(self):
+        return iter(self.__items)
+
     get = MutableMapping.get
     update = MutableMapping.update
     pop = MutableMapping.pop
     popitem = MutableMapping.popitem
     clear = MutableMapping.clear
 
-    if not PY3:  # Python 2
-        iterkeys = MutableMapping.iterkeys
-        itervalues = MutableMapping.itervalues
+    if PY3:
+        def keys(self):
+            return KeysView(self)
+
+        def values(self):
+            return ValuesView(self)
+
+        def items(self):
+            return ItemsView(self)
+
+    else:
+        def keys(self):
+            return [key for key, _ in self.__items]
+
+        def iterkeys(self):
+            return KeysView(self)
+
+        def values(self):
+            return [value for _, value in self.__items]
+
+        def itervalues(self):
+            return ValuesView(self)
+
+        def items(self):
+            return list(self.__items)
+
+        def iteritems(self):
+            return ItemsView(self)
 
     def discard(self, key):
         try:
@@ -121,28 +190,17 @@ class OrderedMultiDict(dict, MutableMapping):
     def copy(self):
         return type(self)(self)
 
-    if PY3:
-        def items(self):
-            return iter(self.__items)
-
-    else:
-        def items(self):
-            return list(self.__items)
-
-        def iteritems(self):
-            return iter(self.__items)
-
     def __eq__(self, other):
         if not isinstance(other, type(self)):
             return False
 
-        items1 = self.items()
-        items2 = other.items()
-
-        if len(items1) != len(items2):
+        if len(self) != len(other):
             return False
 
-        for ((key1, value1), (key2, value2)) in zip(items1, items2):
+        items1 = six.iteritems(self)
+        items2 = six.iteritems(other)
+
+        for ((key1, value1), (key2, value2)) in six.moves.zip(items1, items2):
             if key1 != key2:
                 return False
 
