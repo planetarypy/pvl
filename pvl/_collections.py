@@ -100,6 +100,36 @@ class OrderedMultiDict(dict, MutableMapping):
     def __len__(self):
         return len(self.__items)
 
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return False
+
+        if len(self) != len(other):
+            return False
+
+        items1 = six.iteritems(self)
+        items2 = six.iteritems(other)
+
+        for ((key1, value1), (key2, value2)) in six.moves.zip(items1, items2):
+            if key1 != key2:
+                return False
+
+            if value1 != value2:
+                return False
+
+        return True
+
+    def __repr__(self):
+        if not self.__items:
+            return '%s([])' % type(self).__name__
+
+        lines = []
+        for item in self.__items:
+            for line in pprint.pformat(item).splitlines():
+                lines.append('  ' + line)
+
+        return "%s([\n%s\n])" % (type(self).__name__, '\n'.join(lines))
+
     get = MutableMapping.get
     update = MutableMapping.update
     pop = MutableMapping.pop
@@ -182,38 +212,8 @@ class OrderedMultiDict(dict, MutableMapping):
         except KeyError:
             return []
 
-    def __repr__(self):
-        if not self.__items:
-            return '%s([])' % type(self).__name__
-
-        lines = []
-        for item in self.__items:
-            for line in pprint.pformat(item).splitlines():
-                lines.append('  ' + line)
-
-        return "%s([\n%s\n])" % (type(self).__name__, '\n'.join(lines))
-
     def copy(self):
         return type(self)(self)
-
-    def __eq__(self, other):
-        if not isinstance(other, type(self)):
-            return False
-
-        if len(self) != len(other):
-            return False
-
-        items1 = six.iteritems(self)
-        items2 = six.iteritems(other)
-
-        for ((key1, value1), (key2, value2)) in six.moves.zip(items1, items2):
-            if key1 != key2:
-                return False
-
-            if value1 != value2:
-                return False
-
-        return True
 
 
 class PVLModule(OrderedMultiDict):
