@@ -142,9 +142,10 @@ class PVLEncoder(object):
         return repr(value).encode('utf-8')
 
     def encode_string(self, value):
+        value = value.encode('utf-8')
         if needs_quotes(value):
             return quote_string(value)
-        return value.encode('utf-8')
+        return value
 
     def encode_bool(self, value):
         if value:
@@ -152,38 +153,24 @@ class PVLEncoder(object):
         return self.false
 
     def encode_date(self, value):
-        year = str(value.year).rjust(4, '0')
-        month = str(value.month).rjust(2, '0')
-        day = str(value.day).rjust(2, '0')
-        return (u'%s-%s-%s' % (year, month, day)).encode('utf-8')
+        date = u'%04d-%02d-%02d' % (value.year, value.month, value.day)
+        return date.encode('utf-8')
 
     def encode_tz(self, offset):
-        seconds = offset.seconds + offset.days * 24 * 3600
-
-        if seconds == 0:
-            return 'Z'
-
-        if seconds < 0:
-            sign = '-'
-            seconds = -seconds
-        else:
-            sign = '+'
-
-        hours = int(seconds / 3600)
-        return (u'%s%s' % (sign, hours)).encode('utf-8')
+        hours = int(offset.seconds / 3600) + (offset.days * 24)
+        return u'%+d' % hours
 
     def encode_time(self, value):
-        hour = str(value.hour).rjust(2, '0')
-        minute = str(value.minute).rjust(2, '0')
-        second = str(value.second).rjust(2, '0')
-
         if value.microsecond:
-            second += '.' + str(value.microsecond).rjust(6, '0')
+            second = u'%02d.%06d' % (value.second, value.microsecond)
+        else:
+            second = u'%02d' % value.second
 
         if value.utcoffset() is not None:
             second += self.encode_tz(value.utcoffset())
 
-        return (u'%s:%s:%s' % (hour, minute, second)).encode('utf-8')
+        time = u'%02d:%02d:%s' % (value.hour, value.minute, second)
+        return time.encode('utf-8')
 
     def encode_datetime(self, value):
         date = self.encode_date(value)

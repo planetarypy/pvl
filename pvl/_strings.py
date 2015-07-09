@@ -22,11 +22,10 @@ RESTRICTED_SEQ = [
     b'/*', b'*/',  # Comments
 ]
 
-RESTRICTED_CHARS = set([
-    b' ', b'\r', b'\n', b'\t', b'\v', b'\f',  # Whitespace
-    b'&', b'<', b'>', b'\'', b'{', b'}', b',', b'[', b']', b'=', b'!', b'#',
-    b'(', b')', b'%', b'"', b';', b'|',  # Restricted chars
-])
+RESTRICTED_CHARS = set(
+    b' \r\n\t\v\f' +        # Whitespace
+    b'&<>\'{},[]=!#()%";|'  # Restricted chars
+)
 
 RESERVED_KEYWORDS = set([
     b'Null', b'NULL',
@@ -55,9 +54,7 @@ def unquote_string(value, encoding='utf-8'):
     return value.decode(encoding)
 
 
-def quote_string(value, encoding='utf-8'):
-    value = value.encode(encoding)
-
+def quote_string(value):
     for char, escape in reversed(FORMATTING_CHARS):
         value = value.replace(char, escape)
 
