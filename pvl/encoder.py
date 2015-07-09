@@ -226,6 +226,8 @@ class PDSLabelEncoder(PVLEncoder):
     begin_object = b'OBJECT'
 
     def _detect_assignment_col(self, block, indent=0):
+        if not block:
+            return 0
         block_items = six.iteritems(block)
         return max(self._key_length(k, v, indent) for k, v in block_items)
 
