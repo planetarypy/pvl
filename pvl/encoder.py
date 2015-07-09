@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import datetime
 import six
 from ._collections import PVLGroup, Units
 from ._strings import needs_quotes, quote_string
@@ -120,6 +121,15 @@ class PVLEncoder(object):
         if isinstance(value, set):
             return self.encode_set(value)
 
+        if isinstance(value, datetime.datetime):
+            return self.encode_datetime(value)
+
+        if isinstance(value, datetime.date):
+            return self.encode_date(value)
+
+        if isinstance(value, datetime.time):
+            return self.encode_time(value)
+
         return self.default(value)
 
     def encode_units(self, value):
@@ -140,6 +150,45 @@ class PVLEncoder(object):
         if value:
             return self.true
         return self.false
+
+    def encode_date(self, value):
+        year = str(value.year).rjust(4, '0')
+        month = str(value.month).rjust(2, '0')
+        day = str(value.day).rjust(2, '0')
+        return (u'%s-%s-%s' % (year, month, day)).encode('utf-8')
+
+    def encode_tz(self, offset):
+        seconds = offset.seconds + offset.days * 24 * 3600
+
+        if seconds == 0:
+            return 'Z'
+
+        if seconds < 0:
+            sign = '-'
+            seconds = -seconds
+        else:
+            sign = '+'
+
+        hours = int(seconds / 3600)
+        return (u'%s%s' % (sign, hours)).encode('utf-8')
+
+    def encode_time(self, value):
+        hour = str(value.hour).rjust(2, '0')
+        minute = str(value.minute).rjust(2, '0')
+        second = str(value.second).rjust(2, '0')
+
+        if value.microsecond:
+            second += '.' + str(value.microsecond).rjust(6, '0')
+
+        if value.utcoffset() is not None:
+            second += self.encode_tz(value.utcoffset())
+
+        return (u'%s:%s:%s' % (hour, minute, second)).encode('utf-8')
+
+    def encode_datetime(self, value):
+        date = self.encode_date(value)
+        time = self.encode_time(value)
+        return date + b'T' + time
 
     def encode_sequence(self, values):
         return b', '.join([self.encode_value(v) for v in values])
