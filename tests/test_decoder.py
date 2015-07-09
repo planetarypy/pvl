@@ -623,8 +623,5 @@ def test_pds3_sample_image():
 def test_load_all_sample_labels():
     files = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
     for infile in files:
-        try:
-            label = pvl.load(infile)
-        except:
-            raise
+        label = pvl.load(infile)
         assert isinstance(label, Label)
