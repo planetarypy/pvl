@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from six import b
-import itertools
 
 from .stream import BufferedStream, ByteStream
 from ._collections import PVLModule, PVLGroup, PVLObject, Units
@@ -142,12 +141,6 @@ class PVLDecoder(object):
         while not self.has_delimiter(stream):
             token += stream.read(1)
         return token
-
-    def peek_next_token(self, stream):
-        for offset in itertools.count():
-            if self.has_delimiter(stream, offset):
-                break
-        return self.peek(stream, offset)
 
     def decode(self, stream):
         if isinstance(stream, bytes):
