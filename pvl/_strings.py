@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from six import b
-import re
-
 from ._datetimes import is_date_or_time
 from ._numbers import is_number
 
@@ -9,14 +6,13 @@ from ._numbers import is_number
 QUOTE = b'"'
 ALT_QUOTE = b"'"
 
-LINE_CONTINUATION_RE = re.compile(b(r'-(?:\r\n|\n|\r)[ \t\v\f]*'))
-FORMATTING_CHARS = [
-    (b'\n', b'\\n'),
-    (b'\t', b'\\t'),
-    (b'\f', b'\\f'),
-    (b'\v', b'\\v'),
-    (b'\\', b'\\\\'),
-]
+FORMATTING_CHARS = {
+    b'n': b'\n',
+    b't': b'\t',
+    b'f': b'\f',
+    b'v': b'\v',
+    b'\\': b'\\',
+}
 
 RESTRICTED_SEQ = [
     b'/*', b'*/',  # Comments
@@ -44,19 +40,9 @@ def escape_quote(quote, value):
     return quote + value.replace(quote, b'\\' + quote) + quote
 
 
-def unquote_string(value, encoding='utf-8'):
-    value = LINE_CONTINUATION_RE.sub(b'', value)
-    value = b' '.join(value.split()).strip()
-
-    for char, escape in FORMATTING_CHARS:
-        value = value.replace(escape, char)
-
-    return value.decode(encoding)
-
-
 def quote_string(value):
-    for char, escape in reversed(FORMATTING_CHARS):
-        value = value.replace(char, escape)
+    for escape, char in FORMATTING_CHARS.items():
+        value = value.replace(char, b'\\' + escape)
 
     if QUOTE in value and ALT_QUOTE not in value:
         return escape_quote(ALT_QUOTE, value)
