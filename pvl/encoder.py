@@ -106,14 +106,14 @@ class PVLEncoder(object):
         if isinstance(value, six.string_types):
             return self.encode_string(value)
 
-        if isinstance(value, (int, float)):
-            return self.encode_number(value)
-
         if value is None:
             return self.encode_null(value)
 
         if isinstance(value, bool):
             return self.encode_bool(value)
+
+        if isinstance(value, (int, float)):
+            return self.encode_number(value)
 
         if isinstance(value, list):
             return self.encode_list(value)
