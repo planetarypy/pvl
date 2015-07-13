@@ -522,7 +522,7 @@ class PVLDecoder(object):
                 self.raise_unexpected_eof(stream)
 
             if next not in chars:
-                self.raise_unexpected(stream, chars)
+                self.raise_unexpected(stream, next)
 
             value += next
 
