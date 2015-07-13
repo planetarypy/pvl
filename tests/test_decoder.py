@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
+import io
 import datetime
 import pytz
 import six
 import glob
 import pytest
-import StringIO
 
 import pvl
 from pvl import (
@@ -733,4 +733,4 @@ def test_parse_error():
         pvl.loads(b'foo')
 
     with pytest.raises(pvl.decoder.ParseError):
-        pvl.load(StringIO.StringIO(b'foo'))
+        pvl.load(io.BytesIO(b'foo'))
