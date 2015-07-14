@@ -136,7 +136,6 @@ class OrderedMultiDict(dict, MutableMapping):
     get = MutableMapping.get
     update = MutableMapping.update
     pop = MutableMapping.pop
-    popitem = MutableMapping.popitem
 
     if PY3:
         def keys(self):
@@ -214,6 +213,19 @@ class OrderedMultiDict(dict, MutableMapping):
             return list(dict_getitem(self, key))
         except KeyError:
             return []
+
+    def popitem(self):
+        if not self:
+            raise KeyError('popitem(): %s is empty' % type(self).__name__)
+
+        key, _ = item = self.__items.pop()
+        values = dict_getitem(self, key)
+        values.pop()
+
+        if not values:
+            dict_delitem(self, key)
+
+        return item
 
     def copy(self):
         return type(self)(self)
