@@ -119,6 +119,9 @@ class OrderedMultiDict(dict, MutableMapping):
 
         return True
 
+    def __ne__(self, other):
+        return not (self == other)
+
     def __repr__(self):
         if not self.__items:
             return '%s([])' % type(self).__name__
