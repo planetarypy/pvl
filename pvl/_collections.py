@@ -168,7 +168,7 @@ class OrderedMultiDict(dict, MutableMapping):
 
     def clear(self):
         dict_clear(self)
-        self.__items.clear()
+        self.__items = []
 
     def discard(self, key):
         try:
