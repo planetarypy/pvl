@@ -16,7 +16,7 @@ class PVLEncoder(object):
     false = b'FALSE'
     assignment = b' = '
     indentation = b'  '
-    newline = b'\n'
+    newline = b'\r\n'
 
     def indent(self, level, stream):
         stream.write(level * self.indentation)
