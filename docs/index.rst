@@ -4,22 +4,22 @@
    contain the root `toctree` directive.
 
 Welcome to pvl's documentation!
-======================================
+===============================
 
-Contents:
+.. include:: ../README.rst
+
+Contents
+========
 
 .. toctree::
    :maxdepth: 2
 
-   readme
-   installation
-   usage
-   parsing
-   encode
+   decoding
+   encoding
    contributing
    authors
    history
-   
+
 
 Indices and tables
 ==================

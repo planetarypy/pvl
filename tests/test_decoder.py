@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
+import io
 import datetime
 import pytz
 import six
 import glob
+import pytest
 
 import pvl
 from pvl import (
@@ -16,6 +18,7 @@ from pvl import (
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data/')
 PDS_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'pds3')
+PDS_LABELS = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
 
 
 def test_assignment():
@@ -27,12 +30,20 @@ def test_assignment():
     assert isinstance(label, Label)
     assert label['Group_Foo'] == 'bar'
 
+    label = pvl.loads('foo=bar-')
+    assert isinstance(label, Label)
+    assert label['foo'] == 'bar-'
 
-def test_spaceing():
+    label = pvl.loads('foo=bar-\n')
+    assert isinstance(label, Label)
+    assert label['foo'] == 'bar-'
+
+
+def test_spacing():
     label = pvl.loads("""
         foo = bar
         nospace=good
-          lots_of_spaceing    =    alsogood
+          lots_of_spacing    =    alsogood
         same = line no = problem; like=aboss
         End
     """)
@@ -40,7 +51,7 @@ def test_spaceing():
     assert isinstance(label, Label)
     assert label['foo'] == 'bar'
     assert label['nospace'] == 'good'
-    assert label['lots_of_spaceing'] == 'alsogood'
+    assert label['lots_of_spacing'] == 'alsogood'
     assert label['same'] == 'line'
     assert label['no'] == 'problem'
     assert label['like'] == 'aboss'
@@ -189,6 +200,12 @@ def test_objects():
     assert isinstance(embedded_group, LabelGroup)
     assert embedded_group['foo'] == 'bar'
 
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads("""
+            BEGIN_OBJECT = foo
+            END_OBJECT = bar
+        """)
+
 
 def test_groups():
     label = pvl.loads("""
@@ -215,6 +232,12 @@ def test_groups():
     embedded_group = test_group['embedded_group']
     assert isinstance(embedded_group, LabelGroup)
     assert embedded_group['foo'] == 'bar'
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads("""
+            BEGIN_GROUP = foo
+            END_GROUP = bar
+        """)
 
 
 def test_alt_group_style():
@@ -255,6 +278,15 @@ def test_binary():
     assert isinstance(label['negative_binary_number'], int)
     assert label['negative_binary_number'] == -5
 
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('empty = 2##')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('binary_number = 2#0101')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('binary_number = 2#01014201#')
+
 
 def test_octal():
     label = pvl.loads("""
@@ -272,6 +304,15 @@ def test_octal():
 
     assert isinstance(label['negative_octal_number'], int)
     assert label['negative_octal_number'] == -71
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('empty = 8##')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('octal_number = 8#0107')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('octal_number = 8#01079#')
 
 
 def test_hex():
@@ -295,6 +336,15 @@ def test_hex():
     assert isinstance(label['negative_hex_number'], int)
     assert label['negative_hex_number'] == -4106
 
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('empty = 16##')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('hex_number_upper = 16#100A')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('hex_number_upper = 16#100AZ#')
+
 
 def test_quotes():
     label = pvl.loads("""
@@ -303,6 +353,7 @@ def test_quotes():
         space = '  test  '
         double = "double'quotes"
         single = 'single"quotes'
+        mixed = 'mixed"\\'quotes'
         number = '123'
         date = '1918-05-11'
         multiline = 'this is a
@@ -328,6 +379,9 @@ def test_quotes():
     assert isinstance(label['single'], six.text_type)
     assert label['single'] == 'single"quotes'
 
+    assert isinstance(label['single'], six.text_type)
+    assert label['mixed'] == 'mixed"\'quotes'
+
     assert isinstance(label['number'], six.text_type)
     assert label['number'] == '123'
 
@@ -342,6 +396,15 @@ def test_quotes():
 
     assert isinstance(label['formating'], six.text_type)
     assert label['formating'] == '\n\t\f\v\\\n\t\f\v\\'
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads('foo = "bar')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads("foo = 'bar")
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads("foo = '\\bar'")
 
 
 def test_comments():
@@ -366,6 +429,9 @@ def test_comments():
 
     assert isinstance(label['foo'], six.text_type)
     assert label['baz'] == 'bang'
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'/*')
 
 
 def test_dates():
@@ -549,6 +615,9 @@ def test_units():
     assert label['cool'][0].value == 1
     assert label['cool'][0].units == 'number'
 
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'foo = bar <')
+
 
 def test_delimiters():
     label = pvl.loads("""
@@ -621,10 +690,47 @@ def test_pds3_sample_image():
 
 
 def test_load_all_sample_labels():
-    files = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
-    for infile in files:
-        try:
-            label = pvl.load(infile)
-        except:
-            raise
+    for filename in PDS_LABELS:
+        label = pvl.load(filename)
         assert isinstance(label, Label)
+
+
+def test_unicode():
+    label = pvl.loads(u'foo=bar')
+    assert isinstance(label, Label)
+    assert label['foo'] == 'bar'
+
+
+def test_bytes():
+    label = pvl.loads(b'foo=bar')
+    assert isinstance(label, Label)
+    assert label['foo'] == 'bar'
+
+
+def test_end_comment():
+    label = pvl.loads(b'END/* commnet */')
+    assert isinstance(label, Label)
+    assert len(label) == 0
+
+
+def test_parse_error():
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'foo=')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'=')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'(}')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'foo=')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'foo=!')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'foo')
+
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.load(io.BytesIO(b'foo'))

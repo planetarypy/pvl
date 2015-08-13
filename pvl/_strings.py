@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from six import b
-import re
-
 from ._datetimes import is_date_or_time
 from ._numbers import is_number
 
@@ -9,24 +6,22 @@ from ._numbers import is_number
 QUOTE = b'"'
 ALT_QUOTE = b"'"
 
-LINE_CONTINUATION_RE = re.compile(b(r'-(?:\r\n|\n|\r)[ \t\v\f]*'))
-FORMATTING_CHARS = [
-    (b'\n', b'\\n'),
-    (b'\t', b'\\t'),
-    (b'\f', b'\\f'),
-    (b'\v', b'\\v'),
-    (b'\\', b'\\\\'),
-]
+FORMATTING_CHARS = {
+    b'n': b'\n',
+    b't': b'\t',
+    b'f': b'\f',
+    b'v': b'\v',
+    b'\\': b'\\',
+}
 
 RESTRICTED_SEQ = [
     b'/*', b'*/',  # Comments
 ]
 
-RESTRICTED_CHARS = set([
-    b' ', b'\r', b'\n', b'\t', b'\v', b'\f',  # Whitespace
-    b'&', b'<', b'>', b'\'', b'{', b'}', b',', b'[', b']', b'=', b'!', b'#',
-    b'(', b')', b'%', b'"', b';', b'|',  # Restricted chars
-])
+RESTRICTED_CHARS = set(
+    b' \r\n\t\v\f' +        # Whitespace
+    b'&<>\'{},[]=!#()%";|'  # Restricted chars
+)
 
 RESERVED_KEYWORDS = set([
     b'Null', b'NULL',
@@ -45,21 +40,9 @@ def escape_quote(quote, value):
     return quote + value.replace(quote, b'\\' + quote) + quote
 
 
-def unquote_string(value, encoding='utf-8'):
-    value = LINE_CONTINUATION_RE.sub(b'', value)
-    value = b' '.join(value.split()).strip()
-
-    for char, escape in FORMATTING_CHARS:
-        value = value.replace(escape, char)
-
-    return value.decode(encoding)
-
-
-def quote_string(value, encoding='utf-8'):
-    value = value.encode(encoding)
-
-    for char, escape in reversed(FORMATTING_CHARS):
-        value = value.replace(char, escape)
+def quote_string(value):
+    for escape, char in FORMATTING_CHARS.items():
+        value = value.replace(char, b'\\' + escape)
 
     if QUOTE in value and ALT_QUOTE not in value:
         return escape_quote(ALT_QUOTE, value)
@@ -68,6 +51,9 @@ def quote_string(value, encoding='utf-8'):
 
 
 def needs_quotes(value):
+    if not value:
+        return True
+
     if is_number(value):
         return True
 

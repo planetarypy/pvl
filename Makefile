@@ -35,9 +35,7 @@ test-all:
 	tox
 
 coverage:
-	coverage run --source pvl py.test
-	coverage report -m
-	coverage html
+	py.test --cov pvl --cov-report html tests
 	open htmlcov/index.html
 
 docs:

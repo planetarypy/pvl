@@ -1,13 +1,60 @@
 # -*- coding: utf-8 -*-
+"""Python implementation of PVL (Parameter Value Language).
+
+PVL is a markup language, similar to xml, commonly employed for entries in the
+Planetary Database System used by NASA to store mission data, among other uses.
+This package supports both encoding a decoding a superset of PVL, including the
+USGS Isis Cube Label and NASA PDS 3 Label dialects.
+
+Basic Usage
+-----------
+
+Decoding pvl modules::
+
+    >>> import pvl
+    >>> module = pvl.loads('''
+    ...   foo = bar
+    ...   items = (1, 2, 3)
+    ...   END
+    ... ''')
+    >>> print module
+    PVLModule([
+      (u'foo', u'bar')
+      (u'items', [1, 2, 3])
+    ])
+    >>> print module['foo']
+    bar
+
+Encoding pvl modules::
+
+    >>> import pvl
+    >>> print pvl.dumps({
+    ...   'foo': 'bar',
+    ...   'items': [1, 2, 3]
+    ... })
+    items = (1, 2, 3)
+    foo = bar
+    END
+
+Building pvl modules::
+
+    >>> import pvl
+    >>> module = pvl.PVLModule({'foo': 'bar'})
+    >>> module.append('items', [1, 2, 3])
+    >>> print pvl.dumps(module)
+    foo = bar
+    items = (1, 2, 3)
+    END
+"""
 import io
 import six
 
-from .decoder import LabelDecoder
-from .encoder import LabelEncoder
+from .decoder import PVLDecoder
+from .encoder import PVLEncoder
 from ._collections import (
-    Label,
-    LabelGroup,
-    LabelObject,
+    PVLModule,
+    PVLGroup,
+    PVLObject,
     Units,
 )
 
@@ -19,42 +66,89 @@ __all__ = [
     'loads',
     'dump',
     'dumps',
-    'Label',
-    'LabelGroup',
-    'LabelObject',
+    'PVLModule',
+    'PVLGroup',
+    'PVLObject',
     'Units',
 ]
 
 
-def load(stream):
-    """Parse an isis label from a stream.
+def load(stream, cls=PVLDecoder, **kwargs):
+    """Deserialize ``stream`` as a pvl module.
 
-    :param stream: a ``.read()``-supporting file-like object containing a label.
-        if ``stream`` is a string it will be treated as a filename
+    :param stream: a ``.read()``-supporting file-like object containing a
+        module. If ``stream`` is a string it will be treated as a filename
+
+    :param cls: the decoder class used to deserialize the pvl module. You may
+        use the default ``PVLDecoder`` class or provide a custom sublcass.
+
+    :param **kwargs: the keyword arguments to pass to the decoder class.
     """
     if isinstance(stream, six.string_types):
         with open(stream, 'rb') as fp:
-            return LabelDecoder().decode(fp)
-    return LabelDecoder().decode(stream)
+            return cls(**kwargs).decode(fp)
+    return cls(**kwargs).decode(stream)
 
 
-def loads(data, encoding='utf-8'):
-    """Parse an isis label from a string.
+def loads(data, cls=PVLDecoder, **kwargs):
+    """Deserialize ``data`` as a pvl module.
 
-    :param data: an isis label as a string
+    :param data: a pvl module as a byte or unicode string
 
-    :returns: a dictionary representation of the given isis label
+    :param cls: the decoder class used to deserialize the pvl module. You may
+        use the default ``PVLDecoder`` class or provide a custom sublcass.
+
+    :param **kwargs: the keyword arguments to pass to the decoder class.
     """
     if not isinstance(data, bytes):
-        data = data.encode(encoding)
-    return LabelDecoder().decode(data)
+        data = data.encode('utf-8')
+    return cls(**kwargs).decode(data)
 
 
-def dump(label, stream):
-    LabelEncoder().encode(label, stream)
+def dump(module, stream, cls=PVLEncoder, **kwargs):
+    """Serialize ``module`` as a pvl module to the provided ``stream``.
+
+    :param module: a ```PVLModule``` or ```dict``` like object to serialize
+
+    :param stream: a ``.write()``-supporting file-like object to serialize the
+        module to. If ``stream`` is a string it will be treated as a filename
+
+    :param cls: the encoder class used to serialize the pvl module. You may use
+        the default ``PVLEncoder`` class or provided encoder formats such as the
+        ```IsisCubeLabelEncoder``` and ```PDSLabelEncoder``` classes. You may
+        also provided a custom sublcass of ```PVLEncoder```
+
+    :param **kwargs: the keyword arguments to pass to the encoder class.
+    """
+    if isinstance(stream, six.string_types):
+        with open(stream, 'wb') as fp:
+            return cls(**kwargs).encode(module, fp)
+    cls(**kwargs).encode(module, stream)
 
 
-def dumps(label):
+def dumps(module, cls=PVLEncoder, **kwargs):
+    """Serialize ``module`` as a pvl module formated byte string.
+
+    :param module: a ```PVLModule``` or ```dict``` like object to serialize
+
+    :param cls: the encoder class used to serialize the pvl module. You may use
+        the default ``PVLEncoder`` class or provided encoder formats such as the
+        ```IsisCubeLabelEncoder``` and ```PDSLabelEncoder``` classes. You may
+        also provided a custom sublcass of ```PVLEncoder```
+
+    :param **kwargs: the keyword arguments to pass to the encoder class.
+
+    :returns: a byte string encoding of the pvl module
+    """
     stream = io.BytesIO()
-    LabelEncoder().encode(label, stream)
+    cls(**kwargs).encode(module, stream)
     return stream.getvalue()
+
+
+# Depreciated aliases
+# TODO: add warnings for these?
+Label = PVLModule
+LabelGroup = PVLGroup
+LabelObject = PVLObject
+LabelEncoder = PVLEncoder
+LabelDecoder = PVLEncoder

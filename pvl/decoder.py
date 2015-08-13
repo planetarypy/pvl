@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 from six import b
-import itertools
 
 from .stream import BufferedStream, ByteStream
-from ._collections import Label, LabelGroup, LabelObject, Units
+from ._collections import PVLModule, PVLGroup, PVLObject, Units
 from ._datetimes import parse_datetime
 from ._numbers import parse_number
-from ._strings import unquote_string
+from ._strings import FORMATTING_CHARS
 
 
 class ParseError(ValueError):
@@ -29,7 +28,7 @@ def char_set(chars):
     return set([b(c) for c in chars])
 
 
-class LabelDecoder(object):
+class PVLDecoder(object):
     whitespace = char_set(' \r\n\t\v\f')
     newline_chars = char_set('\r\n')
     reserved_chars = char_set('&<>\'{},[]=!#()%";|')
@@ -143,21 +142,15 @@ class LabelDecoder(object):
             token += stream.read(1)
         return token
 
-    def peek_next_token(self, stream):
-        for offset in itertools.count():
-            if self.has_delimiter(stream, offset):
-                break
-        return self.peek(stream, offset)
-
     def decode(self, stream):
         if isinstance(stream, bytes):
             stream = ByteStream(stream)
         else:
             stream = BufferedStream(stream)
 
-        label = Label(self.parse_block(stream, self.has_end))
+        module = PVLModule(self.parse_block(stream, self.has_end))
         self.skip_end(stream)
-        return label
+        return module
 
     def parse_block(self, stream, has_end):
         """
@@ -321,7 +314,7 @@ class LabelDecoder(object):
         self.parse_end_assignment(stream, name)
         self.skip_statement_delimiter(stream)
 
-        return name.decode('utf-8'), LabelGroup(statements)
+        return name.decode('utf-8'), PVLGroup(statements)
 
     def has_end_group(self, stream):
         """
@@ -352,7 +345,7 @@ class LabelDecoder(object):
         self.parse_end_assignment(stream, name)
         self.skip_statement_delimiter(stream)
 
-        return name.decode('utf-8'), LabelObject(statements)
+        return name.decode('utf-8'), PVLObject(statements)
 
     def has_end_object(self, stream):
         """
@@ -529,7 +522,7 @@ class LabelDecoder(object):
                 self.raise_unexpected_eof(stream)
 
             if next not in chars:
-                self.raise_unexpected(stream, chars)
+                self.raise_unexpected(stream, next)
 
             value += next
 
@@ -569,25 +562,50 @@ class LabelDecoder(object):
                 return True
         return False
 
+    def unescape_next_char(self, stream):
+        esc = stream.read(1)
+
+        if esc in self.quote_marks:
+            return esc
+
+        try:
+            return FORMATTING_CHARS[esc]
+        except KeyError:
+            msg = "Invalid \\escape: " + repr(esc)
+            self.raise_error(msg, stream)
+
     def parse_quoted_string(self, stream):
         for mark in self.quote_marks:
             if self.has_next(mark, stream):
                 break
 
         self.expect(stream, mark)
+        self.skip_whitespace(stream)
+
         value = b''
 
         while not self.has_next(mark, stream):
             next = stream.read(1)
             if not next:
                 self.raise_unexpected_eof(stream)
+
+            if next == b'\\':
+                next = self.unescape_next_char(stream)
+
+            elif next in self.whitespace:
+                self.skip_whitespace(stream)
+                if self.has_next(mark, stream):
+                    break
+                next = b' '
+
+            elif next == b'-' and self.has_token_in(self.newline_chars, stream):
+                self.skip_whitespace(stream)
+                continue
+
             value += next
 
         self.expect(stream, mark)
-        return self.format_quoated_string(value)
-
-    def format_quoated_string(self, value):
-        return unquote_string(value)
+        return value.decode('utf-8')
 
     def has_unquoated_string(self, stream):
         next = self.peek(stream, 1)
