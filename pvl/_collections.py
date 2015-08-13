@@ -6,6 +6,7 @@ from collections import Mapping, MutableMapping, namedtuple
 
 
 PY3 = sys.version_info[0] == 3
+INDEX_TYPES = six.integer_types + (slice,)
 
 dict_setitem = dict.__setitem__
 dict_getitem = dict.__getitem__
@@ -88,6 +89,8 @@ class OrderedMultiDict(dict, MutableMapping):
         self.__items[index + 1:] = tail
 
     def __getitem__(self, key):
+        if isinstance(key, INDEX_TYPES):
+            return self.__items[key]
         return dict_getitem(self, key)[0]
 
     def __delitem__(self, key):

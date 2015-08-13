@@ -78,6 +78,47 @@ def test_keyword_creation():
     assert module.get('c', 42) == 42
 
 
+def test_key_access():
+    module = pvl.PVLModule([
+        ('a', 1),
+        ('b', 2),
+        ('a', 3),
+    ])
+
+    assert module['a'] == 1
+    assert module['b'] == 2
+
+    with pytest.raises(KeyError):
+        module['c']
+
+
+def test_index_access():
+    module = pvl.PVLModule([
+        ('a', 1),
+        ('b', 2),
+        ('a', 3),
+    ])
+
+    assert module[0] == ('a', 1)
+    assert module[1] == ('b', 2)
+    assert module[2] == ('a', 3)
+
+    with pytest.raises(IndexError):
+        module[3]
+
+
+def test_slice_access():
+    module = pvl.PVLModule([
+        ('a', 1),
+        ('b', 2),
+        ('a', 3),
+    ])
+
+    assert module[0:3] == [('a', 1), ('b', 2), ('a', 3)]
+    assert module[1:] == [('b', 2), ('a', 3)]
+    assert module[:-1] == [('a', 1), ('b', 2)]
+
+
 def test_set():
     module = pvl.PVLModule()
     module['a'] = 1
