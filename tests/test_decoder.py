@@ -39,11 +39,11 @@ def test_assignment():
     assert label['foo'] == 'bar-'
 
 
-def test_spaceing():
+def test_spacing():
     label = pvl.loads("""
         foo = bar
         nospace=good
-          lots_of_spaceing    =    alsogood
+          lots_of_spacing    =    alsogood
         same = line no = problem; like=aboss
         End
     """)
@@ -51,7 +51,7 @@ def test_spaceing():
     assert isinstance(label, Label)
     assert label['foo'] == 'bar'
     assert label['nospace'] == 'good'
-    assert label['lots_of_spaceing'] == 'alsogood'
+    assert label['lots_of_spacing'] == 'alsogood'
     assert label['same'] == 'line'
     assert label['no'] == 'problem'
     assert label['like'] == 'aboss'

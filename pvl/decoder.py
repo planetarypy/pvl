@@ -562,7 +562,7 @@ class PVLDecoder(object):
                 return True
         return False
 
-    def enscape_next_char(self, stream):
+    def unescape_next_char(self, stream):
         esc = stream.read(1)
 
         if esc in self.quote_marks:
@@ -590,7 +590,7 @@ class PVLDecoder(object):
                 self.raise_unexpected_eof(stream)
 
             if next == b'\\':
-                next = self.enscape_next_char(stream)
+                next = self.unescape_next_char(stream)
 
             elif next in self.whitespace:
                 self.skip_whitespace(stream)
