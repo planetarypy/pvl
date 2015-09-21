@@ -48,6 +48,7 @@ Building pvl modules::
 """
 import io
 import six
+import gzip
 
 from .decoder import PVLDecoder
 from .encoder import PVLEncoder
@@ -85,8 +86,12 @@ def load(stream, cls=PVLDecoder, **kwargs):
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
     if isinstance(stream, six.string_types):
-        with open(stream, 'rb') as fp:
-            return cls(**kwargs).decode(fp)
+        if stream.endswith('.gz'):
+            with gzip.open(stream, 'rb') as fp:
+                return cls(**kwargs).decode(fp)
+        else:
+            with open(stream, 'rb') as fp:
+                return cls(**kwargs).decode(fp)
     return cls(**kwargs).decode(stream)
 
 
