@@ -140,7 +140,7 @@ class OrderedMultiDict(dict, MutableMapping):
     update = MutableMapping.update
     pop = MutableMapping.pop
 
-    if PY3:
+    if PY3:  # noqa
         def keys(self):
             return KeysView(self)
 
