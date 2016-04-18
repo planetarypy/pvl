@@ -84,6 +84,11 @@ def load(stream, cls=PVLDecoder, **kwargs):
 
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
+    # check if `stream` has a as_posix method (as pathlib.Path has):
+    try:
+        stream = stream.as_posix()
+    except AttributeError:
+        pass
     if isinstance(stream, six.string_types):
         with open(stream, 'rb') as fp:
             return cls(**kwargs).decode(fp)
