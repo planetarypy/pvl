@@ -34,6 +34,13 @@ class KeysView(MappingView):
         for key, _ in self._mapping:
             yield key
 
+    def __getitem__(self, index):
+        return self._mapping[index][0]
+
+    def __repr__(self):
+        keys = [key for key, _ in self._mapping]
+        return '%s(%r)' % (type(self).__name__, keys)
+
 
 class ItemsView(MappingView):
     def __contains__(self, item):
@@ -43,6 +50,9 @@ class ItemsView(MappingView):
     def __iter__(self):
         for item in self._mapping:
             yield item
+
+    def __getitem__(self, index):
+        return list(self._mapping)[index]
 
 
 class ValuesView(MappingView):
@@ -55,6 +65,13 @@ class ValuesView(MappingView):
     def __iter__(self):
         for _, value in self._mapping:
             yield value
+
+    def __getitem__(self, index):
+        return self._mapping[index][1]
+
+    def __repr__(self):
+        values = [value for _, value in self._mapping]
+        return '%s(%r)' % (type(self).__name__, values)
 
 
 class OrderedMultiDict(dict, MutableMapping):
