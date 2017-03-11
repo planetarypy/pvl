@@ -52,7 +52,7 @@ class ItemsView(MappingView):
             yield item
 
     def __getitem__(self, index):
-        return list(self._mapping)[index]
+        return self._mapping[index]
 
 
 class ValuesView(MappingView):
