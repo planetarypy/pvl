@@ -368,6 +368,39 @@ def test_py2_items():
     assert module.values() == [1, 2, 3]
 
 
+@pytest.mark.skipif(six.PY2, reason='requires python3')
+def test_py3_items():
+    module = pvl.PVLModule()
+
+    assert isinstance(module.items(), pvl._collections.ItemsView)
+    with pytest.raises(IndexError):
+        module.items()[0]
+
+    assert isinstance(module.keys(), pvl._collections.KeysView)
+    with pytest.raises(IndexError):
+        module.keys()[0]
+
+    assert isinstance(module.values(), pvl._collections.ValuesView)
+    with pytest.raises(IndexError):
+        module.values()[0]
+
+    module = pvl.PVLModule([
+        ('a', 1),
+        ('b', 2),
+        ('a', 3),
+    ])
+
+    assert isinstance(module.items(), pvl._collections.ItemsView)
+    assert module.items()[0] == ('a', 1)
+
+    assert isinstance(module.keys(), pvl._collections.KeysView)
+    assert module.keys()[0] == 'a'
+
+    assert isinstance(module.values(), pvl._collections.ValuesView)
+    assert module.values()[0] == 1
+
+
+
 if six.PY3:
     def iteritems(module):
         return module.items()
