@@ -58,6 +58,10 @@ class ItemsView(MappingView):
     def __getitem__(self, index):
         return self._mapping[index]
 
+    def index(self, item):
+        items = [i for i in self._mapping]
+        return items.index(item)
+
 
 class ValuesView(MappingView):
     def __contains__(self, value):
@@ -78,7 +82,7 @@ class ValuesView(MappingView):
         return '%s(%r)' % (type(self).__name__, values)
 
     def index(self, value):
-        values = [v for v, _ in self._mapping]
+        values = [val for _, val in self._mapping]
         return values.index(value)
 
 

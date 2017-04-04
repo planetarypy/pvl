@@ -358,14 +358,25 @@ def test_py2_items():
         ('a', 3),
     ])
 
-    assert isinstance(module.items(), list)
-    assert module.items() == [('a', 1), ('b', 2), ('a', 3)]
+    items = module.items()
+    assert isinstance(items, list)
+    assert items == [('a', 1), ('b', 2), ('a', 3)]
+    assert items.index(('a', 1)) == 0
+    assert items.index(('b', 2)) == 1
+    assert items.index(('a', 3)) == 2
 
-    assert isinstance(module.keys(), list)
-    assert module.keys() == ['a', 'b', 'a']
+    keys = module.keys()
+    assert isinstance(keys, list)
+    assert keys == ['a', 'b', 'a']
+    assert keys.index('a') == 0
+    assert keys.index('b') == 1
 
-    assert isinstance(module.values(), list)
-    assert module.values() == [1, 2, 3]
+    values = module.values()
+    assert isinstance(values, list)
+    assert values == [1, 2, 3]
+    assert values.index(1) == 0
+    assert values.index(2) == 1
+    assert values.index(3) == 2
 
 
 @pytest.mark.skipif(six.PY2, reason='requires python3')
@@ -391,19 +402,30 @@ def test_py3_items():
     ])
 
     assert isinstance(module.items(), pvl._collections.ItemsView)
-    assert module.items()[0] == ('a', 1)
-    assert module.items()[1] == ('b', 2)
-    assert module.items()[2] == ('a', 3)
+    items = module.items()
+    assert items[0] == ('a', 1)
+    assert items[1] == ('b', 2)
+    assert items[2] == ('a', 3)
+    assert items.index(('a', 1)) == 0
+    assert items.index(('b', 2)) == 1
+    assert items.index(('a', 3)) == 2
 
     assert isinstance(module.keys(), pvl._collections.KeysView)
-    assert module.keys()[0] == 'a'
-    assert module.keys()[1] == 'b'
-    assert module.keys()[2] == 'a'
+    keys = module.keys()
+    assert keys[0] == 'a'
+    assert keys[1] == 'b'
+    assert keys[2] == 'a'
+    assert keys.index('a') == 0
+    assert keys.index('b') == 1
 
     assert isinstance(module.values(), pvl._collections.ValuesView)
-    assert module.values()[0] == 1
-    assert module.values()[1] == 2
-    assert module.values()[2] == 3
+    values = module.values()
+    assert values[0] == 1
+    assert values[1] == 2
+    assert values[2] == 3
+    assert values.index(1) == 0
+    assert values.index(2) == 1
+    assert values.index(3) == 2
 
 
 if six.PY3:
