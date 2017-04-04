@@ -392,13 +392,18 @@ def test_py3_items():
 
     assert isinstance(module.items(), pvl._collections.ItemsView)
     assert module.items()[0] == ('a', 1)
+    assert module.items()[1] == ('b', 2)
+    assert module.items()[2] == ('a', 3)
 
     assert isinstance(module.keys(), pvl._collections.KeysView)
     assert module.keys()[0] == 'a'
+    assert module.keys()[1] == 'b'
+    assert module.keys()[2] == 'a'
 
     assert isinstance(module.values(), pvl._collections.ValuesView)
     assert module.values()[0] == 1
-
+    assert module.values()[1] == 2
+    assert module.values()[2] == 3
 
 
 if six.PY3:
@@ -549,3 +554,121 @@ def test_conversion():
 
     assert dict(module) == expected_dict
     assert list(module) == expected_list
+
+
+@pytest.mark.parametrize(
+    'expected, key, instance', [
+        ([
+            ('new', 'item'),
+            ('a', 1),
+            ('b', 2),
+            ('a', 3),
+        ], 'a', 0),
+        ([
+            ('a', 1),
+            ('new', 'item'),
+            ('b', 2),
+            ('a', 3),
+        ], 'b', 0),
+        ([
+            ('a', 1),
+            ('b', 2),
+            ('new', 'item'),
+            ('a', 3),
+        ], 'a', 1)
+    ])
+def test_insert_before(expected, key, instance):
+    module1 = pvl.PVLModule([
+        ('a', 1),
+        ('b', 2),
+        ('a', 3),
+    ])
+    module2 = module1.copy()
+
+    expected_module = pvl.PVLModule(expected)
+
+    module1.insert_before(key, [('new', 'item')], instance)
+    assert expected_module == module1
+
+    module2.insert_before(key, pvl.PVLModule([('new', 'item')]), instance)
+    assert module2 == expected_module
+
+
+@pytest.mark.parametrize(
+    'expected, key, instance', [
+        ([
+            ('a', 1),
+            ('new', 'item'),
+            ('b', 2),
+            ('a', 3),
+        ], 'a', 0),
+        ([
+            ('a', 1),
+            ('b', 2),
+            ('new', 'item'),
+            ('a', 3),
+        ], 'b', 0),
+        ([
+            ('a', 1),
+            ('b', 2),
+            ('a', 3),
+            ('new', 'item'),
+        ], 'a', 1)
+    ])
+def test_insert_after(expected, key, instance):
+    module1 = pvl.PVLModule([
+        ('a', 1),
+        ('b', 2),
+        ('a', 3),
+    ])
+    module2 = module1.copy()
+
+    expected_module = pvl.PVLModule(expected)
+
+    module1.insert_after(key, [('new', 'item')], instance)
+    assert expected_module == module1
+
+    module2.insert_after(key, pvl.PVLModule([('new', 'item')]), instance)
+    assert module2 == expected_module
+
+
+@pytest.mark.parametrize(
+    'key, instance, expected_index', [
+        ('a', 0, 0),
+        ('b', 0, 1),
+        ('a', 1, 2)
+    ])
+def test_get_index_for_insert(key, instance, expected_index):
+    module = pvl.PVLModule([
+        ('a', 1),
+        ('b', 2),
+        ('a', 3),
+    ])
+
+    module._get_index_for_insert(key, instance) == expected_index
+
+
+def test_insert_raises():
+    module = pvl.PVLModule([
+        ('a', 1),
+        ('b', 2),
+        ('a', 3),
+    ])
+
+    with pytest.raises(KeyError):
+        module.insert_before('error_key', [('foo', 'bar')])
+
+    with pytest.raises(KeyError):
+        module.insert_after('error_key', [('foo', 'bar')])
+
+    with pytest.raises(TypeError):
+        module.insert_before('a', ('foo', 'bar'))
+
+    with pytest.raises(TypeError):
+        module.insert_after('a', ('foo', 'bar'))
+
+    with pytest.raises(ValueError):
+        module.insert_before('a', [('foo', 'bar')], 2)
+
+    with pytest.raises(ValueError):
+        module.insert_after('a', [('foo', 'bar')], 2)
