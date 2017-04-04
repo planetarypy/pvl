@@ -557,79 +557,111 @@ def test_conversion():
 
 
 @pytest.mark.parametrize(
-    'expected, key, instance', [
+    'expected_label, key, instance, expected_list, expected_value', [
         ([
-            ('new', 'item'),
+            ('a', 4),
             ('a', 1),
             ('b', 2),
             ('a', 3),
-        ], 'a', 0),
+            ('c', 5),
+        ], 'a', 0, [4, 1, 3], 4),
         ([
             ('a', 1),
-            ('new', 'item'),
+            ('a', 4),
             ('b', 2),
             ('a', 3),
-        ], 'b', 0),
+            ('c', 5),
+        ], 'b', 0, [1, 4, 3], 1),
         ([
             ('a', 1),
             ('b', 2),
-            ('new', 'item'),
+            ('a', 4),
             ('a', 3),
-        ], 'a', 1)
+            ('c', 5),
+        ], 'a', 1, [1, 4, 3], 1),
+        ([
+            ('a', 1),
+            ('b', 2),
+            ('a', 3),
+            ('a', 4),
+            ('c', 5),
+        ], 'c', 0, [1, 3, 4], 1)
     ])
-def test_insert_before(expected, key, instance):
+def test_insert_before(expected_label, key, instance, expected_list,
+                        expected_value):
     module1 = pvl.PVLModule([
         ('a', 1),
         ('b', 2),
         ('a', 3),
+        ('c', 5),
     ])
     module2 = module1.copy()
 
-    expected_module = pvl.PVLModule(expected)
+    expected_module = pvl.PVLModule(expected_label)
 
-    module1.insert_before(key, [('new', 'item')], instance)
+    module1.insert_before(key, [('a', 4)], instance)
     assert expected_module == module1
+    assert module1['a'] == expected_value
+    assert module1.getlist('a') == expected_list
 
-    module2.insert_before(key, pvl.PVLModule([('new', 'item')]), instance)
+    module2.insert_before(key, pvl.PVLModule([('a', 4)]), instance)
     assert module2 == expected_module
+    assert module1['a'] == expected_value
+    assert module1.getlist('a') == expected_list
 
 
 @pytest.mark.parametrize(
-    'expected, key, instance', [
+    'expected_label, key, instance, expected_list, expected_value', [
         ([
             ('a', 1),
-            ('new', 'item'),
+            ('a', 4),
             ('b', 2),
             ('a', 3),
-        ], 'a', 0),
-        ([
-            ('a', 1),
-            ('b', 2),
-            ('new', 'item'),
-            ('a', 3),
-        ], 'b', 0),
+            ('c', 5),
+        ], 'a', 0, [1, 4, 3], 1),
         ([
             ('a', 1),
             ('b', 2),
+            ('a', 4),
             ('a', 3),
-            ('new', 'item'),
-        ], 'a', 1)
+            ('c', 5),
+        ], 'b', 0, [1, 4, 3], 1),
+        ([
+            ('a', 1),
+            ('b', 2),
+            ('a', 3),
+            ('a', 4),
+            ('c', 5),
+        ], 'a', 1, [1, 3, 4], 1),
+        ([
+            ('a', 1),
+            ('b', 2),
+            ('a', 3),
+            ('c', 5),
+            ('a', 4),
+        ], 'c', 0, [1, 3, 4], 1)
     ])
-def test_insert_after(expected, key, instance):
+def test_insert_after(expected_label, key, instance, expected_list,
+                        expected_value):
     module1 = pvl.PVLModule([
         ('a', 1),
         ('b', 2),
         ('a', 3),
+        ('c', 5),
     ])
     module2 = module1.copy()
 
-    expected_module = pvl.PVLModule(expected)
+    expected_module = pvl.PVLModule(expected_label)
 
-    module1.insert_after(key, [('new', 'item')], instance)
+    module1.insert_after(key, [('a', 4)], instance)
     assert expected_module == module1
+    assert module1['a'] == expected_value
+    assert module1.getlist('a') == expected_list
 
-    module2.insert_after(key, pvl.PVLModule([('new', 'item')]), instance)
+    module2.insert_after(key, pvl.PVLModule([('a', 4)]), instance)
     assert module2 == expected_module
+    assert module1['a'] == expected_value
+    assert module1.getlist('a') == expected_list
 
 
 @pytest.mark.parametrize(

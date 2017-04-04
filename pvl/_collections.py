@@ -258,7 +258,7 @@ class OrderedMultiDict(dict, MutableMapping):
     def copy(self):
         return type(self)(self)
 
-    def _insert_wrapper(func):
+    def __insert_wrapper(func):
         """Make sure the arguments given to the insert methods are correct"""
         def check_func(self, key, new_item, instance=0):
             if key not in self.keys():
@@ -278,12 +278,11 @@ class OrderedMultiDict(dict, MutableMapping):
         else:
             occurrence = -1
             for index, k in enumerate(self.keys()):
-                if k == key and occurrence == instance:
-                    # Found the key and the correct occurence of the key
-                    break
-                elif k == key and occurrence != instance:
-                    # Found the key but not the right occurence of the key
+                if k == key:
                     occurrence += 1
+                    if occurrence == instance:
+                        # Found the key and the correct occurence of the key
+                        break
 
             if occurrence != instance:
                 # Gone through the entire list of keys and the instance number
@@ -302,13 +301,20 @@ class OrderedMultiDict(dict, MutableMapping):
         index = self._get_index_for_insert(key, instance)
         index = index + 1 if is_after else index
         self.__items = self.__items[:index] + new_item + self.__items[index:]
+        # Make sure indexing works with new items
+        for new_key, new_value in new_item:
+            if new_key in self:
+                value_list = [val for k, val in self.__items if k == new_key]
+                dict_setitem(self, new_key, value_list)
+            else:
+                dict_setitem(self, new_key, [new_value])
 
-    @_insert_wrapper
+    @__insert_wrapper
     def insert_after(self, key, new_item, instance=0):
         """Insert an item after a key"""
         self._insert_item(key, new_item, instance, True)
 
-    @_insert_wrapper
+    @__insert_wrapper
     def insert_before(self, key, new_item, instance=0):
         """Insert an item before a key"""
         self._insert_item(key, new_item, instance, False)
