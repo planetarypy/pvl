@@ -111,3 +111,33 @@ def test_quoated_strings():
 
     encoder = pvl.encoder.PDSLabelEncoder
     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+
+
+def test_dump_to_file_insert_before():
+    tmpdir = tempfile.mkdtemp()
+
+    try:
+        for filename in PDS_LABELS:
+            label = pvl.load(filename)
+            if os.path.basename(filename) != 'empty.lbl':
+                label.insert_before('PDS_VERSION_ID', [('new', 'item')])
+            tmpfile = os.path.join(tmpdir, os.path.basename(filename))
+            pvl.dump(label, tmpfile)
+            assert label == pvl.load(tmpfile)
+    finally:
+        shutil.rmtree(tmpdir)
+
+
+def test_dump_to_file_insert_after():
+    tmpdir = tempfile.mkdtemp()
+
+    try:
+        for filename in PDS_LABELS:
+            label = pvl.load(filename)
+            if os.path.basename(filename) != 'empty.lbl':
+                label.insert_after('PDS_VERSION_ID', [('new', 'item')])
+            tmpfile = os.path.join(tmpdir, os.path.basename(filename))
+            pvl.dump(label, tmpfile)
+            assert label == pvl.load(tmpfile)
+    finally:
+        shutil.rmtree(tmpdir)

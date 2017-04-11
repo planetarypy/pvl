@@ -41,6 +41,10 @@ class KeysView(MappingView):
         keys = [key for key, _ in self._mapping]
         return '%s(%r)' % (type(self).__name__, keys)
 
+    def index(self, key):
+        keys = [k for k, _ in self._mapping]
+        return keys.index(key)
+
 
 class ItemsView(MappingView):
     def __contains__(self, item):
@@ -53,6 +57,10 @@ class ItemsView(MappingView):
 
     def __getitem__(self, index):
         return self._mapping[index]
+
+    def index(self, item):
+        items = [i for i in self._mapping]
+        return items.index(item)
 
 
 class ValuesView(MappingView):
@@ -72,6 +80,10 @@ class ValuesView(MappingView):
     def __repr__(self):
         values = [value for _, value in self._mapping]
         return '%s(%r)' % (type(self).__name__, values)
+
+    def index(self, value):
+        values = [val for _, val in self._mapping]
+        return values.index(value)
 
 
 class OrderedMultiDict(dict, MutableMapping):
@@ -249,6 +261,67 @@ class OrderedMultiDict(dict, MutableMapping):
 
     def copy(self):
         return type(self)(self)
+
+    def __insert_wrapper(func):
+        """Make sure the arguments given to the insert methods are correct"""
+        def check_func(self, key, new_item, instance=0):
+            if key not in self.keys():
+                raise KeyError("%s not a key in label" % (key))
+            if not isinstance(new_item, (list, OrderedMultiDict)):
+                raise TypeError("The new item must be a list or PVLModule")
+            if isinstance(new_item, OrderedMultiDict):
+                new_item = list(new_item)
+            return func(self, key, new_item, instance)
+        return check_func
+
+    def _get_index_for_insert(self, key, instance):
+        """Get the index of the key to insert before or after"""
+        if instance == 0:
+            # Index method will return the first occurence of the key
+            index = self.keys().index(key)
+        else:
+            occurrence = -1
+            for index, k in enumerate(self.keys()):
+                if k == key:
+                    occurrence += 1
+                    if occurrence == instance:
+                        # Found the key and the correct occurence of the key
+                        break
+
+            if occurrence != instance:
+                # Gone through the entire list of keys and the instance number
+                # given is too high for the number of occurences of the key
+                raise ValueError(
+                    (
+                        "Cannot insert before/after the %d "
+                        "instance of the key '%s' since there are "
+                        "only %d occurences of the key" % (
+                            instance, key, occurrence)
+                    ))
+        return index
+
+    def _insert_item(self, key, new_item, instance, is_after):
+        """Insert a new item before or after another item"""
+        index = self._get_index_for_insert(key, instance)
+        index = index + 1 if is_after else index
+        self.__items = self.__items[:index] + new_item + self.__items[index:]
+        # Make sure indexing works with new items
+        for new_key, new_value in new_item:
+            if new_key in self:
+                value_list = [val for k, val in self.__items if k == new_key]
+                dict_setitem(self, new_key, value_list)
+            else:
+                dict_setitem(self, new_key, [new_value])
+
+    @__insert_wrapper
+    def insert_after(self, key, new_item, instance=0):
+        """Insert an item after a key"""
+        self._insert_item(key, new_item, instance, True)
+
+    @__insert_wrapper
+    def insert_before(self, key, new_item, instance=0):
+        """Insert an item before a key"""
+        self._insert_item(key, new_item, instance, False)
 
 
 class PVLModule(OrderedMultiDict):
