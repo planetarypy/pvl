@@ -166,7 +166,19 @@ class PVLDecoder(object):
             if has_end(stream):
                 return statements
 
-            statements.append(self.parse_statement(stream))
+            statement = self.parse_statement(stream)
+            if statement == 'EMPTY VALUE':
+                if len(statements) == 0:
+                    self.raise_unexpected(stream)
+                self.skip_whitespace(stream)
+                value = self.parse_value(stream)
+                last_assignment = statements.pop(-1)
+                fixed_last = last_assignment[0], ""
+                statements.append(fixed_last)
+                statements.append((last_assignment[1], value))
+
+            else:
+                statements.append(statement)
 
     def skip_whitespace_or_comment(self, stream):
         while 1:
@@ -207,7 +219,15 @@ class PVLDecoder(object):
         if self.has_assignment(stream):
             return self.parse_assignment(stream)
 
+        if self.has_assignment_symbol(stream):
+            return "EMPTY VALUE"
+
         self.raise_unexpected(stream)
+
+    def has_assignment_symbol(self, stream):
+        self.skip_whitespace(stream)
+        self.expect(stream, self.assignment_symbole)
+        return True
 
     def has_whitespace(self, stream, offset=0):
         return self.peek(stream, 1, offset) in self.whitespace
@@ -480,6 +500,8 @@ class PVLDecoder(object):
 
         if self.has_unquoated_string(stream):
             return self.parse_unquoated_string(stream)
+        if self.has_end(stream):
+            return ""
 
         self.raise_unexpected(stream)
 

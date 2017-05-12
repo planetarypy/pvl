@@ -714,8 +714,8 @@ def test_end_comment():
 
 
 def test_parse_error():
-    with pytest.raises(pvl.decoder.ParseError):
-        pvl.loads(b'foo=')
+    # with pytest.raises(pvl.decoder.ParseError):
+    #     pvl.loads(b'foo=')
 
     with pytest.raises(pvl.decoder.ParseError):
         pvl.loads(b'=')
@@ -723,8 +723,8 @@ def test_parse_error():
     with pytest.raises(pvl.decoder.ParseError):
         pvl.loads(b'(}')
 
-    with pytest.raises(pvl.decoder.ParseError):
-        pvl.loads(b'foo=')
+    # with pytest.raises(pvl.decoder.ParseError):
+    #     pvl.loads(b'foo=')
 
     with pytest.raises(pvl.decoder.ParseError):
         pvl.loads(b'foo=!')
@@ -734,3 +734,43 @@ def test_parse_error():
 
     with pytest.raises(pvl.decoder.ParseError):
         pvl.load(io.BytesIO(b'foo'))
+
+
+@pytest.mark.parametrize(
+    'label, expected',
+    [
+        ("""foo = bar
+            life =
+            monty = python
+        """, [("foo", "bar"), ("life", ""), ("monty", "python")]),
+        ("""
+            foo = bar
+            life =
+        """, [("foo", "bar"), ("life", "")]),
+        ("""foo =
+            life = 42
+        """, [("foo", ""), ("life", 42)]),
+        ("""foo = bar
+            life =
+            monty =
+        """, [("foo", "bar"), ("life", ""), ("monty", "")]),
+        ("""foo =
+            life =
+            monty = python
+        """, [("foo", ""), ("life", ""), ("monty", "python")]),
+        ("""foo =
+            life =
+            monty =
+        """, [("foo", ""), ("life", ""), ("monty", "")]),
+        ("""foo = 1;
+            Object = embedded_object;
+              foo = bar
+              life =
+            End_Object;
+            End;
+        """, [("foo", "1"), pvl.PVLObject([("foo", "bar"), ("life", "")])]),
+    ])
+def test_broken_labels(label, expected):
+    module = pvl.loads(label)
+    expected = pvl.PVLModule(expected)
+    assert module == expected
