@@ -170,7 +170,7 @@ class PVLDecoder(object):
             if statement == 'EMPTY VALUE':
                 if len(statements) == 0:
                     self.raise_unexpected(stream)
-                self.skip_whitespace(stream)
+                self.skip_whitespace_or_comment(stream)
                 value = self.parse_value(stream)
                 last_assignment = statements.pop(-1)
                 fixed_last = last_assignment[0], ""
@@ -210,6 +210,7 @@ class PVLDecoder(object):
                     | AggrObject
                     | AssignmentStmt
         """
+
         if self.has_group(stream):
             return self.parse_group(stream)
 
@@ -388,7 +389,16 @@ class PVLDecoder(object):
         """
         name = self.next_token(stream)
         self.ensure_assignment(stream)
-        value = self.parse_value(stream)
+        at_an_end = any((
+            self.has_end_group(stream),
+            self.has_end_object(stream),
+            self.has_end(stream),
+            self.has_next(self.statement_delimiter, stream, 0)))
+        if at_an_end:
+            self.skip_whitespace_or_comment(stream)
+            value = ''
+        else:
+            value = self.parse_value(stream)
         self.skip_statement_delimiter(stream)
         return name.decode('utf-8'), value
 

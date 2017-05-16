@@ -768,9 +768,77 @@ def test_parse_error():
               life =
             End_Object;
             End;
-        """, [("foo", "1"), pvl.PVLObject([("foo", "bar"), ("life", "")])]),
+        """, [
+            ("foo", 1),
+            ('embedded_object', pvl.PVLObject([("foo", "bar"), ("life", "")]))
+        ]),
+        ("""foo = 1;
+            Group = embedded_group;
+              foo = bar
+              life =
+            End_Group;
+            End;
+        """, [
+            ("foo", 1),
+            ('embedded_group', pvl.PVLGroup([("foo", "bar"), ("life", "")]))
+        ]),
+        ("""foo = 42
+        bar =
+        End""", [('foo', 42), ('bar', '')]),
+        ("""foo = 42 <beards>
+        cool =
+        End""", [('foo', Units(42, 'beards')), ('cool', '')]),
+        ("""foo =
+        cool = (1 <beards>)
+        End""", [('foo', ''), ('cool', [Units(1, 'beards')])]),
+        (
+            """strings = (a, b)
+            empty =
+            multiline = (a,
+                         b)
+            End""",
+            [('strings', ['a', 'b']), ('empty', ''), ('multiline', ['a', 'b'])]
+        ),
+        (
+            """
+            same = line no = problem; foo =;
+            bar =
+            End""",
+            [('same', 'line'), ('no', 'problem'), ('foo', ''), ('bar', '')]
+        ),
+        (
+            """
+            /* comment on line */
+            foo = bar /* comment at end of line */
+            weird/* in the */=/*middle*/
+            baz = bang # end line comment
+            End
+            """,
+            [('foo', 'bar'), ('weird', ''), ('baz', 'bang')]
+        ),
+        (
+            """
+            /* comment on line */
+            foo = bar /* comment at end of line */
+            weird/* in the */=/*middle*/ comment
+            baz = # end line comment
+            End
+            """,
+            [('foo', 'bar'), ('weird', 'comment'), ('baz', '')]
+        ),
+        (
+            """
+            /* comment on line */
+            foo = /* comment at end of line */
+            weird/* in the */=/*middle*/ comment
+            baz = bang # end line comment
+            End
+            """,
+            [('foo', ''), ('weird', 'comment'), ('baz', 'bang')]
+        ),
     ])
 def test_broken_labels(label, expected):
     module = pvl.loads(label)
     expected = pvl.PVLModule(expected)
+
     assert module == expected
