@@ -1,0 +1,6 @@
+foo = 1;
+Object = embedded_object;
+    foo = bar
+    life =
+End_Object;
+End;

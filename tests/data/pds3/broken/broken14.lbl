@@ -1,0 +1,5 @@
+/* comment on line */
+foo = bar /* comment at end of line */
+weird/* in the */=/*middle*/
+baz = bang # end line comment
+End

@@ -1,0 +1,5 @@
+strs = (a, b)
+empty =
+multiline = (a,
+             b)
+End
