@@ -325,7 +325,14 @@ class OrderedMultiDict(dict, MutableMapping):
 
 
 class PVLModule(OrderedMultiDict):
-    pass
+
+    def __init__(self, *args, **kwargs):
+        super(PVLModule, self).__init__(*args, **kwargs)
+        self.errors = []
+
+    @property
+    def valid(self):
+        return not self.errors
 
 
 class PVLGroup(OrderedMultiDict):

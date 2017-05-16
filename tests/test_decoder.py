@@ -19,6 +19,7 @@ from pvl import (
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data/')
 PDS_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'pds3')
 PDS_LABELS = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
+BROKEN_DIR = os.path.join('tests', 'data', 'pds3', 'broken')
 
 
 def test_assignment():
@@ -737,108 +738,103 @@ def test_parse_error():
 
 
 @pytest.mark.parametrize(
-    'label, expected',
+    'label, expected, expected_erros',
     [
-        ("""foo = bar
-            life =
-            monty = python
-        """, [("foo", "bar"), ("life", ""), ("monty", "python")]),
-        ("""
-            foo = bar
-            life =
-        """, [("foo", "bar"), ("life", "")]),
-        ("""foo =
-            life = 42
-        """, [("foo", ""), ("life", 42)]),
-        ("""foo = bar
-            life =
-            monty =
-        """, [("foo", "bar"), ("life", ""), ("monty", "")]),
-        ("""foo =
-            life =
-            monty = python
-        """, [("foo", ""), ("life", ""), ("monty", "python")]),
-        ("""foo =
-            life =
-            monty =
-        """, [("foo", ""), ("life", ""), ("monty", "")]),
-        ("""foo = 1;
-            Object = embedded_object;
-              foo = bar
-              life =
-            End_Object;
-            End;
-        """, [
-            ("foo", 1),
-            ('embedded_object', pvl.PVLObject([("foo", "bar"), ("life", "")]))
-        ]),
-        ("""foo = 1;
-            Group = embedded_group;
-              foo = bar
-              life =
-            End_Group;
-            End;
-        """, [
-            ("foo", 1),
-            ('embedded_group', pvl.PVLGroup([("foo", "bar"), ("life", "")]))
-        ]),
-        ("""foo = 42
-        bar =
-        End""", [('foo', 42), ('bar', '')]),
-        ("""foo = 42 <beards>
-        cool =
-        End""", [('foo', Units(42, 'beards')), ('cool', '')]),
-        ("""foo =
-        cool = (1 <beards>)
-        End""", [('foo', ''), ('cool', [Units(1, 'beards')])]),
         (
-            """strings = (a, b)
-            empty =
-            multiline = (a,
-                         b)
-            End""",
-            [('strings', ['a', 'b']), ('empty', ''), ('multiline', ['a', 'b'])]
+            'broken1.lbl',
+            [('foo', 'bar'), ('life', ''), ('monty', 'python')],
+            [2]
         ),
         (
-            """
-            same = line no = problem; foo =;
-            bar =
-            End""",
-            [('same', 'line'), ('no', 'problem'), ('foo', ''), ('bar', '')]
+            'broken2.lbl',
+            [('foo', 'bar'), ('life', '')],
+            [2]
         ),
         (
-            """
-            /* comment on line */
-            foo = bar /* comment at end of line */
-            weird/* in the */=/*middle*/
-            baz = bang # end line comment
-            End
-            """,
-            [('foo', 'bar'), ('weird', ''), ('baz', 'bang')]
+            'broken3.lbl',
+            [('foo', ''), ('life', 42)],
+            [1]
         ),
         (
-            """
-            /* comment on line */
-            foo = bar /* comment at end of line */
-            weird/* in the */=/*middle*/ comment
-            baz = # end line comment
-            End
-            """,
-            [('foo', 'bar'), ('weird', 'comment'), ('baz', '')]
+            'broken4.lbl',
+            [('foo', 'bar'), ('life', ''), ('monty', '')],
+            [2, 3]
         ),
         (
-            """
-            /* comment on line */
-            foo = /* comment at end of line */
-            weird/* in the */=/*middle*/ comment
-            baz = bang # end line comment
-            End
-            """,
-            [('foo', ''), ('weird', 'comment'), ('baz', 'bang')]
+            'broken5.lbl',
+            [('foo', ''), ('life', ''), ('monty', 'python')],
+            [1, 2]
+        ),
+        (
+            'broken6.lbl',
+            [('foo', ''), ('life', ''), ('monty', '')],
+            [1, 2, 3]
+        ),
+        (
+            'broken7.lbl',
+            [
+                ('foo', 1),
+                ('embedded_object', pvl.PVLObject(
+                    [('foo', 'bar'), ('life', '')]))
+            ],
+            [4]
+        ),
+        (
+            'broken8.lbl',
+            [
+                ('foo', 1),
+                ('embedded_group', pvl.PVLGroup(
+                    [('foo', 'bar'), ('life', '')]))
+            ],
+            [4]
+        ),
+        (
+            'broken9.lbl',
+            [('foo', 42), ('bar', '')],
+            [2]
+        ),
+        (
+            'broken10.lbl',
+            [('foo', Units(42, 'beards')), ('cool', '')],
+            [2]
+        ),
+        (
+            'broken11.lbl',
+            [('foo', ''), ('cool', [Units(1, 'beards')])],
+            [1]
+        ),
+        (
+            'broken12.lbl',
+            [('strs', ['a', 'b']), ('empty', ''), ('multiline', ['a', 'b'])],
+            [2]
+
+        ),
+        (
+            'broken13.lbl',
+            [('same', 'line'), ('no', 'problem'), ('foo', ''), ('bar', '')],
+            [1, 2]
+        ),
+        (
+            'broken14.lbl',
+            [('foo', 'bar'), ('weird', ''), ('baz', 'bang')],
+            [3]
+        ),
+        (
+            'broken15.lbl',
+            [('foo', 'bar'), ('weird', 'comment'), ('baz', '')],
+            [4]
+        ),
+        (
+            'broken16.lbl',
+            [('foo', ''), ('weird', 'comment'), ('baz', 'bang')],
+            [2]
         ),
     ])
-def test_broken_labels(label, expected):
-    module = pvl.loads(label)
+def test_broken_labels(label, expected, expected_erros):
+    with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
+        module = pvl.load(stream)
     expected = pvl.PVLModule(expected)
 
     assert module == expected
+    assert module.errors == expected_erros
+    assert not module.valid

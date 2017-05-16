@@ -77,6 +77,11 @@ class PVLDecoder(object):
     decimal_chars = char_set('0123456789')
     hex_chars = char_set('0123456789ABCDEFabcdef')
 
+    empty_value = 'EMPTY VALUE'
+
+    def __init__(self):
+        self.errors = []
+
     def peek(self, stream, n, offset=0):
         return stream.peek(n + offset)[offset:offset + n]
 
@@ -149,6 +154,7 @@ class PVLDecoder(object):
             stream = BufferedStream(stream)
 
         module = PVLModule(self.parse_block(stream, self.has_end))
+        module.errors = self.errors
         self.skip_end(stream)
         return module
 
@@ -167,7 +173,8 @@ class PVLDecoder(object):
                 return statements
 
             statement = self.parse_statement(stream)
-            if statement == 'EMPTY VALUE':
+            if statement == self.empty_value:
+                self.errors.append(stream.lineno - 1)
                 if len(statements) == 0:
                     self.raise_unexpected(stream)
                 self.skip_whitespace_or_comment(stream)
@@ -221,7 +228,7 @@ class PVLDecoder(object):
             return self.parse_assignment(stream)
 
         if self.has_assignment_symbol(stream):
-            return "EMPTY VALUE"
+            return self.empty_value
 
         self.raise_unexpected(stream)
 
@@ -387,6 +394,7 @@ class PVLDecoder(object):
         """
         AssignmentStmt ::= Name WSC AssignmentSymbol WSC Value StatementDelim
         """
+        lineno = stream.lineno
         name = self.next_token(stream)
         self.ensure_assignment(stream)
         at_an_end = any((
@@ -395,6 +403,7 @@ class PVLDecoder(object):
             self.has_end(stream),
             self.has_next(self.statement_delimiter, stream, 0)))
         if at_an_end:
+            self.errors.append(lineno)
             self.skip_whitespace_or_comment(stream)
             value = ''
         else:
@@ -510,7 +519,9 @@ class PVLDecoder(object):
 
         if self.has_unquoated_string(stream):
             return self.parse_unquoated_string(stream)
+
         if self.has_end(stream):
+            self.errors.append(stream.lineno)
             return ""
 
         self.raise_unexpected(stream)
