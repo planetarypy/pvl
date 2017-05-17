@@ -13,6 +13,7 @@ from pvl import (
     LabelGroup,
     LabelObject,
     Units,
+    decoder
 )
 
 
@@ -737,37 +738,40 @@ def test_parse_error():
         pvl.load(io.BytesIO(b'foo'))
 
 
+EV = decoder.EmptyValue
+
+
 @pytest.mark.parametrize(
     'label, expected, expected_erros',
     [
         (
             'broken1.lbl',
-            [('foo', 'bar'), ('life', ''), ('monty', 'python')],
+            [('foo', 'bar'), ('life', EV(2)), ('monty', 'python')],
             [2]
         ),
         (
             'broken2.lbl',
-            [('foo', 'bar'), ('life', '')],
+            [('foo', 'bar'), ('life', EV(2))],
             [2]
         ),
         (
             'broken3.lbl',
-            [('foo', ''), ('life', 42)],
+            [('foo', EV(1)), ('life', 42)],
             [1]
         ),
         (
             'broken4.lbl',
-            [('foo', 'bar'), ('life', ''), ('monty', '')],
+            [('foo', 'bar'), ('life', EV(2)), ('monty', EV(3))],
             [2, 3]
         ),
         (
             'broken5.lbl',
-            [('foo', ''), ('life', ''), ('monty', 'python')],
+            [('foo', EV(1)), ('life', EV(2)), ('monty', 'python')],
             [1, 2]
         ),
         (
             'broken6.lbl',
-            [('foo', ''), ('life', ''), ('monty', '')],
+            [('foo', EV(1)), ('life', EV(1)), ('monty', EV(1))],
             [1, 2, 3]
         ),
         (
@@ -775,7 +779,7 @@ def test_parse_error():
             [
                 ('foo', 1),
                 ('embedded_object', pvl.PVLObject(
-                    [('foo', 'bar'), ('life', '')]))
+                    [('foo', 'bar'), ('life', EV(1))]))
             ],
             [4]
         ),
@@ -784,49 +788,56 @@ def test_parse_error():
             [
                 ('foo', 1),
                 ('embedded_group', pvl.PVLGroup(
-                    [('foo', 'bar'), ('life', '')]))
+                    [('foo', 'bar'), ('life', EV(1))]))
             ],
             [4]
         ),
         (
             'broken9.lbl',
-            [('foo', 42), ('bar', '')],
+            [('foo', 42), ('bar', EV(1))],
             [2]
         ),
         (
             'broken10.lbl',
-            [('foo', Units(42, 'beards')), ('cool', '')],
+            [('foo', Units(42, 'beards')), ('cool', EV(1))],
             [2]
         ),
         (
             'broken11.lbl',
-            [('foo', ''), ('cool', [Units(1, 'beards')])],
+            [('foo', EV(1)), ('cool', [Units(1, 'beards')])],
             [1]
         ),
         (
             'broken12.lbl',
-            [('strs', ['a', 'b']), ('empty', ''), ('multiline', ['a', 'b'])],
+            [
+                ('strs', ['a', 'b']),
+                ('empty', EV(2)), ('multiline', ['a', 'b'])
+            ],
             [2]
 
         ),
         (
             'broken13.lbl',
-            [('same', 'line'), ('no', 'problem'), ('foo', ''), ('bar', '')],
+            [
+                ('same', 'line'),
+                ('no', 'problem'),
+                ('foo', EV(1)), ('bar', EV(2))
+            ],
             [1, 2]
         ),
         (
             'broken14.lbl',
-            [('foo', 'bar'), ('weird', ''), ('baz', 'bang')],
+            [('foo', 'bar'), ('weird', EV(3)), ('baz', 'bang')],
             [3]
         ),
         (
             'broken15.lbl',
-            [('foo', 'bar'), ('weird', 'comment'), ('baz', '')],
+            [('foo', 'bar'), ('weird', 'comment'), ('baz', EV(4))],
             [4]
         ),
         (
             'broken16.lbl',
-            [('foo', ''), ('weird', 'comment'), ('baz', 'bang')],
+            [('foo', EV(2)), ('weird', 'comment'), ('baz', 'bang')],
             [2]
         ),
     ])
@@ -838,3 +849,15 @@ def test_broken_labels(label, expected, expected_erros):
     assert module == expected
     assert module.errors == expected_erros
     assert not module.valid
+
+
+def test_EmptyValue():
+    test_ev = decoder.EmptyValue(1)
+    assert test_ev == ''
+    assert 'foo' + test_ev == 'foo'
+    assert isinstance(test_ev, str)
+    assert test_ev.lineno == 1
+    assert int(test_ev) == 0
+    assert float(test_ev) == 0.0
+    trep = 'EmptyValue(Line 1 does not have a value. Treat as an empty string)'
+    assert repr(test_ev) == trep

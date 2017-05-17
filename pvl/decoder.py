@@ -24,6 +24,26 @@ class ParseError(ValueError):
         self.colno = colno
 
 
+class EmptyValue(str):
+
+    def __new__(cls, lineno, *args, **kwargs):
+        self = super(EmptyValue, cls).__new__(cls, '')
+        self.lineno = lineno
+        return self
+
+    def __int__(self):
+        return 0
+
+    def __float__(self):
+        return 0.0
+
+    def __repr__(self):
+        message = '%s(Line %d does not have a value.'
+        message = message % (type(self).__name__, self.lineno)
+        message += ' Treat as an empty string)'
+        return message
+
+
 def char_set(chars):
     return set([b(c) for c in chars])
 
@@ -174,18 +194,20 @@ class PVLDecoder(object):
 
             statement = self.parse_statement(stream)
             if statement == self.empty_value:
-                self.errors.append(stream.lineno - 1)
+                error_lineno = stream.lineno - 1
+                self.errors.append(error_lineno)
                 if len(statements) == 0:
                     self.raise_unexpected(stream)
                 self.skip_whitespace_or_comment(stream)
                 value = self.parse_value(stream)
                 last_assignment = statements.pop(-1)
-                fixed_last = last_assignment[0], ""
+                fixed_last = last_assignment[0], EmptyValue(error_lineno)
                 statements.append(fixed_last)
                 statements.append((last_assignment[1], value))
 
             else:
                 statements.append(statement)
+            print(statements)
 
     def skip_whitespace_or_comment(self, stream):
         while 1:
@@ -405,7 +427,7 @@ class PVLDecoder(object):
         if at_an_end:
             self.errors.append(lineno)
             self.skip_whitespace_or_comment(stream)
-            value = ''
+            value = EmptyValue(lineno)
         else:
             value = self.parse_value(stream)
         self.skip_statement_delimiter(stream)
@@ -522,7 +544,7 @@ class PVLDecoder(object):
 
         if self.has_end(stream):
             self.errors.append(stream.lineno)
-            return ""
+            return EmptyValue(stream.lineno)
 
         self.raise_unexpected(stream)
 
