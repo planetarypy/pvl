@@ -35,7 +35,9 @@ How to use Module::
 Parameters
 +++++++++++
 
-Must be a string of the image file name with the file path included.
+Must be a string of the image file name with the file path included. 
+If the label, is not pvl compliant, use the keyword argument ``strict=False``
+to still parse the label.
 
 Detailed Use
 ++++++++++++++
@@ -164,7 +166,8 @@ How to use Module::
 Parameters
 +++++++++++
 
-Must be a string of the of the label.
+Must be a string of the of the label. If the label, is not pvl compliant, use
+the keyword argument ``strict=False`` to still parse the label.
 
 Detailed Use
 ++++++++++++++
@@ -219,3 +222,18 @@ And what is in the subdirectory::
 
  >>> print pvl.loads(string)['Label']['Bytes']
  65536
+
+Load a non-pvl compliant label using the ``strict=False`` keyword argument:
+  >>> string = """
+ Object = Label
+   A =
+ End_Object
+ End"""
+
+ >>> print pvl.loads(string, strict=False)
+ PVLModule([
+  (u'Label',
+   PVLObject([
+    (u'A', EmptyValue(Line 3 does not have a value. Treat as an empty string))
+  ]))
+])
