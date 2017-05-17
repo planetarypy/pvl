@@ -207,7 +207,6 @@ class PVLDecoder(object):
 
             else:
                 statements.append(statement)
-            print(statements)
 
     def skip_whitespace_or_comment(self, stream):
         while 1:
