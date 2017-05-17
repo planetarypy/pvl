@@ -206,19 +206,18 @@ class PVLDecoder(object):
                 return statements
 
             statement = self.parse_statement(stream)
-            if statement == self.empty_value:
-                error_lineno = stream.lineno - 1
+            if isinstance(statement, EmptyValue):
                 if len(statements) == 0:
                     self.raise_unexpected(stream)
                 self.skip_whitespace_or_comment(stream)
                 value = self.parse_value(stream)
-                last_assignment = statements.pop(-1)
+                last_statement = statements.pop(-1)
                 fixed_last = (
-                    last_assignment[0],
-                    self.broken_parameter_value(error_lineno)
+                    last_statement[0],
+                    statement
                 )
                 statements.append(fixed_last)
-                statements.append((last_assignment[1], value))
+                statements.append((last_statement[1], value))
 
             else:
                 statements.append(statement)
@@ -264,7 +263,7 @@ class PVLDecoder(object):
             return self.parse_assignment(stream)
 
         if self.has_assignment_symbol(stream):
-            return self.empty_value
+            return self.broken_parameter_value(stream.lineno - 1)
 
         self.raise_unexpected(stream)
 
