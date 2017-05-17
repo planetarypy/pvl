@@ -850,6 +850,10 @@ def test_broken_labels(label, expected, expected_erros):
     assert module.errors == expected_erros
     assert not module.valid
 
+    with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
+        with pytest.raises(pvl.decoder.ParseError):
+            pvl.load(stream, strict=True)
+
 
 def test_EmptyValue():
     test_ev = decoder.EmptyValue(1)
