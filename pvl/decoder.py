@@ -16,7 +16,11 @@ class ParseError(ValueError):
     colno: The column corresponding to pos
     """
     def __init__(self, msg, pos, lineno, colno):
-        errmsg = '%s: line %d column %d (char %d)' % (msg, lineno, colno, pos)
+        if None not in (pos, colno):
+            errmsg = '%s: line %d column %d (char %d)' % (
+                msg, lineno, colno, pos)
+        else:
+            errmsg = '%s: line %d' % (msg, lineno)
         super(ParseError, self).__init__(errmsg)
         self.msg = msg
         self.pos = pos
@@ -99,7 +103,8 @@ class PVLDecoder(object):
 
     empty_value = 'EMPTY VALUE'
 
-    def __init__(self):
+    def __init__(self, strict=True):
+        self.strict = strict
         self.errors = []
 
     def peek(self, stream, n, offset=0):
@@ -133,6 +138,14 @@ class PVLDecoder(object):
 
     def raise_unexpected_eof(self, stream):
         self.raise_error('Unexpected EOF', stream)
+
+    def broken_parameter_value(self, lineno):
+        if self.strict:
+            msg = "Broken Parameter-Value. Set strict to False to skip error"
+            raise ParseError(msg, None, lineno, None)
+        else:
+            self.errors.append(lineno)
+            return EmptyValue(lineno)
 
     def has_eof(self, stream, offset=0):
         return self.peek(stream, 1, offset) in self.eof_chars
@@ -174,7 +187,7 @@ class PVLDecoder(object):
             stream = BufferedStream(stream)
 
         module = PVLModule(self.parse_block(stream, self.has_end))
-        module.errors = self.errors
+        module.errors = sorted(self.errors)
         self.skip_end(stream)
         return module
 
@@ -195,13 +208,15 @@ class PVLDecoder(object):
             statement = self.parse_statement(stream)
             if statement == self.empty_value:
                 error_lineno = stream.lineno - 1
-                self.errors.append(error_lineno)
                 if len(statements) == 0:
                     self.raise_unexpected(stream)
                 self.skip_whitespace_or_comment(stream)
                 value = self.parse_value(stream)
                 last_assignment = statements.pop(-1)
-                fixed_last = last_assignment[0], EmptyValue(error_lineno)
+                fixed_last = (
+                    last_assignment[0],
+                    self.broken_parameter_value(error_lineno)
+                )
                 statements.append(fixed_last)
                 statements.append((last_assignment[1], value))
 
@@ -424,9 +439,8 @@ class PVLDecoder(object):
             self.has_end(stream),
             self.has_next(self.statement_delimiter, stream, 0)))
         if at_an_end:
-            self.errors.append(lineno)
+            value = self.broken_parameter_value(lineno)
             self.skip_whitespace_or_comment(stream)
-            value = EmptyValue(lineno)
         else:
             value = self.parse_value(stream)
         self.skip_statement_delimiter(stream)
@@ -542,8 +556,7 @@ class PVLDecoder(object):
             return self.parse_unquoated_string(stream)
 
         if self.has_end(stream):
-            self.errors.append(stream.lineno)
-            return EmptyValue(stream.lineno)
+            return self.broken_parameter_value(stream.lineno)
 
         self.raise_unexpected(stream)
 

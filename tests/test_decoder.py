@@ -716,8 +716,8 @@ def test_end_comment():
 
 
 def test_parse_error():
-    # with pytest.raises(pvl.decoder.ParseError):
-    #     pvl.loads(b'foo=')
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'foo=')
 
     with pytest.raises(pvl.decoder.ParseError):
         pvl.loads(b'=')
@@ -725,8 +725,8 @@ def test_parse_error():
     with pytest.raises(pvl.decoder.ParseError):
         pvl.loads(b'(}')
 
-    # with pytest.raises(pvl.decoder.ParseError):
-    #     pvl.loads(b'foo=')
+    with pytest.raises(pvl.decoder.ParseError):
+        pvl.loads(b'foo=')
 
     with pytest.raises(pvl.decoder.ParseError):
         pvl.loads(b'foo=!')
@@ -843,7 +843,7 @@ EV = decoder.EmptyValue
     ])
 def test_broken_labels(label, expected, expected_erros):
     with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
-        module = pvl.load(stream)
+        module = pvl.load(stream, strict=False)
     expected = pvl.PVLModule(expected)
 
     assert module == expected

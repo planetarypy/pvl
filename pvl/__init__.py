@@ -73,7 +73,7 @@ __all__ = [
 ]
 
 
-def load(stream, cls=PVLDecoder, **kwargs):
+def load(stream, cls=PVLDecoder, strict=True, **kwargs):
     """Deserialize ``stream`` as a pvl module.
 
     :param stream: a ``.read()``-supporting file-like object containing a
@@ -87,10 +87,10 @@ def load(stream, cls=PVLDecoder, **kwargs):
     if isinstance(stream, six.string_types):
         with open(stream, 'rb') as fp:
             return cls(**kwargs).decode(fp)
-    return cls(**kwargs).decode(stream)
+    return cls(strict, **kwargs).decode(stream)
 
 
-def loads(data, cls=PVLDecoder, **kwargs):
+def loads(data, cls=PVLDecoder, strict=True, **kwargs):
     """Deserialize ``data`` as a pvl module.
 
     :param data: a pvl module as a byte or unicode string
@@ -102,7 +102,7 @@ def loads(data, cls=PVLDecoder, **kwargs):
     """
     if not isinstance(data, bytes):
         data = data.encode('utf-8')
-    return cls(**kwargs).decode(data)
+    return cls(strict, **kwargs).decode(data)
 
 
 def dump(module, stream, cls=PVLEncoder, **kwargs):
