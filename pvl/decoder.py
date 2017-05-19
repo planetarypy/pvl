@@ -101,8 +101,6 @@ class PVLDecoder(object):
     decimal_chars = char_set('0123456789')
     hex_chars = char_set('0123456789ABCDEFabcdef')
 
-    empty_value = 'EMPTY VALUE'
-
     def __init__(self, strict=True):
         self.strict = strict
         self.errors = []
