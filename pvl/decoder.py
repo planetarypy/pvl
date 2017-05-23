@@ -28,10 +28,46 @@ class ParseError(ValueError):
         self.colno = colno
 
 
-class EmptyValue(str):
+class EmptyValueAtLine(str):
+    """Empty string to be used as a placeholder for a parameter without a value
+
+    When a label is contains a parameter without a value, it is considered a
+    broken label. To rectify the broken parameter-value pair, the parameter is
+    set to have a value of EmptyValueAtLine. The empty value is an empty
+    string and can be treated as such. It also contains and requires as an
+    argument the line number of the error.
+
+    Parameters
+    ----------
+    lineno : int
+        The line number of the broken parameter-value pair
+
+    Attributes
+    ----------
+    lineno : int
+        The line number of the broken parameter-value pai
+
+    Examples
+    --------
+    >>> from pvl.decoder import EmptyValueAtLine
+    >>> EV1 = EmptyValueAtLine(1)
+    >>> EV1
+    EmptyValueAtLine(1 does not have a value. Treat as an empty string)
+    >>> EV1.lineno
+    1
+    >>> print(EV1)
+
+    >>> EV1 + 'foo'
+    'foo'
+    >>> # Can be turned into an integer and float as 0:
+    >>> int(EV1)
+    0
+    >>> float(EV1)
+    0.0
+    """
 
     def __new__(cls, lineno, *args, **kwargs):
-        self = super(EmptyValue, cls).__new__(cls, '')
+        self = super(EmptyValueAtLine, cls).__new__(cls, '')
         self.lineno = lineno
         return self
 
@@ -42,7 +78,7 @@ class EmptyValue(str):
         return 0.0
 
     def __repr__(self):
-        message = '%s(Line %d does not have a value.'
+        message = '%s(%d does not have a value.'
         message = message % (type(self).__name__, self.lineno)
         message += ' Treat as an empty string)'
         return message
@@ -139,11 +175,15 @@ class PVLDecoder(object):
 
     def broken_parameter_value(self, lineno):
         if self.strict:
-            msg = "Broken Parameter-Value. Set strict to False to skip error"
+            msg = (
+                "Broken Parameter-Value. Using 'strict=False' when calling" +
+                " 'pvl.load' may help you parse the label, it could also" +
+                " inadvertently mask other errors"
+            )
             raise ParseError(msg, None, lineno, None)
         else:
             self.errors.append(lineno)
-            return EmptyValue(lineno)
+            return EmptyValueAtLine(lineno)
 
     def has_eof(self, stream, offset=0):
         return self.peek(stream, 1, offset) in self.eof_chars
@@ -204,7 +244,7 @@ class PVLDecoder(object):
                 return statements
 
             statement = self.parse_statement(stream)
-            if isinstance(statement, EmptyValue):
+            if isinstance(statement, EmptyValueAtLine):
                 if len(statements) == 0:
                     self.raise_unexpected(stream)
                 self.skip_whitespace_or_comment(stream)

@@ -739,11 +739,11 @@ def test_parse_error():
         pvl.load(io.BytesIO(b'foo'))
 
 
-EV = decoder.EmptyValue
+EV = decoder.EmptyValueAtLine
 
 
 @pytest.mark.parametrize(
-    'label, expected, expected_erros',
+    'label, expected, expected_errors',
     [
         (
             'broken1.lbl',
@@ -842,13 +842,13 @@ EV = decoder.EmptyValue
             [2]
         ),
     ])
-def test_broken_labels(label, expected, expected_erros):
+def test_broken_labels(label, expected, expected_errors):
     with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
         module = pvl.load(stream, strict=False)
     expected = pvl.PVLModule(expected)
 
     assert module == expected
-    assert module.errors == expected_erros
+    assert module.errors == expected_errors
     assert not module.valid
 
     with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
@@ -856,15 +856,17 @@ def test_broken_labels(label, expected, expected_erros):
             pvl.load(stream, strict=True)
 
 
-def test_EmptyValue():
-    test_ev = decoder.EmptyValue(1)
+def test_EmptyValueAtLine():
+    test_ev = decoder.EmptyValueAtLine(1)
     assert test_ev == ''
     assert 'foo' + test_ev == 'foo'
     assert isinstance(test_ev, str)
     assert test_ev.lineno == 1
     assert int(test_ev) == 0
     assert float(test_ev) == 0.0
-    trep = 'EmptyValue(Line 1 does not have a value. Treat as an empty string)'
+    trep = (
+        'EmptyValueAtLine(1 does not have a value. Treat as an empty string)'
+    )
     assert repr(test_ev) == trep
 
 
