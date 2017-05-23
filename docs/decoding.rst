@@ -35,9 +35,9 @@ How to use Module::
 Parameters
 +++++++++++
 
-Must be a string of the image file name with the file path included. 
-If the label, is not pvl compliant, use the keyword argument ``strict=False``
-to still parse the label.
+Must be a string containing the absolute or relative path to an image file. The
+keyword argument ``strict=False`` can be used to parse image files with labels
+that are not PVL compliant.
 
 Detailed Use
 ++++++++++++++
@@ -166,8 +166,8 @@ How to use Module::
 Parameters
 +++++++++++
 
-Must be a string of the of the label. If the label, is not pvl compliant, use
-the keyword argument ``strict=False`` to still parse the label.
+Must be a string containing the PVL label. The keyword argument ``strict=False``
+can be used to parse labels that are not PVL compliant.
 
 Detailed Use
 ++++++++++++++
@@ -223,17 +223,19 @@ And what is in the subdirectory::
  >>> print pvl.loads(string)['Label']['Bytes']
  65536
 
-Load a non-pvl compliant label using the ``strict=False`` keyword argument:
+Load a non-pvl compliant label using the ``strict=False`` keyword argument. The
+only type of of non-pvl compliant labels are those where there is a parameter
+without a corresponding value. Other types of broken labels are not supported:
   >>> string = """
- Object = Label
-   A =
- End_Object
- End"""
+  Object = Label
+    A =
+  End_Object
+  End"""
 
  >>> print pvl.loads(string, strict=False)
  PVLModule([
   (u'Label',
    PVLObject([
-    (u'A', EmptyValue(Line 3 does not have a value. Treat as an empty string))
+    (u'A', EmptyValueAtLine(3 does not have a value. Treat as an empty string))
   ]))
 ])
