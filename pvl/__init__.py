@@ -86,7 +86,7 @@ def load(stream, cls=PVLDecoder, strict=True, **kwargs):
     """
     if isinstance(stream, six.string_types):
         with open(stream, 'rb') as fp:
-            return cls(**kwargs).decode(fp)
+            return cls(strict, **kwargs).decode(fp)
     return cls(strict, **kwargs).decode(stream)
 
 
