@@ -21,6 +21,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), 'data/')
 PDS_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'pds3')
 PDS_LABELS = glob.glob(os.path.join(PDS_DATA_DIR, "*.lbl"))
 BROKEN_DIR = os.path.join('tests', 'data', 'pds3', 'broken')
+BAD_PDS_LABELS = glob.glob(os.path.join(BROKEN_DIR, "*.lbl"))
 
 
 def test_assignment():
@@ -865,3 +866,9 @@ def test_EmptyValue():
     assert float(test_ev) == 0.0
     trep = 'EmptyValue(Line 1 does not have a value. Treat as an empty string)'
     assert repr(test_ev) == trep
+
+
+def test_load_all_bad_sample_labels():
+    for filename in BAD_PDS_LABELS:
+        label = pvl.load(filename, strict=False)
+        assert isinstance(label, Label)
