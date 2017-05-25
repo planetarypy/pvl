@@ -73,6 +73,12 @@ __all__ = [
 ]
 
 
+def __create_decoder(cls, strict, **kwargs):
+    decoder = cls(**kwargs)
+    decoder.set_strict(strict)
+    return decoder
+
+
 def load(stream, cls=PVLDecoder, strict=True, **kwargs):
     """Deserialize ``stream`` as a pvl module.
 
@@ -84,10 +90,11 @@ def load(stream, cls=PVLDecoder, strict=True, **kwargs):
 
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
+    decoder = __create_decoder(cls, strict, **kwargs)
     if isinstance(stream, six.string_types):
         with open(stream, 'rb') as fp:
-            return cls(strict, **kwargs).decode(fp)
-    return cls(strict, **kwargs).decode(stream)
+            return decoder.decode(fp)
+    return decoder.decode(stream)
 
 
 def loads(data, cls=PVLDecoder, strict=True, **kwargs):
@@ -100,9 +107,10 @@ def loads(data, cls=PVLDecoder, strict=True, **kwargs):
 
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
+    decoder = __create_decoder(cls, strict, **kwargs)
     if not isinstance(data, bytes):
         data = data.encode('utf-8')
-    return cls(strict, **kwargs).decode(data)
+    return decoder.decode(data)
 
 
 def dump(module, stream, cls=PVLEncoder, **kwargs):
