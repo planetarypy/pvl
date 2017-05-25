@@ -137,9 +137,12 @@ class PVLDecoder(object):
     decimal_chars = char_set('0123456789')
     hex_chars = char_set('0123456789ABCDEFabcdef')
 
-    def __init__(self, strict=True):
-        self.strict = strict
+    def __init__(self):
+        self.strict = True
         self.errors = []
+
+    def set_strict(self, strict):
+        self.strict = strict
 
     def peek(self, stream, n, offset=0):
         return stream.peek(n + offset)[offset:offset + n]
@@ -173,7 +176,7 @@ class PVLDecoder(object):
     def raise_unexpected_eof(self, stream):
         self.raise_error('Unexpected EOF', stream)
 
-    def broken_parameter_value(self, lineno):
+    def broken_assignment(self, lineno):
         if self.strict:
             msg = (
                 "Broken Parameter-Value. Using 'strict=False' when calling" +
@@ -301,7 +304,7 @@ class PVLDecoder(object):
             return self.parse_assignment(stream)
 
         if self.has_assignment_symbol(stream):
-            return self.broken_parameter_value(stream.lineno - 1)
+            return self.broken_assignment(stream.lineno - 1)
 
         self.raise_unexpected(stream)
 
@@ -476,7 +479,7 @@ class PVLDecoder(object):
             self.has_end(stream),
             self.has_next(self.statement_delimiter, stream, 0)))
         if at_an_end:
-            value = self.broken_parameter_value(lineno)
+            value = self.broken_assignment(lineno)
             self.skip_whitespace_or_comment(stream)
         else:
             value = self.parse_value(stream)
@@ -593,7 +596,7 @@ class PVLDecoder(object):
             return self.parse_unquoated_string(stream)
 
         if self.has_end(stream):
-            return self.broken_parameter_value(stream.lineno)
+            return self.broken_assignment(stream.lineno)
 
         self.raise_unexpected(stream)
 
