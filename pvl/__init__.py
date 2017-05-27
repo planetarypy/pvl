@@ -73,7 +73,13 @@ __all__ = [
 ]
 
 
-def load(stream, cls=PVLDecoder, **kwargs):
+def __create_decoder(cls, strict, **kwargs):
+    decoder = cls(**kwargs)
+    decoder.set_strict(strict)
+    return decoder
+
+
+def load(stream, cls=PVLDecoder, strict=True, **kwargs):
     """Deserialize ``stream`` as a pvl module.
 
     :param stream: a ``.read()``-supporting file-like object containing a
@@ -84,13 +90,14 @@ def load(stream, cls=PVLDecoder, **kwargs):
 
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
+    decoder = __create_decoder(cls, strict, **kwargs)
     if isinstance(stream, six.string_types):
         with open(stream, 'rb') as fp:
-            return cls(**kwargs).decode(fp)
-    return cls(**kwargs).decode(stream)
+            return decoder.decode(fp)
+    return decoder.decode(stream)
 
 
-def loads(data, cls=PVLDecoder, **kwargs):
+def loads(data, cls=PVLDecoder, strict=True, **kwargs):
     """Deserialize ``data`` as a pvl module.
 
     :param data: a pvl module as a byte or unicode string
@@ -100,9 +107,10 @@ def loads(data, cls=PVLDecoder, **kwargs):
 
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
+    decoder = __create_decoder(cls, strict, **kwargs)
     if not isinstance(data, bytes):
         data = data.encode('utf-8')
-    return cls(**kwargs).decode(data)
+    return decoder.decode(data)
 
 
 def dump(module, stream, cls=PVLEncoder, **kwargs):

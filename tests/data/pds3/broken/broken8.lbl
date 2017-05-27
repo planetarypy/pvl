@@ -1,0 +1,6 @@
+foo = 1;
+Group = embedded_group;
+    foo = bar
+    life =
+End_Group;
+End;

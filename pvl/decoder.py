@@ -16,12 +16,72 @@ class ParseError(ValueError):
     colno: The column corresponding to pos
     """
     def __init__(self, msg, pos, lineno, colno):
-        errmsg = '%s: line %d column %d (char %d)' % (msg, lineno, colno, pos)
+        if None not in (pos, colno):
+            errmsg = '%s: line %d column %d (char %d)' % (
+                msg, lineno, colno, pos)
+        else:
+            errmsg = '%s: line %d' % (msg, lineno)
         super(ParseError, self).__init__(errmsg)
         self.msg = msg
         self.pos = pos
         self.lineno = lineno
         self.colno = colno
+
+
+class EmptyValueAtLine(str):
+    """Empty string to be used as a placeholder for a parameter without a value
+
+    When a label is contains a parameter without a value, it is considered a
+    broken label. To rectify the broken parameter-value pair, the parameter is
+    set to have a value of EmptyValueAtLine. The empty value is an empty
+    string and can be treated as such. It also contains and requires as an
+    argument the line number of the error.
+
+    Parameters
+    ----------
+    lineno : int
+        The line number of the broken parameter-value pair
+
+    Attributes
+    ----------
+    lineno : int
+        The line number of the broken parameter-value pai
+
+    Examples
+    --------
+    >>> from pvl.decoder import EmptyValueAtLine
+    >>> EV1 = EmptyValueAtLine(1)
+    >>> EV1
+    EmptyValueAtLine(1 does not have a value. Treat as an empty string)
+    >>> EV1.lineno
+    1
+    >>> print(EV1)
+
+    >>> EV1 + 'foo'
+    'foo'
+    >>> # Can be turned into an integer and float as 0:
+    >>> int(EV1)
+    0
+    >>> float(EV1)
+    0.0
+    """
+
+    def __new__(cls, lineno, *args, **kwargs):
+        self = super(EmptyValueAtLine, cls).__new__(cls, '')
+        self.lineno = lineno
+        return self
+
+    def __int__(self):
+        return 0
+
+    def __float__(self):
+        return 0.0
+
+    def __repr__(self):
+        message = '%s(%d does not have a value.'
+        message = message % (type(self).__name__, self.lineno)
+        message += ' Treat as an empty string)'
+        return message
 
 
 def char_set(chars):
@@ -77,6 +137,13 @@ class PVLDecoder(object):
     decimal_chars = char_set('0123456789')
     hex_chars = char_set('0123456789ABCDEFabcdef')
 
+    def __init__(self):
+        self.strict = True
+        self.errors = []
+
+    def set_strict(self, strict):
+        self.strict = strict
+
     def peek(self, stream, n, offset=0):
         return stream.peek(n + offset)[offset:offset + n]
 
@@ -108,6 +175,18 @@ class PVLDecoder(object):
 
     def raise_unexpected_eof(self, stream):
         self.raise_error('Unexpected EOF', stream)
+
+    def broken_assignment(self, lineno):
+        if self.strict:
+            msg = (
+                "Broken Parameter-Value. Using 'strict=False' when calling" +
+                " 'pvl.load' may help you parse the label, it could also" +
+                " inadvertently mask other errors"
+            )
+            raise ParseError(msg, None, lineno, None)
+        else:
+            self.errors.append(lineno)
+            return EmptyValueAtLine(lineno)
 
     def has_eof(self, stream, offset=0):
         return self.peek(stream, 1, offset) in self.eof_chars
@@ -149,6 +228,7 @@ class PVLDecoder(object):
             stream = BufferedStream(stream)
 
         module = PVLModule(self.parse_block(stream, self.has_end))
+        module.errors = sorted(self.errors)
         self.skip_end(stream)
         return module
 
@@ -166,7 +246,22 @@ class PVLDecoder(object):
             if has_end(stream):
                 return statements
 
-            statements.append(self.parse_statement(stream))
+            statement = self.parse_statement(stream)
+            if isinstance(statement, EmptyValueAtLine):
+                if len(statements) == 0:
+                    self.raise_unexpected(stream)
+                self.skip_whitespace_or_comment(stream)
+                value = self.parse_value(stream)
+                last_statement = statements.pop(-1)
+                fixed_last = (
+                    last_statement[0],
+                    statement
+                )
+                statements.append(fixed_last)
+                statements.append((last_statement[1], value))
+
+            else:
+                statements.append(statement)
 
     def skip_whitespace_or_comment(self, stream):
         while 1:
@@ -198,6 +293,7 @@ class PVLDecoder(object):
                     | AggrObject
                     | AssignmentStmt
         """
+
         if self.has_group(stream):
             return self.parse_group(stream)
 
@@ -207,7 +303,15 @@ class PVLDecoder(object):
         if self.has_assignment(stream):
             return self.parse_assignment(stream)
 
+        if self.has_assignment_symbol(stream):
+            return self.broken_assignment(stream.lineno - 1)
+
         self.raise_unexpected(stream)
+
+    def has_assignment_symbol(self, stream):
+        self.skip_whitespace(stream)
+        self.expect(stream, self.assignment_symbole)
+        return True
 
     def has_whitespace(self, stream, offset=0):
         return self.peek(stream, 1, offset) in self.whitespace
@@ -366,9 +470,19 @@ class PVLDecoder(object):
         """
         AssignmentStmt ::= Name WSC AssignmentSymbol WSC Value StatementDelim
         """
+        lineno = stream.lineno
         name = self.next_token(stream)
         self.ensure_assignment(stream)
-        value = self.parse_value(stream)
+        at_an_end = any((
+            self.has_end_group(stream),
+            self.has_end_object(stream),
+            self.has_end(stream),
+            self.has_next(self.statement_delimiter, stream, 0)))
+        if at_an_end:
+            value = self.broken_assignment(lineno)
+            self.skip_whitespace_or_comment(stream)
+        else:
+            value = self.parse_value(stream)
         self.skip_statement_delimiter(stream)
         return name.decode('utf-8'), value
 
@@ -480,6 +594,9 @@ class PVLDecoder(object):
 
         if self.has_unquoated_string(stream):
             return self.parse_unquoated_string(stream)
+
+        if self.has_end(stream):
+            return self.broken_assignment(stream.lineno)
 
         self.raise_unexpected(stream)
 
