@@ -27,21 +27,25 @@ This package supports both encoding a decoding a superset of PVL, including the
 Installation
 ------------
 
-At the command line::
+Can either install with pip or with conda.
+
+To install with pip, at the command line::
 
     $ pip install pvl
 
-Installing `pvl` from the `conda-forge` channel can be achieved by adding
-`conda-forge` to your channels with::
+Directions for installing with conda-forge:
+
+Installing pvl from the conda-forge channel can be achieved by adding
+conda-forge to your channels with::
 
     conda config --add channels conda-forge
 
 
-Once the `conda-forge` channel has been enabled, `pvl` can be installed with::
+Once the conda-forge channel has been enabled, pvl can be installed with::
 
     conda install pvl
 
-It is possible to list all of the versions of `pvl` available on your platform
+It is possible to list all of the versions of pvl available on your platform
 with::
 
     conda search pvl --channel conda-forge
