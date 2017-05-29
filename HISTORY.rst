@@ -3,6 +3,12 @@
 History
 -------
 
+0.3.0 (2017-06-28)
+~~~~~~~~~~~~~~~~~~
+
+* Create methods to add items to the label
+* Give user option to allow the parser to succeed in parsing broken labels
+
 0.2.0 (2015-08-13)
 ~~~~~~~~~~~~~~~~~~
 
