@@ -557,7 +557,8 @@ def test_sequence():
                      b,
                      c)
         linewrap = (1.234,1.2-
-                     34,1.234)
+                    34,1.234-
+                    ,1.234)
         End
     """)
 
@@ -595,10 +596,11 @@ def test_sequence():
     assert label['multiline'][2] == 'c'
 
     assert isinstance(label['linewrap'], list)
-    assert len(label['linewrap']) == 3
+    assert len(label['linewrap']) == 4
     assert label['linewrap'][0] == 1.234
     assert label['linewrap'][1] == 1.234
     assert label['linewrap'][2] == 1.234
+    assert label['linewrap'][3] == 1.234
 
 
 def test_units():
