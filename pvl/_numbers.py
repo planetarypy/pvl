@@ -34,7 +34,7 @@ def is_number(value):
 
 
 def parse_number(value):
-    if value.endswith('-'):
+    if value.endswith(b'-'):
         value = value[:-1]
     if is_integer(value):
         return int(value, 10)
