@@ -39,7 +39,15 @@ def test_assignment():
 
     label = pvl.loads('foo=bar-\n')
     assert isinstance(label, Label)
-    assert label['foo'] == 'bar-'
+    assert label['foo'] == 'bar'
+
+    label = pvl.loads('foo=bro-\nken')
+    assert isinstance(label, Label)
+    assert label['foo'] == 'broken'
+
+    label = pvl.loads('foo=bro-\n ken')
+    assert isinstance(label, Label)
+    assert label['foo'] == 'broken'
 
 
 def test_spacing():

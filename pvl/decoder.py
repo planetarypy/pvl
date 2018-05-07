@@ -747,9 +747,6 @@ class PVLDecoder(object):
 
             self.skip_whitespace_or_comment(stream)
 
-            if not self.has_unquoated_string(stream):
-                break
-
             value = value[:-1]
 
         return self.cast_unquoated_string(value)
