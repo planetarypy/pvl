@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
-from six import b
-
+from warnings import warn
 from .stream import BufferedStream, ByteStream
 from ._collections import PVLModule, PVLGroup, PVLObject, Units
-from ._datetimes import parse_datetime
-from ._numbers import parse_number
 from ._strings import FORMATTING_CHARS
 
 
@@ -15,6 +12,7 @@ class ParseError(ValueError):
     lineno: The line corresponding to pos
     colno: The column corresponding to pos
     """
+
     def __init__(self, msg, pos, lineno, colno):
         if None not in (pos, colno):
             errmsg = '%s: line %d column %d (char %d)' % (
@@ -85,7 +83,7 @@ class EmptyValueAtLine(str):
 
 
 def char_set(chars):
-    return set([b(c) for c in chars])
+    return set([c.encode() for c in chars])
 
 
 class PVLDecoder(object):
@@ -601,7 +599,7 @@ class PVLDecoder(object):
         self.raise_unexpected(stream)
 
     def has_radix(self, radix, stream):
-        prefix = b(str(radix)) + self.radix_symbole
+        prefix = str(radix).encode() + self.radix_symbole
         if self.has_next(prefix, stream):
             return True
 
@@ -630,7 +628,7 @@ class PVLDecoder(object):
         """
         value = b''
         sign = self.parse_sign(stream)
-        self.expect(stream, b(str(radix)) + self.radix_symbole)
+        self.expect(stream, str(radix).encode() + self.radix_symbole)
         sign *= self.parse_sign(stream)
 
         while not self.has_next(self.radix_symbole, stream):
@@ -786,7 +784,45 @@ class PVLDecoder(object):
         return value in self.true_tokens
 
     def parse_number(self, value):
-        return parse_number(value)
+        try:
+            return int(value, 10)
+        except ValueError:
+            try:
+                return float(value)
+            except ValueError:
+                raise ValueError('Could not parse an int or a '
+                                 f'float from {value}')
 
     def parse_datetime(self, value):
-        return parse_datetime(value)
+        try:
+            from dateutil.parser import isoparser
+            isop = isoparser()
+
+            if isinstance(value, bytes):
+                value = value.decode()
+            if(isinstance(value, str)
+               and len(value) > 3
+               and value[-2] == '+'
+               and value[-1].isdigit()):
+                # This technically means that we accept slight more formats
+                # than ISO 8601 strings, since under that specification, two
+                # digits after the '+' are required for an hour offset, but if
+                # we find only one digit, we'll just assume it means an hour
+                # and insert a zero so that it can be parsed.
+                tokens = value.rpartition('+')
+                value = tokens[0] + '+0' + tokens[-1]
+
+            try:
+                return isop.parse_isodate(value)
+            except ValueError:
+                try:
+                    return isop.parse_isotime(value)
+                except ValueError:
+                    return isop.isoparse(value)
+
+        except ImportError:
+            warn('The dateutil library is not present, so dates and times will be '
+                 'left as strings instead of being parsed and returned as datetime '
+                 'objects.', ImportWarning)
+
+            raise ValueError

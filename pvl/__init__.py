@@ -47,7 +47,6 @@ Building pvl modules::
     END
 """
 import io
-import six
 
 from .decoder import PVLDecoder
 from .encoder import PVLEncoder
@@ -91,7 +90,7 @@ def load(stream, cls=PVLDecoder, strict=True, **kwargs):
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
     decoder = __create_decoder(cls, strict, **kwargs)
-    if isinstance(stream, six.string_types):
+    if isinstance(stream, str):
         with open(stream, 'rb') as fp:
             return decoder.decode(fp)
     return decoder.decode(stream)
@@ -128,7 +127,7 @@ def dump(module, stream, cls=PVLEncoder, **kwargs):
 
     :param **kwargs: the keyword arguments to pass to the encoder class.
     """
-    if isinstance(stream, six.string_types):
+    if isinstance(stream, str):
         with open(stream, 'wb') as fp:
             return cls(**kwargs).encode(module, fp)
     cls(**kwargs).encode(module, stream)

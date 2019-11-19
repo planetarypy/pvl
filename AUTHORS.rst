@@ -14,3 +14,4 @@ Contributors
 * Michael Aye <kmichael.aye@gmail.com>
 * Austin Godber <godber@uberhip.com>
 * Perry Vargas <perrybvargas@gmail.com>
+* Ross Beyer <rbeyer@seti.org>

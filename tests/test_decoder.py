@@ -2,8 +2,6 @@
 import os
 import io
 import datetime
-import pytz
-import six
 import glob
 import pytest
 
@@ -113,7 +111,7 @@ def test_integers():
     assert isinstance(label['negitive_integer'], int)
     assert label['negitive_integer'] == -1
 
-    assert isinstance(label['invalid_integer'], six.text_type)
+    assert isinstance(label['invalid_integer'], str)
     assert label['invalid_integer'] == '1a2'
 
 
@@ -146,7 +144,7 @@ def test_floats():
     assert isinstance(label['negative_float'], float)
     assert label['negative_float'] == -1.0
 
-    assert isinstance(label['invalid_float'], six.text_type)
+    assert isinstance(label['invalid_float'], str)
     assert label['invalid_float'] == '1.2.3'
 
 
@@ -172,7 +170,7 @@ def test_exponents():
     assert isinstance(label['int'], float)
     assert label['int'] == 31459e1
 
-    assert isinstance(label['invalid'], six.text_type)
+    assert isinstance(label['invalid'], str)
     assert label['invalid'] == '1e'
 
 
@@ -367,37 +365,37 @@ def test_quotes():
         End
     """)
 
-    assert isinstance(label['foo'], six.text_type)
+    assert isinstance(label['foo'], str)
     assert label['foo'] == 'bar'
 
-    assert isinstance(label['empty'], six.text_type)
+    assert isinstance(label['empty'], str)
     assert label['empty'] == ''
 
-    assert isinstance(label['space'], six.text_type)
+    assert isinstance(label['space'], str)
     assert label['space'] == 'test'
 
-    assert isinstance(label['double'], six.text_type)
+    assert isinstance(label['double'], str)
     assert label['double'] == "double'quotes"
 
-    assert isinstance(label['single'], six.text_type)
+    assert isinstance(label['single'], str)
     assert label['single'] == 'single"quotes'
 
-    assert isinstance(label['single'], six.text_type)
+    assert isinstance(label['single'], str)
     assert label['mixed'] == 'mixed"\'quotes'
 
-    assert isinstance(label['number'], six.text_type)
+    assert isinstance(label['number'], str)
     assert label['number'] == '123'
 
-    assert isinstance(label['date'], six.text_type)
+    assert isinstance(label['date'], str)
     assert label['date'] == '1918-05-11'
 
-    assert isinstance(label['multiline'], six.text_type)
+    assert isinstance(label['multiline'], str)
     assert label['multiline'] == 'this is a multi-line string'
 
-    assert isinstance(label['continuation'], six.text_type)
+    assert isinstance(label['continuation'], str)
     assert label['continuation'] == 'The planet Jupiter is very big'
 
-    assert isinstance(label['formating'], six.text_type)
+    assert isinstance(label['formating'], str)
     assert label['formating'] == '\n\t\f\v\\\n\t\f\v\\'
 
     with pytest.raises(pvl.decoder.ParseError):
@@ -424,13 +422,13 @@ def test_comments():
 
     assert len(label) == 3
 
-    assert isinstance(label['foo'], six.text_type)
+    assert isinstance(label['foo'], str)
     assert label['foo'] == 'bar'
 
-    assert isinstance(label['foo'], six.text_type)
+    assert isinstance(label['foo'], str)
     assert label['weird'] == 'comments'
 
-    assert isinstance(label['foo'], six.text_type)
+    assert isinstance(label['foo'], str)
     assert label['baz'] == 'bang'
 
     with pytest.raises(pvl.decoder.ParseError):
@@ -442,6 +440,7 @@ def test_dates():
         date1          = 1990-07-04
         date2          = 1990-158
         date3          = 2001-001
+        date4          = 2001-01-01
         time1          = 12:00
         time_s         = 12:00:45
         time_s_float   = 12:00:45.4571
@@ -456,47 +455,77 @@ def test_dates():
         End
     """)
 
-    assert isinstance(label['date1'], datetime.date)
-    assert label['date1'] == datetime.date(1990, 7, 4)
+    try:
+        from dateutil import tz
 
-    assert isinstance(label['date2'], datetime.date)
-    assert label['date2'] == datetime.date(1990, 6, 7)
+        tz_plus_7 = tz.tzoffset('+7', datetime.timedelta(hours=7))
 
-    assert isinstance(label['date3'], datetime.date)
-    assert label['date3'] == datetime.date(2001, 1, 1)
+        assert isinstance(label['date1'], datetime.date)
+        assert label['date1'] == datetime.date(1990, 7, 4)
 
-    assert isinstance(label['time1'], datetime.time)
-    assert label['time1'] == datetime.time(12)
+        assert isinstance(label['date2'], datetime.date)
+        assert label['date2'] == datetime.date(1990, 6, 7)
 
-    assert isinstance(label['time_s'], datetime.time)
-    assert label['time_s'] == datetime.time(12, 0, 45)
+        assert isinstance(label['date3'], datetime.date)
+        assert label['date3'] == datetime.date(2001, 1, 1)
 
-    assert isinstance(label['time_s_float'], datetime.time)
-    assert label['time_s_float'] == datetime.time(12, 0, 45, 457100)
+        assert isinstance(label['date4'], datetime.date)
+        assert label['date4'] == datetime.date(2001, 1, 1)
 
-    assert isinstance(label['time_tz1'], datetime.time)
-    assert label['time_tz1'] == datetime.time(15, 24, 12, tzinfo=pytz.utc)
+        assert isinstance(label['time1'], datetime.time)
+        assert label['time1'] == datetime.time(12)
 
-    assert isinstance(label['time_tz2'], datetime.time)
-    assert label['time_tz2'] == datetime.time(1, 12, 22, tzinfo=pytz.FixedOffset(420))  # noqa
+        assert isinstance(label['time_s'], datetime.time)
+        assert label['time_s'] == datetime.time(12, 0, 45)
 
-    assert isinstance(label['time_tz3'], datetime.time)
-    assert label['time_tz3'] == datetime.time(1, 12, 22, tzinfo=pytz.FixedOffset(420))  # noqa
+        assert isinstance(label['time_s_float'], datetime.time)
+        assert label['time_s_float'] == datetime.time(12, 0, 45, 457100)
 
-    assert isinstance(label['time_tz4'], datetime.time)
-    assert label['time_tz4'] == datetime.time(1, 10, 39, 457500, pytz.FixedOffset(420))  # noqa
+        assert isinstance(label['time_tz1'], datetime.time)
+        assert label['time_tz1'] == datetime.time(15, 24, 12, tzinfo=tz.UTC)
 
-    assert isinstance(label['datetime1'], datetime.datetime)
-    assert label['datetime1'] == datetime.datetime(1990, 7, 4, 12)
+        assert isinstance(label['time_tz2'], datetime.time)
+        assert label['time_tz2'] == datetime.time(1, 12, 22, tzinfo=tz_plus_7)
 
-    assert isinstance(label['datetime2'], datetime.datetime)
-    assert label['datetime2'] == datetime.datetime(1990, 6, 7, 15, 24, 12, tzinfo=pytz.utc)  # noqa
+        assert isinstance(label['time_tz3'], datetime.time)
+        assert label['time_tz3'] == datetime.time(1, 12, 22, tzinfo=tz_plus_7)
 
-    assert isinstance(label['datetime3'], datetime.datetime)
-    assert label['datetime3'] == datetime.datetime(2001, 1, 1, 1, 10, 39, tzinfo=pytz.FixedOffset(420))  # noqa
+        assert isinstance(label['time_tz4'], datetime.time)
+        assert label['time_tz4'] == datetime.time(1, 10, 39, 457500,
+                                                  tzinfo=tz_plus_7)
 
-    assert isinstance(label['datetime4'], datetime.datetime)
-    assert label['datetime4'] == datetime.datetime(2001, 1, 1, 1, 10, 39, 457591, pytz.FixedOffset(420))  # noqa
+        assert isinstance(label['datetime1'], datetime.datetime)
+        assert label['datetime1'] == datetime.datetime(1990, 7, 4, 12)
+
+        assert isinstance(label['datetime2'], datetime.datetime)
+        assert label['datetime2'] == datetime.datetime(1990, 6, 7, 15, 24, 12,
+                                                       tzinfo=tz.UTC)  # noqa
+
+        assert isinstance(label['datetime3'], datetime.datetime)
+        assert label['datetime3'] == datetime.datetime(2001, 1, 1, 1, 10, 39,
+                                                       tzinfo=tz_plus_7)
+
+        assert isinstance(label['datetime4'], datetime.datetime)
+        assert label['datetime4'] == datetime.datetime(2001, 1, 1, 1, 10, 39,
+                                                       457591,
+                                                       tzinfo=tz_plus_7)
+
+    except ImportError:
+        assert label['date1'] == '1990-07-04'
+        assert label['date2'] == '1990-158'
+        assert label['date3'] == '2001-001'
+        assert label['date4'] == '2001-01-01'
+        assert label['time1'] == '12:00'
+        assert label['time_s'] == '12:00:45'
+        assert label['time_s_float'] == '12:00:45.4571'
+        assert label['time_tz1'] == '15:24:12Z'
+        assert label['time_tz2'] == '01:12:22+07'
+        assert label['time_tz3'] == '01:12:22+7'
+        assert label['time_tz4'] == '01:10:39.4575+07'
+        assert label['datetime1'] == '1990-07-04T12:00'
+        assert label['datetime2'] == '1990-158T15:24:12Z'
+        assert label['datetime3'] == '2001-001T01:10:39+7'
+        assert label['datetime4'] == '2001-001T01:10:39.457591+7'
 
 
 def test_set():

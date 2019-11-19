@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from ._datetimes import is_date_or_time
-from ._numbers import is_number
+from warnings import warn
 
 
 QUOTE = b'"'
@@ -48,6 +47,33 @@ def quote_string(value):
         return escape_quote(ALT_QUOTE, value)
 
     return escape_quote(QUOTE, value)
+
+
+def is_number(value) -> bool:
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def is_date_or_time(value) -> bool:
+    try:
+        from dateutil.parser import isoparse, isoparser
+        try:
+            isoparse(value)
+            return True
+        except (ValueError, OverflowError):
+            try:
+                isoparser().parse_isotime(value)
+                return True
+            except ValueError:
+                return False
+    except ImportError:
+        warn('The dateutil library is not present, so dates and times will be '
+             'left as strings instead of being parsed and returned as datetime '
+             'objects.', ImportWarning)
+        return False
 
 
 def needs_quotes(value):

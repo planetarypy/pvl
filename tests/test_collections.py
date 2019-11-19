@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import pytest
-import six
 import pvl
 
 
 class DictLike(object):
+
     def keys(self):
         return ['a', 'b', 'a']
 
@@ -339,47 +339,6 @@ def test_repr():
     assert isinstance(repr(module), str)
 
 
-@pytest.mark.skipif(six.PY3, reason='requires python2')
-def test_py2_items():
-    module = pvl.PVLModule()
-
-    assert isinstance(module.items(), list)
-    assert module.items() == []
-
-    assert isinstance(module.keys(), list)
-    assert module.keys() == []
-
-    assert isinstance(module.values(), list)
-    assert module.values() == []
-
-    module = pvl.PVLModule([
-        ('a', 1),
-        ('b', 2),
-        ('a', 3),
-    ])
-
-    items = module.items()
-    assert isinstance(items, list)
-    assert items == [('a', 1), ('b', 2), ('a', 3)]
-    assert items.index(('a', 1)) == 0
-    assert items.index(('b', 2)) == 1
-    assert items.index(('a', 3)) == 2
-
-    keys = module.keys()
-    assert isinstance(keys, list)
-    assert keys == ['a', 'b', 'a']
-    assert keys.index('a') == 0
-    assert keys.index('b') == 1
-
-    values = module.values()
-    assert isinstance(values, list)
-    assert values == [1, 2, 3]
-    assert values.index(1) == 0
-    assert values.index(2) == 1
-    assert values.index(3) == 2
-
-
-@pytest.mark.skipif(six.PY2, reason='requires python3')
 def test_py3_items():
     module = pvl.PVLModule()
 
@@ -428,25 +387,16 @@ def test_py3_items():
     assert values.index(3) == 2
 
 
-if six.PY3:
-    def iteritems(module):
-        return module.items()
+def iteritems(module):
+    return module.items()
 
-    def iterkeys(module):
-        return module.keys()
 
-    def itervalues(module):
-        return module.values()
+def iterkeys(module):
+    return module.keys()
 
-else:
-    def iteritems(module):
-        return module.iteritems()
 
-    def iterkeys(module):
-        return module.iterkeys()
-
-    def itervalues(module):
-        return module.itervalues()
+def itervalues(module):
+    return module.values()
 
 
 def test_iterators():
@@ -610,7 +560,8 @@ def test_conversion():
         ], 'c', 0, [1, 3, 4], 1)
     ])
 def test_insert_before(expected_label, key, instance, expected_list,
-                        expected_value):
+                       expected_value):
+
     module1 = pvl.PVLModule([
         ('a', 1),
         ('b', 2),
@@ -664,7 +615,7 @@ def test_insert_before(expected_label, key, instance, expected_list,
         ], 'c', 0, [1, 3, 4], 1)
     ])
 def test_insert_after(expected_label, key, instance, expected_list,
-                        expected_value):
+                      expected_value):
     module1 = pvl.PVLModule([
         ('a', 1),
         ('b', 2),

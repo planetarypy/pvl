@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import datetime
-import six
 from ._collections import PVLGroup, Units
 from ._strings import needs_quotes, quote_string
 
@@ -26,7 +25,7 @@ class PVLEncoder(object):
         stream.write(self.end_statement)
 
     def encode_block(self, block, level, stream):
-        for key, value in six.iteritems(block):
+        for key, value in block.items():
             self.encode_statement(key, value, level, stream)
 
     def encode_statement(self, key, value, level, stream):
@@ -103,7 +102,7 @@ class PVLEncoder(object):
         return self.encode_simple_value(value)
 
     def encode_simple_value(self, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             return self.encode_string(value)
 
         if value is None:
@@ -215,7 +214,7 @@ class PDSLabelEncoder(PVLEncoder):
     def _detect_assignment_col(self, block, indent=0):
         if not block:
             return 0
-        block_items = six.iteritems(block)
+        block_items = block.items()
         return max(self._key_length(k, v, indent) for k, v in block_items)
 
     def _key_length(self, key, value, indent):

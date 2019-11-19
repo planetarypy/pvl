@@ -1,12 +1,8 @@
 # -*- coding: utf-8 -*-
-import sys
 import pprint
-import six
-from collections import Mapping, MutableMapping, namedtuple
+from collections import namedtuple
+from collections.abc import Mapping, MutableMapping
 
-
-PY3 = sys.version_info[0] == 3
-INDEX_TYPES = six.integer_types + (slice,)
 
 dict_setitem = dict.__setitem__
 dict_getitem = dict.__getitem__
@@ -16,6 +12,7 @@ dict_clear = dict.clear
 
 
 class MappingView(object):
+
     def __init__(self, mapping):
         self._mapping = mapping
 
@@ -23,10 +20,11 @@ class MappingView(object):
         return len(self._mapping)
 
     def __repr__(self):
-        return '%s(%r)' % (type(self).__name__, self._mapping)
+        return '{!s}({!r})'.format(type(self).__name__, self._mapping)
 
 
 class KeysView(MappingView):
+
     def __contains__(self, key):
         return key in self._mapping
 
@@ -39,7 +37,7 @@ class KeysView(MappingView):
 
     def __repr__(self):
         keys = [key for key, _ in self._mapping]
-        return '%s(%r)' % (type(self).__name__, keys)
+        return '{!s}({!r})'.format(type(self).__name__, keys)
 
     def index(self, key):
         keys = [k for k, _ in self._mapping]
@@ -47,6 +45,7 @@ class KeysView(MappingView):
 
 
 class ItemsView(MappingView):
+
     def __contains__(self, item):
         key, value = item
         return value in self._mapping.getlist(key)
@@ -64,6 +63,7 @@ class ItemsView(MappingView):
 
 
 class ValuesView(MappingView):
+
     def __contains__(self, value):
         for _, v in self._mapping:
             if v == value:
@@ -79,7 +79,7 @@ class ValuesView(MappingView):
 
     def __repr__(self):
         values = [value for _, value in self._mapping]
-        return '%s(%r)' % (type(self).__name__, values)
+        return '{!s}({!r})'.format(type(self).__name__, values)
 
     def index(self, value):
         values = [val for _, val in self._mapping]
@@ -118,7 +118,7 @@ class OrderedMultiDict(dict, MutableMapping):
         self.__items[index + 1:] = tail
 
     def __getitem__(self, key):
-        if isinstance(key, INDEX_TYPES):
+        if isinstance(key, (int, slice)):
             return self.__items[key]
         return dict_getitem(self, key)[0]
 
@@ -139,10 +139,10 @@ class OrderedMultiDict(dict, MutableMapping):
         if len(self) != len(other):
             return False
 
-        items1 = six.iteritems(self)
-        items2 = six.iteritems(other)
+        items1 = self.items()
+        items2 = other.items()
 
-        for ((key1, value1), (key2, value2)) in six.moves.zip(items1, items2):
+        for ((key1, value1), (key2, value2)) in zip(items1, items2):
             if key1 != key2:
                 return False
 
@@ -156,47 +156,27 @@ class OrderedMultiDict(dict, MutableMapping):
 
     def __repr__(self):
         if not self.__items:
-            return '%s([])' % type(self).__name__
+            return '{!s}([])'.format(type(self).__name__)
 
         lines = []
         for item in self.__items:
             for line in pprint.pformat(item).splitlines():
                 lines.append('  ' + line)
 
-        return "%s([\n%s\n])" % (type(self).__name__, '\n'.join(lines))
+        return "{!s}([\n{!s}\n])".format(type(self).__name__, '\n'.join(lines))
 
     get = MutableMapping.get
     update = MutableMapping.update
     pop = MutableMapping.pop
 
-    if PY3:  # noqa
-        def keys(self):
-            return KeysView(self)
+    def keys(self):
+        return KeysView(self)
 
-        def values(self):
-            return ValuesView(self)
+    def values(self):
+        return ValuesView(self)
 
-        def items(self):
-            return ItemsView(self)
-
-    else:
-        def keys(self):
-            return [key for key, _ in self.__items]
-
-        def iterkeys(self):
-            return KeysView(self)
-
-        def values(self):
-            return [value for _, value in self.__items]
-
-        def itervalues(self):
-            return ValuesView(self)
-
-        def items(self):
-            return list(self.__items)
-
-        def iteritems(self):
-            return ItemsView(self)
+    def items(self):
+        return ItemsView(self)
 
     def clear(self):
         dict_clear(self)
@@ -221,7 +201,7 @@ class OrderedMultiDict(dict, MutableMapping):
     def extend(self, *args, **kwargs):
         """Add key value pairs for an iterable."""
         if len(args) > 1:
-            raise TypeError('expected at most 1 arguments, got %d' % len(args))
+            raise TypeError('expected at most 1 arguments, got {len(args)}')
 
         iterable = args[0] if args else None
         if iterable:
@@ -248,7 +228,8 @@ class OrderedMultiDict(dict, MutableMapping):
 
     def popitem(self):
         if not self:
-            raise KeyError('popitem(): %s is empty' % type(self).__name__)
+            raise KeyError('popitem(): {!s} '.format(type(self).__name__) +
+                           'is empty')
 
         key, _ = item = self.__items.pop()
         values = dict_getitem(self, key)
@@ -264,9 +245,10 @@ class OrderedMultiDict(dict, MutableMapping):
 
     def __insert_wrapper(func):
         """Make sure the arguments given to the insert methods are correct"""
+
         def check_func(self, key, new_item, instance=0):
             if key not in self.keys():
-                raise KeyError("%s not a key in label" % (key))
+                raise KeyError(f"{key} not a key in label")
             if not isinstance(new_item, (list, OrderedMultiDict)):
                 raise TypeError("The new item must be a list or PVLModule")
             if isinstance(new_item, OrderedMultiDict):
@@ -291,13 +273,9 @@ class OrderedMultiDict(dict, MutableMapping):
             if occurrence != instance:
                 # Gone through the entire list of keys and the instance number
                 # given is too high for the number of occurences of the key
-                raise ValueError(
-                    (
-                        "Cannot insert before/after the %d "
-                        "instance of the key '%s' since there are "
-                        "only %d occurences of the key" % (
-                            instance, key, occurrence)
-                    ))
+                raise ValueError(f"Cannot insert before/after the {instance} "
+                                 f"instance of the key '{key}' since there are "
+                                 f"only {occurrence} occurences of the key")
         return index
 
     def _insert_item(self, key, new_item, instance, is_after):
