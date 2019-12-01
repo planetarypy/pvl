@@ -96,10 +96,10 @@ def load(stream, cls=PVLDecoder, strict=True, **kwargs):
     return decoder.decode(stream)
 
 
-def loads(data, cls=PVLDecoder, strict=True, **kwargs):
-    """Deserialize ``data`` as a pvl module.
+def loads(s: str, cls=PVLDecoder, strict=True, **kwargs):
+    """Deserialize ``s`` as a pvl module.
 
-    :param data: a pvl module as a byte or unicode string
+    :param data: a pvl module as a string
 
     :param cls: the decoder class used to deserialize the pvl module. You may
         use the default ``PVLDecoder`` class or provide a custom sublcass.
@@ -107,9 +107,7 @@ def loads(data, cls=PVLDecoder, strict=True, **kwargs):
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
     decoder = __create_decoder(cls, strict, **kwargs)
-    if not isinstance(data, bytes):
-        data = data.encode('utf-8')
-    return decoder.decode(data)
+    return decoder.decode(s)
 
 
 def dump(module, stream, cls=PVLEncoder, **kwargs):

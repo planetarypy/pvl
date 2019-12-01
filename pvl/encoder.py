@@ -5,17 +5,17 @@ from ._strings import needs_quotes, quote_string
 
 
 class PVLEncoder(object):
-    begin_group = b'BEGIN_GROUP'
-    end_group = b'END_GROUP'
-    begin_object = b'BEGIN_OBJECT'
-    end_object = b'END_OBJECT'
-    end_statement = b'END'
-    null = b'NULL'
-    true = b'TRUE'
-    false = b'FALSE'
-    assignment = b' = '
-    indentation = b'  '
-    newline = b'\r\n'
+    begin_group = 'BEGIN_GROUP'
+    end_group = 'END_GROUP'
+    begin_object = 'BEGIN_OBJECT'
+    end_object = 'END_OBJECT'
+    end_statement = 'END'
+    null = 'NULL'
+    true = 'TRUE'
+    false = 'FALSE'
+    assignment = ' = '
+    indentation = '  '
+    newline = '\r\n'
 
     def indent(self, level, stream):
         stream.write(level * self.indentation)
@@ -45,7 +45,7 @@ class PVLEncoder(object):
     def encode_group_begin(self, key, value, level, stream):
         self.encode_raw_assignment(
             key=self.begin_group,
-            value=key.encode('utf-8'),
+            value=key,
             level=level,
             stream=stream
         )
@@ -53,7 +53,7 @@ class PVLEncoder(object):
     def encode_group_end(self, key, value, level, stream):
         self.encode_raw_assignment(
             key=self.end_group,
-            value=key.encode('utf-8'),
+            value=key,
             level=level,
             stream=stream
         )
@@ -66,7 +66,7 @@ class PVLEncoder(object):
     def encode_object_begin(self, key, value, level, stream):
         self.encode_raw_assignment(
             key=self.begin_object,
-            value=key.encode('utf-8'),
+            value=key,
             level=level,
             stream=stream
         )
@@ -74,14 +74,14 @@ class PVLEncoder(object):
     def encode_object_end(self, key, value, level, stream):
         self.encode_raw_assignment(
             key=self.end_object,
-            value=key.encode('utf-8'),
+            value=key,
             level=level,
             stream=stream
         )
 
     def encode_assignment(self, key, value, level, stream):
         self.encode_raw_assignment(
-            key=key.encode('utf-8'),
+            key=key,
             value=self.encode_value(value),
             level=level,
             stream=stream
@@ -98,7 +98,7 @@ class PVLEncoder(object):
         if isinstance(value, Units):
             units = self.encode_units(value.units)
             value = self.encode_simple_value(value.value)
-            return value + b' ' + units
+            return value + ' ' + units
         return self.encode_simple_value(value)
 
     def encode_simple_value(self, value):
@@ -132,16 +132,16 @@ class PVLEncoder(object):
         return self.default(value)
 
     def encode_units(self, value):
-        return b'<' + value.encode('utf-8') + b'>'
+        return '<' + value + '>'
 
     def encode_null(self, value):
         return self.null
 
     def encode_number(self, value):
-        return repr(value).encode('utf-8')
+        return repr(value)
 
     def encode_string(self, value):
-        value = value.encode('utf-8')
+        value = value
         if needs_quotes(value):
             return quote_string(value)
         return value
@@ -151,50 +151,53 @@ class PVLEncoder(object):
             return self.true
         return self.false
 
-    def encode_date(self, value):
-        date = u'%04d-%02d-%02d' % (value.year, value.month, value.day)
-        return date.encode('utf-8')
+    def encode_date(self, value: datetime.date) -> str:
+        date = f'{value:%Y-%m-%d}'
+        return date
 
-    def encode_tz(self, offset):
+    def encode_tz(self, offset: datetime.timedelta) -> str:
         hours = int(offset.seconds / 3600) + (offset.days * 24)
-        return u'%+d' % hours
+        return f'{hours:0>+2d}'
 
-    def encode_time(self, value):
+    def encode_time(self, value: datetime.time):
         if value.microsecond:
             second = u'%02d.%06d' % (value.second, value.microsecond)
+            second = f'{value:%S.%f}'
         else:
             second = u'%02d' % value.second
+            second = f'{value:%S}'
+
+        time = f'{value:%H:%M}:{second}'
 
         if value.utcoffset() is not None:
-            second += self.encode_tz(value.utcoffset())
+            time += self.encode_tz(value.utcoffset())
 
-        time = u'%02d:%02d:%s' % (value.hour, value.minute, second)
-        return time.encode('utf-8')
+        return time
 
-    def encode_datetime(self, value):
+    def encode_datetime(self, value: datetime.datetime) -> str:
         date = self.encode_date(value)
         time = self.encode_time(value)
-        return date + b'T' + time
+        return date + 'T' + time
 
     def encode_sequence(self, values):
-        return b', '.join([self.encode_value(v) for v in values])
+        return ', '.join([self.encode_value(v) for v in values])
 
     def encode_list(self, value):
-        return b'(' + self.encode_sequence(value) + b')'
+        return '(' + self.encode_sequence(value) + ')'
 
     def encode_set(self, value):
-        return b'{' + self.encode_sequence(value) + b'}'
+        return '{' + self.encode_sequence(value) + '}'
 
     def default(self, value):
         raise TypeError(repr(value) + " is not serializable")
 
 
 class IsisCubeLabelEncoder(PVLEncoder):
-    begin_group = b'Group'
-    end_group = b'End_Group'
-    begin_object = b'Object'
-    end_object = b'End_Object'
-    end_statement = b'End'
+    begin_group = 'Group'
+    end_group = 'End_Group'
+    begin_object = 'Object'
+    end_object = 'End_Object'
+    end_statement = 'End'
 
     def encode_group_end(self, key, value, level, stream):
         self.indent(level, stream)
@@ -208,8 +211,8 @@ class IsisCubeLabelEncoder(PVLEncoder):
 
 
 class PDSLabelEncoder(PVLEncoder):
-    begin_group = b'GROUP'
-    begin_object = b'OBJECT'
+    begin_group = 'GROUP'
+    begin_object = 'OBJECT'
 
     def _detect_assignment_col(self, block, indent=0):
         if not block:

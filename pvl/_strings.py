@@ -2,46 +2,40 @@
 from warnings import warn
 
 
-QUOTE = b'"'
-ALT_QUOTE = b"'"
+QUOTE = '"'
+ALT_QUOTE = "'"
 
-FORMATTING_CHARS = {
-    b'n': b'\n',
-    b't': b'\t',
-    b'f': b'\f',
-    b'v': b'\v',
-    b'\\': b'\\',
-}
+FORMATTING_CHARS = {'n': '\n',
+                    't': '\t',
+                    'f': '\f',
+                    'v': '\v',
+                    '\\': '\\'}
 
-RESTRICTED_SEQ = [
-    b'/*', b'*/',  # Comments
-]
+RESTRICTED_SEQ = ['/*', '*/']  # Comments
 
 RESTRICTED_CHARS = set(
     b' \r\n\t\v\f' +        # Whitespace
     b'&<>\'{},[]=!#()%";|'  # Restricted chars
 )
 
-RESERVED_KEYWORDS = set([
-    b'Null', b'NULL',
-    b'End', b'END',
-    b'TRUE', b'True', b'true',
-    b'FALSE', b'False', b'false',
-    b'Group', b'GROUP', b'BEGIN_GROUP',
-    b'End_Group', b'END_GROUP',
-    b'Object', b'OBJECT', b'BEGIN_OBJECT',
-    b'End_Object', b'END_OBJECT',
-    b'End', 'END',
-])
+RESERVED_KEYWORDS = set(['Null', 'NULL',
+                         'End', 'END',
+                         'TRUE', 'True', 'true',
+                         'FALSE', 'False', 'false',
+                         'Group', 'GROUP', 'BEGIN_GROUP',
+                         'End_Group', 'END_GROUP',
+                         'Object', 'OBJECT', 'BEGIN_OBJECT',
+                         'End_Object', 'END_OBJECT',
+                         'End', 'END'])
 
 
 def escape_quote(quote, value):
-    return quote + value.replace(quote, b'\\' + quote) + quote
+    return quote + value.replace(quote, '\\' + quote) + quote
 
 
 def quote_string(value):
     for escape, char in FORMATTING_CHARS.items():
-        value = value.replace(char, b'\\' + escape)
+        value = value.replace(char, '\\' + escape)
 
     if QUOTE in value and ALT_QUOTE not in value:
         return escape_quote(ALT_QUOTE, value)
