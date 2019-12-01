@@ -4,6 +4,8 @@ from .stream import BufferedStream, ByteStream
 from ._collections import PVLModule, PVLGroup, PVLObject, Units
 from ._strings import FORMATTING_CHARS
 
+import re
+
 
 class ParseError(ValueError):
     """Subclass of ValueError with the following additional properties:
@@ -15,15 +17,39 @@ class ParseError(ValueError):
 
     def __init__(self, msg, pos, lineno, colno):
         if None not in (pos, colno):
-            errmsg = '%s: line %d column %d (char %d)' % (
-                msg, lineno, colno, pos)
+            errmsg = f'{msg}: line {lineno} column {colno} (char {pos})'
         else:
-            errmsg = '%s: line %d' % (msg, lineno)
+            errmsg = f'{msg}: line {lineno}'
         super(ParseError, self).__init__(errmsg)
         self.msg = msg
         self.pos = pos
         self.lineno = lineno
         self.colno = colno
+
+
+class DecodeError(ValueError):
+    """Subclass of ValueError with the following additional properties:
+
+       msg: The unformatted error message
+       doc: The PVL document being parsed
+       pos: The start index of doc where parsing failed
+       lineno: The line corresponding to pos
+       colno: The column corresponding to pos
+    """
+
+    def __init__(self, msg, doc, pos):
+        lineno = doc.count('\n', 0, pos) + 1
+        colno = pos - doc.rfind('\n', 0, pos)
+        errmsg = f'{msg}: line {lineno} column {colno} (char {pos})'
+        ValueError.__init__(self, errmsg)
+        self.msg = msg
+        self.doc = doc
+        self.pos = pos
+        self.lineno = lineno
+        self.colno = colno
+
+    def __reduce__(self):
+        return self.__class__, (self.msg, self.doc, self.pos)
 
 
 class EmptyValueAtLine(str):
@@ -76,14 +102,12 @@ class EmptyValueAtLine(str):
         return 0.0
 
     def __repr__(self):
-        message = '%s(%d does not have a value.'
-        message = message % (type(self).__name__, self.lineno)
-        message += ' Treat as an empty string)'
-        return message
+        return ('{}({} does not '.format(type(self).__name__, self.lineno) +
+                'have a value. Treat as an empty string)')
 
 
-def char_set(chars):
-    return set([c.encode() for c in chars])
+def char_set(chars: str) -> set:
+    return set(c for c in chars)
 
 
 class PVLDecoder(object):
@@ -91,46 +115,53 @@ class PVLDecoder(object):
     newline_chars = char_set('\r\n')
     reserved_chars = char_set('&<>\'{},[]=!#()%";|')
     delimiter_chars = whitespace | reserved_chars
-    eof_chars = (b'', b'\0')
+    eof_char = ('\0')
 
-    quote_marks = (b'"', b"'")
-    null_tokens = (b'Null', b'NULL')
-    end_tokens = (b'End', b'END')
+    whitespace_re = re.compile(r'[ \r\n\t\v\f]*')
 
-    true_tokens = (b'TRUE', b'True', b'true')
-    false_tokens = (b'FALSE', b'False', b'false')
+    quote_marks = ('"', "'")
+    null_tokens = ('Null', 'NULL')
+    end_tokens = ('End', 'END')
+
+    true_tokens = ('TRUE', 'True', 'true')
+    false_tokens = ('FALSE', 'False', 'false')
     boolean_tokens = true_tokens + false_tokens
 
-    begin_group_tokens = (b'Group', b'GROUP', b'BEGIN_GROUP')
-    end_group_tokens = (b'End_Group', b'END_GROUP')
+    begin_group_tokens = ('Group', 'GROUP', 'BEGIN_GROUP')
+    end_group_tokens = ('End_Group', 'END_GROUP')
 
-    begin_object_tokens = (b'Object', b'OBJECT', b'BEGIN_OBJECT')
-    end_object_tokens = (b'End_Object', b'END_OBJECT')
+    begin_object_tokens = ('Object', 'OBJECT', 'BEGIN_OBJECT')
+    end_object_tokens = ('End_Object', 'END_OBJECT')
 
-    seporator = b','
-    radix_symbole = b'#'
-    statement_delimiter = b';'
-    continuation_symbole = b'-'
-    assignment_symbole = b'='
+    seporator = ','
+    radix_symbole = '#'
+    statement_delimiter = ';'
+    continuation_symbole = '-'
+    assignment_symbole = '='
 
-    begin_comment = b'/*'
-    end_comment = b'*/'
-    line_comment = b'#'
+    begin_comment = '/*'
+    end_comment = '*/'
+    line_comment = '#'
 
-    begin_sequence = b'('
-    end_sequence = b')'
+    line_comment_re = re.compile(fr'{line_comment}.*\n')
+    multi_line_comment_re = re.compile(r'{}.*{}'.format(re.escape(begin_comment),
+                                                        re.escape(end_comment)),
+                                       re.DOTALL)
 
-    begin_set = b'{'
-    end_set = b'}'
+    begin_sequence = '('
+    end_sequence = ')'
 
-    begin_units = b'<'
-    end_units = b'>'
+    begin_set = '{'
+    end_set = '}'
 
-    plus_sign = b'+'
-    minus_sign = b'-'
+    begin_units = '<'
+    end_units = '>'
+
+    plus_sign = '+'
+    minus_sign = '-'
     signs = set([plus_sign, minus_sign])
 
-    binary_chars = (b'0', b'1')
+    binary_chars = ('0', '1')
     octal_chars = char_set('01234567')
     decimal_chars = char_set('0123456789')
     hex_chars = char_set('0123456789ABCDEFabcdef')
@@ -160,11 +191,16 @@ class PVLDecoder(object):
         msg = 'Unexpected token %r (expected %r)'
         self.raise_error(msg % (actual, expected), stream)
 
-    def expect_in(self, stream, tokens):
+    def expect_in(self, s: str, idx: int, tokens: list, token_desc: str) -> int:
         for token in tokens:
-            if self.has_next(token, stream):
-                break
-        self.expect(stream, token)
+            if s.startswith(token, idx):
+                return idx + len(token)
+
+        longest = len(max(tokens, key=len))
+        raise DecodeError(f'Unexpected {token_desc} Token in ' +
+                          '"{} ..."'.format(s[idx:(idx + longest + 3)]) +
+                          f'(expected one of {tokens})',
+                          s, idx)
 
     def raise_unexpected(self, stream, token=None):
         if token is None:
@@ -174,33 +210,41 @@ class PVLDecoder(object):
     def raise_unexpected_eof(self, stream):
         self.raise_error('Unexpected EOF', stream)
 
-    def broken_assignment(self, lineno):
+    def broken_assignment(self, s: str, idx: int):
         if self.strict:
-            msg = (
-                "Broken Parameter-Value. Using 'strict=False' when calling" +
-                " 'pvl.load' may help you parse the label, it could also" +
-                " inadvertently mask other errors"
-            )
-            raise ParseError(msg, None, lineno, None)
+            raise DecodeError("Broken Parameter-Value. Using 'strict=False' "
+                              "when calling 'pvl.load' may help you parse the "
+                              "label, it could also inadvertently mask other "
+                              "errors.", s, idx)
         else:
+            lineno = s.count('\n', 0, idx) + 1
             self.errors.append(lineno)
             return EmptyValueAtLine(lineno)
 
-    def has_eof(self, stream, offset=0):
-        return self.peek(stream, 1, offset) in self.eof_chars
+    def has_eof(self, s: str, idx: int):
+        '''Returns the int index at the end of the EOF sequence, or None.'''
+        if idx == len(s):
+            return idx
+
+        if s.startswith(self.eof_char, idx):
+            return idx + len(self.eof_char)
+        else:
+            return None
 
     def has_next(self, token, stream, offset=0):
         return self.peek(stream, len(token), offset) == token
 
-    def has_delimiter(self, stream, offset=0):
-        if self.has_eof(stream, offset):
+    def has_delimiter(self, s: str, idx=0) -> bool:
+        if self.has_eof(s, idx) is not None:
             return True
 
-        if self.has_comment(stream, offset):
+        if self.has_comment(s, idx):
             return True
 
-        if self.peek(stream, 1, offset) in self.delimiter_chars:
+        if s.startswith(tuple(self.delimiter_chars), idx):
             return True
+
+        return False
 
     def has_token_in(self, tokens, stream):
         for token in tokens:
@@ -213,24 +257,50 @@ class PVLDecoder(object):
             return False
         return self.has_delimiter(stream, len(token))
 
-    def next_token(self, stream):
-        token = b''
-        while not self.has_delimiter(stream):
-            token += stream.read(1)
-        return token
-
-    def decode(self, stream):
-        if isinstance(stream, bytes):
-            stream = ByteStream(stream)
+    def next_token(self, s: str, idx: int) -> str:
+        token = ''
+        for c in s[idx:]:
+            if self.has_delimiter(c, 0):
+                break
+            else:
+                token += c
+        if len(token) == 0:
+            raise DecodeError('No parseable token found at' +
+                              '"{} ..."'.format(s[idx:(idx + 7)]),
+                              s, idx)
         else:
-            stream = BufferedStream(stream)
+            return token
 
-        module = PVLModule(self.parse_block(stream, self.has_end))
+    def decode(self, s: str):
+        module = PVLModule(self.parse_block(s, 0, self.has_end))
         module.errors = sorted(self.errors)
-        self.skip_end(stream)
+        self.skip_end(s)
         return module
 
-    def parse_block(self, stream, has_end):
+    def parse_module(self, tokens):
+        """Parses the tokens for a PVL Module.
+
+           PVL-Module-Contents ::=
+             (Assignment-Statement | WSC | Aggregation-Block)*
+             End-Statement ?
+        """
+        m = PVLModule()
+        for t in tokens:
+            if t.is_comment():
+                pass
+            elif t.is_begin_aggregation():
+                m.append(parse_aggregation_block(t, tokens))
+            elif t.is_parameter_name():
+                m.append(parse_assignment_statement(t, tokens))
+            elif t.is_end_statement():
+                after = next(tokens, token())
+                if after.is_comment():
+                    # Maybe do something with the last comment.
+                    pass
+                break
+        return m
+
+    def parse_block(self, s, idx, has_end):
         """
         PVLModuleContents ::= (Statement | WSC)* EndStatement?
         AggrObject ::= BeginObjectStmt AggrContents EndObjectStmt
@@ -239,9 +309,9 @@ class PVLDecoder(object):
         """
         statements = []
         while 1:
-            self.skip_whitespace_or_comment(stream)
+            idx = self.skip_whitespace_or_comment(s, idx)
 
-            if has_end(stream):
+            if has_end(s, idx):
                 return statements
 
             statement = self.parse_statement(stream)
@@ -261,19 +331,17 @@ class PVLDecoder(object):
             else:
                 statements.append(statement)
 
-    def skip_whitespace_or_comment(self, stream):
-        while 1:
-            if self.has_whitespace(stream):
-                self.skip_whitespace(stream)
-                continue
+    def skip_whitespace_or_comment(self, s: str, idx: int) -> int:
+        while self.has_whitespace(s, idx) or self.has_comment(s, idx):
+            if self.has_whitespace(s, idx):
+                idx = self.skip_whitespace(s, idx)
 
-            if self.has_comment(stream):
-                self.skip_comment(stream)
-                continue
+            if self.has_comment(s, idx):
+                idx = self.skip_comment(s, idx)
 
-            return
+        return idx
 
-    def skip_statement_delimiter(self, stream):
+    def skip_statement_delimiter(self, s: str, idx: int) -> int:
         """Ensure that a Statement Delimiter consists of one semicolon,
         optionally preceded by multiple White Spaces and/or Comments, OR one or
         more Comments and/or White Space sequences.
@@ -282,23 +350,34 @@ class PVLDecoder(object):
                          | EndProvidedOctetSeq
 
         """
-        self.skip_whitespace_or_comment(stream)
-        self.optional(stream, self.statement_delimiter)
+        idx = self.skip_whitespace_or_comment(s, idx)
+        if s.startswith(self.statement_delimiter, idx):
+            return idx + len(self.statement_delimiter)
+        else:
+            return idx
 
-    def parse_statement(self, stream):
+    def parse_statement(self, s: str, idx: int):
         """
         Statement ::= AggrGroup
                     | AggrObject
                     | AssignmentStmt
         """
 
-        if self.has_group(stream):
-            return self.parse_group(stream)
+        if self.has_group(s, idx):
+            return self.parse_aggregation(s, idx,
+                                          self.begin_group_tokens,
+                                          self.end_group_tokens,
+                                          self.has_end_group,
+                                          PVLGroup)
 
         if self.has_object(stream):
-            return self.parse_object(stream)
+            return self.parse_aggregation(s, idx,
+                                          self.begin_object_tokens,
+                                          self.end_object_tokens,
+                                          self.has_end_object,
+                                          PVLObject)
 
-        if self.has_assignment(stream):
+        if not self.has_delimiter(s, idx):
             return self.parse_assignment(stream)
 
         if self.has_assignment_symbol(stream):
@@ -311,66 +390,56 @@ class PVLDecoder(object):
         self.expect(stream, self.assignment_symbole)
         return True
 
-    def has_whitespace(self, stream, offset=0):
-        return self.peek(stream, 1, offset) in self.whitespace
+    def has_whitespace(self, s: str, idx: int) -> bool:
+        return s.startswith(tuple(self.whitespace), idx)
 
-    def skip_whitespace(self, stream):
-        while self.peek(stream, 1) in self.whitespace:
-            stream.read(1)
+    def skip_whitespace(self, s: str, idx: int) -> int:
+        return self.whitespace_re.match(s, idx).end()
 
-    def has_multiline_comment(self, stream, offset=0):
-        return self.has_next(self.begin_comment, stream, offset)
+    def has_multiline_comment(self, s: str, idx: int) -> int:
+        return s.startswith(self.begin_comment, idx)
 
-    def has_line_comment(self, stream, offset=0):
-        return self.has_next(self.line_comment, stream, offset)
+    def has_line_comment(self, s: str, idx: int) -> bool:
+        return s.startswith(self.line_comment, idx)
 
-    def has_comment(self, stream, offset=0):
+    def has_comment(self, s: str, idx: int) -> bool:
         return (
-            self.has_line_comment(stream, offset) or
-            self.has_multiline_comment(stream, offset)
+            self.has_line_comment(s, idx) or
+            self.has_multiline_comment(s, idx)
         )
 
-    def skip_comment(self, stream):
-        if self.has_line_comment(stream):
-            end_comment = b'\n'
+    def skip_comment(self, s: str, idx: int) -> int:
+        if self.has_line_comment(s, idx):
+            return self.line_comment_re.match(s, idx).end()
         else:
-            end_comment = self.end_comment
+            return self.multi_line_comment_re.match(s, idx).end()
 
-        while 1:
-            next = self.peek(stream, len(end_comment))
-            if not next:
-                self.raise_unexpected_eof(stream)
-
-            if next == end_comment:
-                break
-
-            stream.read(1)
-        stream.read(len(end_comment))
-
-    def has_end(self, stream):
+    def has_end(self, s: str, idx: int):
         """
         EndStatement ::=
             EndKeyword (SemiColon | WhiteSpace | Comment | EndProvidedOctetSeq)
         """
+        if self.has_eof(s, idx) is not None:
+            return True
+
         for token in self.end_tokens:
-            if not self.has_next(token, stream):
-                continue
+            if s.startswith(token, idx):
 
-            offset = len(token)
+                offset = idx + len(token)
 
-            if self.has_eof(stream, offset):
-                return True
+                if self.has_eof(s, offset) is not None:
+                    return True
 
-            if self.has_whitespace(stream, offset):
-                return True
+                if self.has_whitespace(s, offset):
+                    return True
 
-            if self.has_comment(stream, offset):
-                return True
+                if self.has_comment(s, offset):
+                    return True
 
-            if self.has_next(self.statement_delimiter, stream, offset):
-                return True
+                if s.startswith(self.statement_delimiter, offset):
+                    return True
 
-        return self.has_eof(stream)
+        return False
 
     def skip_end(self, stream):
         if self.has_eof(stream):
@@ -380,53 +449,86 @@ class PVLDecoder(object):
         self.skip_whitespace_or_comment(stream)
         self.optional(stream, self.statement_delimiter)
 
-    def has_group(self, stream):
-        return self.has_token_in(self.begin_group_tokens, stream)
+    def has_group(self, s: str, idx: int) -> bool:
+        return s.startswith(self.begin_group_tokens, idx)
 
-    def parse_end_assignment(self, stream, expected):
-        self.skip_whitespace_or_comment(stream)
+    def parse_end_assignment(self, s: str, idx: int, name: str) -> int:
+        idx = self.skip_whitespace_or_comment(s, idx)
 
-        if not self.has_next(self.assignment_symbole, stream):
-            return
+        if not s.startswith(self.assignment_symbole, idx):
+            return idx
 
-        self.ensure_assignment(stream)
+        idx = self.ensure_assignment(s, idx)
 
-        name = self.next_token(stream)
-        if name == expected:
-            return
+        if s.startswith(name, idx):
+            return idx + len(name)
+        else:
+            raise DecodeError(f'Expected to find {name} after the equals sign '
+                              'at "... {} ..."'.format(s[idx - 5:idx + 5]),
+                              s, idx)
 
-        self.raise_unexpected(stream, name)
-
-    def parse_group(self, stream):
+    def parse_group(self, s: str, idx: int):
         """Block Name must match Block Name in paired End Group Statement if
         Block Name is present in End Group Statement.
 
         BeginGroupStmt ::=
             BeginGroupKeywd WSC AssignmentSymbol WSC BlockName StatementDelim
         """
-        self.expect_in(stream, self.begin_group_tokens)
+        idx = self.expect_in(s, idx, self.begin_group_tokens, 'Begin Group')
 
-        self.ensure_assignment(stream)
-        name = self.next_token(stream)
+        idx = self.skip_whitespace_or_comment(s, idx)
+        name = self.next_token(s, idx)
+        idx += len(name)
 
-        self.skip_statement_delimiter(stream)
-        statements = self.parse_block(stream, self.has_end_group)
+        idx = self.ensure_assignment(s, idx)
 
-        self.expect_in(stream, self.end_group_tokens)
-        self.parse_end_assignment(stream, name)
-        self.skip_statement_delimiter(stream)
+        idx = self.skip_statement_delimiter(s, idx)
+        statements = self.parse_block(s, idx, self.has_end_group)
 
-        return name.decode('utf-8'), PVLGroup(statements)
+        idx = self.expect_in(s, idx, self.end_group_tokens, 'End Group')
 
-    def has_end_group(self, stream):
+        idx = self.parse_end_assignment(s, idx, name)
+        idx = self.skip_statement_delimiter(s, idx)
+
+        return name, PVLGroup(statements), idx
+
+    def parse_aggregation(self, s: str, idx: int,
+                          begin_tokens: list, end_tokens: list,
+                          has_end_agg, cls) -> tuple:
+        """Aggregation Block Name must match the Block Name in the paired
+           End Aggregation Statement if the Block Name is present in the
+           End Aggregation Statement.
+
+        BeginGroupStmt ::=
+            BeginGroupKeywd WSC AssignmentSymbol WSC BlockName StatementDelim
+        """
+        idx = self.expect_in(s, idx, begin_tokens, f'Begin {begin_tokens[0]}')
+
+        idx = self.skip_whitespace_or_comment(s, idx)
+        name = self.next_token(s, idx)
+        idx += len(name)
+
+        idx = self.ensure_assignment(s, idx)
+
+        idx = self.skip_statement_delimiter(s, idx)
+        statements = self.parse_block(s, idx, self.has_end_agg)
+
+        idx = self.expect_in(s, idx, end_tokens, f'End {begin_tokens[0]}')
+
+        idx = self.parse_end_assignment(s, idx, name)
+        idx = self.skip_statement_delimiter(s, idx)
+
+        return name, cls(statements), idx
+
+    def has_end_group(self, s: str, idx: int) -> bool:
         """
         EndGroupLabel :=  AssignmentSymbol WSC BlockName
         EndGroupStmt := EndGroupKeywd WSC EndGroupLabel? StatementDelim
         """
-        return self.has_token_in(self.end_group_tokens, stream)
+        return s.startswith(self.end_group_tokens, idx)
 
-    def has_object(self, stream):
-        return self.has_token_in(self.begin_object_tokens, stream)
+    def has_object(self, s: str, idx: int) -> bool:
+        return s.startswith(self.begin_group_tokens, idx)
 
     def parse_object(self, stream):
         """Block Name must match Block Name in paired End Object Statement
@@ -449,60 +551,70 @@ class PVLDecoder(object):
 
         return name.decode('utf-8'), PVLObject(statements)
 
-    def has_end_object(self, stream):
+    def has_end_object(self, s: str, idx: int) -> bool:
         """
         EndObjectLabel ::= AssignmentSymbol WSC BlockName
         EndObjectStmt ::= EndObjectKeywd WSC EndObjectLabel? StatementDelim
         """
-        return self.has_token_in(self.end_object_tokens, stream)
+        return s.startswith(self.end_object_tokens, idx)
 
     def has_assignment(self, stream):
         return not self.has_delimiter(stream)
 
-    def ensure_assignment(self, stream):
-        self.skip_whitespace_or_comment(stream)
-        self.expect(stream, self.assignment_symbole)
-        self.skip_whitespace_or_comment(stream)
+    def ensure_assignment(self, s: str, idx: int) -> int:
+        idx = self.skip_whitespace_or_comment(s, idx)
 
-    def parse_assignment(self, stream):
+        if s.startswith(self.assignment_symbole, idx):
+            idx += len(self.assignment_symbole)
+        else:
+            end_i = idx + len(self.assignment_symbole) + 3
+            raise DecodeError(f'Expected {self.assignment_symbole}, but found '
+                              '"{}"'.format(s[idx:end_i]), s, idx)
+
+        return self.skip_whitespace_or_comment(s, idx)
+
+    def parse_assignment(self, s: str, idx: int):
         """
         AssignmentStmt ::= Name WSC AssignmentSymbol WSC Value StatementDelim
         """
-        lineno = stream.lineno
-        name = self.next_token(stream)
-        self.ensure_assignment(stream)
-        at_an_end = any((
-            self.has_end_group(stream),
-            self.has_end_object(stream),
-            self.has_end(stream),
-            self.has_next(self.statement_delimiter, stream, 0)))
-        if at_an_end:
-            value = self.broken_assignment(lineno)
-            self.skip_whitespace_or_comment(stream)
-        else:
-            value = self.parse_value(stream)
-        self.skip_statement_delimiter(stream)
-        return name.decode('utf-8'), value
+        name = self.next_token(s, idx)
+        idx += len(name)
 
-    def parse_value(self, stream):
+        idx = self.ensure_assignment(s, idx)
+        if any((self.has_end_group(s, idx),
+                self.has_end_object(s, idx),
+                self.has_end(s, idx),
+                s.startswith(self.statement_delimiter, idx))):
+            value = self.broken_assignment(s, idx)
+            # I think I need to update idx here, but not sure.
+            idx = self.skip_whitespace_or_comment(s, idx)
+        else:
+            value, idx = self.parse_value(s, idx)
+        self.skip_statement_delimiter(stream)
+
+        return name, value, idx
+
+    def parse_value(self, s: str, idx: int) -> tuple:
         """
         Value ::= (SimpleValue | Set | Sequence) WSC UnitsExpression?
         """
-        if self.has_sequence(stream):
-            value = self.parse_sequence(stream)
-        elif self.has_set(stream):
-            value = self.parse_set(stream)
+        if s.startswith(self.begin_sequence, idx):
+            value, idx = self.parse_iterable(s, idx, self.begin_sequence,
+                                             self.end_sequence)
+        elif s.startswith(self.begin_set, idx):
+            v, idx = self.parse_iterable(s, idx, self.begin_set, self.end_set)
+            value = set(v)
         else:
-            value = self.parse_simple_value(stream)
+            value, idx = self.parse_simple_value(s, idx)
 
         self.skip_whitespace_or_comment(stream)
 
         if self.has_units(stream):
-            return Units(value, self.parse_units(stream))
+            return Units(value, self.parse_units(stream)), idx
 
-        return value
+        return value, idx
 
-    def parse_iterable(self, stream, start, end):
+    def parse_iterable(self, s: str, idx: int, start: str, end: str):
         """
         Sequence ::= SequenceStart WSC SequenceValue? WSC SequenceEnd
         Set := SetStart WSC SequenceValue? WSC SetEnd
@@ -510,23 +622,34 @@ class PVLDecoder(object):
         """
         values = []
 
-        self.expect(stream, start)
-        self.skip_whitespace_or_comment(stream)
+        if not s.startswith(start, idx):
+            raise DecodeError(f'Expected {start} Token in ' +
+                              '"{} ..."'.format(s[idx:(idx + 3)]),
+                              s, idx)
 
-        if self.has_next(end, stream):
-            self.expect(stream, end)
-            return values
+        idx += len(start)
 
-        while 1:
-            self.skip_whitespace_or_comment(stream)
-            values.append(self.parse_value(stream))
-            self.skip_whitespace_or_comment(stream)
+        while True:
+            idx = self.skip_whitespace_or_comment(s, idx)
+            (v, i) = self.parse_value(s, idx)
+            values.append(v)
+            idx = i
+            idx = self.skip_whitespace_or_comment(s, idx)
 
-            if self.has_next(end, stream):
-                self.expect(stream, end)
-                return values
+            if s.startswith(end, idx):
+                idx += len(end)
+                break
+            elif s.startswith(self.seporator, idx):
+                idx += len(self.seporator)
+                continue
+            else:
+                print(values)
+                raise DecodeError('While parsing a set or sequence, expected ' +
+                                  f'"{self.seporator}" or "{end}" '
+                                  'but found "{}".'.format(s[idx:idx + 5]),
+                                  s, idx)
 
-            self.expect(stream, self.seporator)
+        return values, idx
 
     def has_sequence(self, stream):
         return self.has_next(self.begin_sequence, stream)
@@ -563,7 +686,7 @@ class PVLDecoder(object):
         self.expect(stream, self.end_units)
         return value.strip(b''.join(self.whitespace)).decode('utf-8')
 
-    def parse_simple_value(self, stream):
+    def parse_simple_value(self, s: str, idx: int) -> tuple:
         """
         SimpleValue ::= Integer
                       | FloatingPoint
@@ -575,8 +698,8 @@ class PVLDecoder(object):
                       | QuotedString
                       | UnquotedString
         """
-        if self.has_quoted_string(stream):
-            return self.parse_quoted_string(stream)
+        if s.startswith(self.quote_marks, idx):
+            return self.parse_quoted_string(s, idx)
 
         if self.has_binary_number(stream):
             return self.parse_binary_number(stream)
@@ -677,50 +800,57 @@ class PVLDecoder(object):
                 return True
         return False
 
-    def unescape_next_char(self, stream):
-        esc = stream.read(1)
-
-        if esc in self.quote_marks:
-            return esc
+    def unescape_next_char(self, s: str, idx: int) -> tuple:
+        c = s[idx]
+        if c in self.quote_marks:
+            return c, idx + 1
 
         try:
-            return FORMATTING_CHARS[esc]
+            return FORMATTING_CHARS[c], idx + 1
         except KeyError:
-            msg = "Invalid \\escape: " + repr(esc)
-            self.raise_error(msg, stream)
+            raise DecodeError(f'Invalid \\escape: {c}', s, idx)
 
-    def parse_quoted_string(self, stream):
+    def parse_quoted_string(self, s: str, idx: int):
         for mark in self.quote_marks:
-            if self.has_next(mark, stream):
+            if s.startswith(mark, idx):
+                idx += len(mark)
                 break
+        else:
+            longest = len(max(self.quote_marks, key=len))
+            raise DecodeError(f'Was expecting one of {self.quote_marks} '
+                              ' but found '
+                              '"{} ..."'.format(s[idx:(idx + longest + 3)]),
+                              s, idx)
 
-        self.expect(stream, mark)
-        self.skip_whitespace(stream)
+        value = ''
 
-        value = b''
+        while not s.startswith(mark, idx):
+            c = s[idx]
+            idx += 1
 
-        while not self.has_next(mark, stream):
-            next = stream.read(1)
-            if not next:
-                self.raise_unexpected_eof(stream)
+            if c == '\\':
+                (c, idx) = self.unescape_next_char(s, idx)
 
-            if next == b'\\':
-                next = self.unescape_next_char(stream)
+            # I don't think you're supposed to collapse whitespace,
+            # so I'm commenting this out.
+            # elif next in self.whitespace:
+            #     self.skip_whitespace(stream)
+            #     if self.has_next(mark, stream):
+            #         break
+            #     next = b' '
 
-            elif next in self.whitespace:
-                self.skip_whitespace(stream)
-                if self.has_next(mark, stream):
-                    break
-                next = b' '
-
-            elif next == b'-' and self.has_token_in(self.newline_chars, stream):
-                self.skip_whitespace(stream)
+            # This ignores '-' line continuations, but I don't think
+            # this is part of the PVL spec, maybe a PDS or ISIS thing?
+            # leaving it for now, until I can look it up.
+            elif c == '-' and s.startswith(tuple(self.newline_chars), idx):
+                idx = self.skip_whitespace(s, idx)
                 continue
 
-            value += next
+            value += c
+        else:
+            idx += len(mark)
 
-        self.expect(stream, mark)
-        return value.decode('utf-8')
+        return value, idx
 
     def has_unquoated_string(self, stream):
         next = self.peek(stream, 1)
