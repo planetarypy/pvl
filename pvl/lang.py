@@ -32,6 +32,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import re
+from datetime import datetime
+
 
 class grammar():
     '''Describes a particular PVL grammar for use by the lexer and parser.
@@ -53,7 +56,174 @@ class grammar():
                            '[', ']', '=', '!', '#', '(', ')',
                            '%', '+', '"', ';', '~', '|')
 
-    comment = (('/*', '*/'),)
+    # If there are any reserved_characters that might start a number,
+    # they need to be added to numeric_start_chars, otherwise that
+    # character will get lexed separately from the rest.
+    # Technically, since '-' isn't in reserved_characters, it isn't needed,
+    # but it doesn't hurt to keep it here.
+    numeric_start_chars = ('+', '-')
+
+    comments = (('/*', '*/'),)
+    group_keywords = (('BEGIN_GROUP', 'END_GROUP'),
+                      ('GROUP', 'END_GROUP'))
+    object_keywords = (('BEGIN_OBJECT', 'END_OBJECT'),
+                       ('OBJECT', 'END_OBJECT'))
+    aggregation_keywords = (group_keywords + object_keywords)
+    end_statements = ('END',)
+    reserved_keywords = set(end_statements)
+    for p in aggregation_keywords:
+        reserved_keywords |= set(p)
+
+    date_formats = ('%Y-%m-%d', '%Y-%j')
+    time_formats = ('%H:%M', '%H:%M:%S', '%H:%M:%S.%f')
+    datetime_formats = list()
+    for d in (date_formats + (None,)):
+        for t in (time_formats + (None,)):
+            if d is None and t is None:
+                continue
+            elif d is None:
+                datetime_formats.append(t)
+                datetime_formats.append(f'{t}Z')
+            elif t is None:
+                datetime_formats.append(d)
+                datetime_formats.append(f'{d}Z')
+            else:
+                datetime_formats.append(f'{d}T{t}')
+                datetime_formats.append(f'{d}T{t}Z')
+
+    # [sign]radix#non_decimal_integer#
+    binary_re = re.compile(r'[+-]?(2)#([01]+)#')
+    octal_re = re.compile(r'[+-]?(8)#([0-7]+)#')
+    hex_re = re.compile(r'[+-]?(16)#([0-9|A-F|a-f]+)#')
+    # non_decimal_re = re.compile(r'{}|{}|{}'.format(binary_re.pattern,
+    #                                                octal_re.pattern,
+    #                                                hex_re.pattern))
+
+
+class token(str):
+    '''A PVL-aware string token.
+    '''
+
+    def __new__(cls, content, grammar=grammar()):
+        return str.__new__(cls, content)
+
+    def __init__(self, content, grammar=grammar()):
+        self.grammar = grammar
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}(\'{self}\', '
+                f'\'{self.grammar}\')')
+
+    def is_comment(self):
+        for pair in self.grammar.comments:
+            if self.startswith(pair[0]) and self.endswith(pair[1]):
+                return True
+        return False
+
+    def is_begin_aggregation(self):
+        for pair in self.grammar.aggregation_keywords:
+            if self.casefold() == pair[0].casefold():
+                return True
+        return False
+
+    def is_parameter_name(self):
+        for char in self.grammar.reserved_characters:
+            if char in self:
+                return False
+
+        for word in self.grammar.reserved_keywords:
+            if word.casefold() == self.casefold():
+                return False
+
+        for pair in self.grammar.comments:
+            if pair[0] in self:
+                return False
+            if pair[1] in self:
+                return False
+
+        if self.isnumeric() or self.is_datetime():
+            return False
+
+        return True
+
+    def is_end_statement(self):
+        for e in self.grammar.end_statements:
+            if e.casefold() == self.casefold():
+                return True
+        return False
+
+    def isnumeric(self):
+        # Since there is a parent function with this name on str(),
+        # we override here, so that we don't get inconsisent behavior
+        # if someone forgets an underbar.
+        return self.is_numeric()
+
+    def is_numeric(self):
+        if self.is_decimal():
+            return True
+
+        if self.is_binary():
+            return True
+
+        if self.is_octal():
+            return True
+
+        if self.is_hex():
+            return True
+
+        return False
+
+    def is_decimal(self):
+        try:
+            float(self)
+            return True
+        except ValueError:
+            return False
+
+    def is_binary(self):
+        if self.grammar.binary_re.fullmatch(self) is None:
+            return False
+        else:
+            return True
+
+    def is_octal(self):
+        if self.grammar.octal_re.fullmatch(self) is None:
+            return False
+        else:
+            return True
+
+    def is_hex(self):
+        if self.grammar.hex_re.fullmatch(self) is None:
+            return False
+        else:
+            return True
+
+    def is_date(self):
+        for tf in self.grammar.date_formats:
+            try:
+                datetime.strptime(self, tf)
+                return True
+            except ValueError:
+                pass
+        return False
+
+    def is_time(self):
+        for tf in self.grammar.time_formats:
+            try:
+                datetime.strptime(self, tf)
+                return True
+            except ValueError:
+                pass
+        return False
+
+    def is_datetime(self):
+        for tf in self.grammar.datetime_formats:
+            try:
+                datetime.strptime(self, tf)
+                return True
+            except ValueError as err:
+                pass
+        return False
 
 
 def lex_singlechar_comments(char: str,
@@ -77,7 +247,7 @@ def lex_singlechar_comments(char: str,
 
 def lex_multichar_comments(char: str, prev_char: str, next_char: str,
                            lexeme: str, in_comment: bool, end_comment: str,
-                           comments=grammar().comment) -> tuple:
+                           comments=grammar().comments) -> tuple:
     '''Returns a tuple with new current states of ``lexeme``,
        ``in_comment``, and ``end_comment``.
     '''
@@ -110,6 +280,20 @@ def lex_multichar_comments(char: str, prev_char: str, next_char: str,
     return (lexeme, in_comment, end_comment)
 
 
+def lex_comment(char: str, prev_char: str, next_char: str,
+                lexeme: str, in_comment: bool, end_comment: str,
+                comments: tuple, c_info: dict) -> tuple:
+
+    if char in c_info['multi_chars']:
+        return lex_multichar_comments(char, prev_char, next_char,
+                                      lexeme, in_comment, end_comment,
+                                      comments=comments)
+    else:
+        return lex_singlechar_comments(char,
+                                       lexeme, in_comment, end_comment,
+                                       c_info['single_comments'])
+
+
 def _prev_char(s: str, idx: int):
     if idx <= 0:
         return None
@@ -125,23 +309,24 @@ def _next_char(s: str, idx: int):
 
 
 def _prepare_comment_tuples(comments: tuple) -> tuple:
+    # I initially tried to avoid this function, if you
+    # don't pre-compute this stuff, you end up re-computing
+    # it every time you pass into the lex_comment() function,
+    # which seemed excessive.
     d = dict()
     d['single_comments'] = dict()
     d['multi_chars'] = set()
-    start_comments = list()
-    stop_comments = list()
     for pair in comments:
-        start_comments.append(pair[0])
-        stop_comments.append(pair[1])
         if len(pair[0]) == 1:
             d['single_comments'][pair[0]] = pair[1]
         else:
-            d['multi_chars'] |= set(pair[0])
-            d['multi_chars'] |= set(pair[1])
+            for p in pair:
+                d['multi_chars'] |= set(p)
 
-    d['start'] = tuple(start_comments)
-    d['stop'] = tuple(stop_comments)
+    d['chars'] = set(d['single_comments'].keys())
+    d['chars'] |= d['multi_chars']
 
+    # print(d)
     return d
 
 
@@ -149,7 +334,7 @@ def lexer(s: str, g=grammar()):
     # We're going to assume that beyond the /* */ pair, every
     # other comment pair is just single characters.  Otherwise
     # we'll need to generalize the for loop.
-    comments = _prepare_comment_tuples(g.comment)
+    c_info = _prepare_comment_tuples(g.comments)
 
     lexeme = ''
     in_comment = False  # If we are in a comment, preserve all characters.
@@ -158,22 +343,31 @@ def lexer(s: str, g=grammar()):
         prev_char = _prev_char(s, i)
         next_char = _next_char(s, i)
 
-        if char in comments['multi_chars']:
+        # print(f'lexeme at top: {lexeme}, char: {char}, '
+        #       f'prev: {prev_char}, next: {next_char}')
+
+        # Handle comments first.
+        # Since we want comments to consume everything, and they may have
+        # reserved characters within them, deal with them first.
+        if in_comment or char in c_info['chars']:
             (lexeme,
              in_comment,
-             end_comment) = lex_multichar_comments(char, prev_char, next_char,
-                                                   lexeme, in_comment,
-                                                   end_comment,
-                                                   comments=g.comment)
-        elif in_comment or char in comments['single_comments']:
-            (lexeme,
-             in_comment,
-             end_comment) = lex_singlechar_comments(char, lexeme,
-                                                    in_comment, end_comment,
-                                                    comments['single_comments'])
+             end_comment) = lex_comment(char, prev_char, next_char,
+                                        lexeme, in_comment, end_comment,
+                                        g.comments, c_info)
+
+        # Since Numeric objects can begin with reserved characters,
+        # they must be handled specially, otherwise the reserved
+        # characters will split up the lexeme.
+        elif char in g.numeric_start_chars:
+            if token(char + next_char).isnumeric():
+                lexeme += char
+                continue
         else:
             if char not in g.whitespace:
                 lexeme += char  # adding a char each time
+
+        # print(f'lexeme at bottom: {lexeme}')
 
         # Now having dealt with char, decide whether to
         # go on continue accumulating the lexeme, or yield it.
@@ -186,8 +380,8 @@ def lexer(s: str, g=grammar()):
                     continue
                 elif(next_char in g.whitespace or
                      next_char in g.reserved_characters or
-                     s.startswith(comments['start'], i + 1) or
-                     lexeme.endswith(comments['stop']) or
+                     s.startswith(tuple(p[0] for p in g.comments), i + 1) or
+                     lexeme.endswith(tuple(p[1] for p in g.comments)) or
                      lexeme in g.reserved_characters):
                     yield(lexeme)
                     lexeme = ''
