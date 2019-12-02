@@ -19,6 +19,7 @@ import unittest
 from unittest.mock import patch
 
 from pvl import decoder
+from pvl import lang
 
 
 class TestParse(unittest.TestCase):
@@ -160,22 +161,50 @@ class TestParse(unittest.TestCase):
         self.assertEqual(('Line Continued', 19),
                          self.d.parse_quoted_string("'Line -\n Continued'", 0))
 
-    # def test_parse_simple_value(self)
+    # after the lexer implementation:
 
-    # def test_parse_value(self):
-    #     pass
+    def test_parse_statement_delimiter(self):
+        pairs = (('after', 'after delimiter'),
+                 ('after', '; after delimiter'),
+                 ('after', '/*comment*/\n\nafter delimiter'))
+        for p in pairs:
+            with self.subTest(pair=p):
+                tokens = lang.lexer(p[1])
+                self.assertEqual(p[0], self.d.parse_statement_delimiter(tokens))
 
-    # def test_parse_assignment(self):
-    #     pass
+    def test_parse_begin_aggregation_statement(self):
+        pairs = (('name', 'GROUP = name next'),
+                 ('name', 'OBJECT=name next'),
+                 ('name', 'BEGIN_GROUP /*c1*/ = /*c2*/ name /*c3*/ next'))
+        for p in pairs:
+            with self.subTest(pair=p):
+                tokens = lang.lexer(p[1])
+                next_t = p[1].split()[-1]
+                self.assertEqual((p[0], next_t),
+                                 self.d.parse_begin_aggregation_statement(next(tokens),
+                                                                          tokens))
 
-    # def test_parse_aggregation(self):
-    #     # test for Group and Object
-    #     pass
+        tokens = lang.lexer('Not-a-Begin-Aggegation-Statement = name')
+        self.assertRaises(ValueError,
+                          self.d.parse_begin_aggregation_statement,
+                          next(tokens), tokens)
 
-    # def test_parse_statement(self):
-    #     pass
+        strings = ('GROUP equals name', 'GROUP = 5')
+        for s in strings:
+            with self.subTest(string=s):
+                tokens = lang.lexer(s)
+                self.assertRaises(ValueError,
+                                  self.d.parse_begin_aggregation_statement,
+                                  next(tokens), tokens)
 
-    # def test_parse_block(self):
-    #     pass
-
+    # decode_datetime
+    # decode_simple_value
+    # parse_units
+    # parse_set
+    # parse_sequence
+    # parse_value
+    # parse_assignment_statement
+    # def test_parse_aggregation_block(self):
+    # def test_is_end_aggregation_statement(self)
+    # def test_parse_module(self):
     # def test_decode(self):

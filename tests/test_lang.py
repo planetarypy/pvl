@@ -338,3 +338,87 @@ class TestToken(unittest.TestCase):
             with self.subTest(string=s):
                 t = lang.token(s)
                 self.assertFalse(t.isnumeric())
+
+    def test_is_space(self):
+        for s in ('  ', '\t\n'):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertTrue(t.is_space())
+
+        for s in ('not space', ''):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertFalse(t.is_space())
+
+    def test_is_WSC(self):
+        for s in (' /*com*/  ', '/*c1*/\n/*c2*/'):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertTrue(t.is_WSC())
+
+        for s in (' /*com*/ not comment', ' surrounding '):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertFalse(t.is_WSC())
+
+    def test_is_delimiter(self):
+        t = lang.token(';')
+        self.assertTrue(t.is_delimiter())
+
+        t = lang.token('not')
+        self.assertFalse(t.is_delimiter())
+
+    def test_is_unquoted_string(self):
+        for s in ('Hello', 'Product Id', 'Group'):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertTrue(t.is_unquoted_string())
+
+        for s in ('/*comment*/', '2001-027', '"quoted"'):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertFalse(t.is_unquoted_string())
+
+    def test_is_quoted_string(self):
+        for s in ('"Hello &"', "'Product Id'", '""'):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertTrue(t.is_quoted_string())
+
+        for s in ('/*comment*/', '2001-027', '"'):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertFalse(t.is_quoted_string())
+
+    def test_is_string(self):
+        for s in ('"Hello &"', "'Product Id'", '""',
+                  'Hello', 'Product Id', 'Group'):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertTrue(t.is_string())
+
+        for s in ('/*comment*/', '2001-027', '"'):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertFalse(t.is_string())
+
+    def test_is_simple_value(self):
+        for s in ('"Hello &"', "'Product Id'", '""',  # Quoted Strings
+                  'Hello', 'Product Id', 'Group'  # Unquoted Strings
+                  '2001-01-01', '2001-027',  # Date
+                  '23:45', '01:42:57', '12:34:56.789'  # Time
+                  '2001-027T23:45', '2001-01-01T01:34Z',  # Datetime
+                  '125', '+211109', '-79',  # Integers
+                  '69.35', '+12456.345', '-0.23456', '.05', '-7.',  # Floating
+                  '-2.345678E12', '1.567E-10', '+4.99E+3',  # Exponential
+                  '2#0101#', '+2#0101#', '-2#0101#',  # Binary
+                  '8#0107#', '+8#0156#', '-8#0134#',  # Octal
+                  '16#100A#', '+16#23Bc#', '-16#98ef#'):  # Hex
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertTrue(t.is_simple_value())
+
+        for s in ('/*comment*/', '=', '"', '{', '('):
+            with self.subTest(string=s):
+                t = lang.token(s)
+                self.assertFalse(t.is_simple_value())

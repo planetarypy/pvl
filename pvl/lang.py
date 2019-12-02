@@ -36,6 +36,31 @@ import re
 from datetime import datetime
 
 
+class LexerError(ValueError):
+    """Subclass of ValueError with the following additional properties:
+
+       msg: The unformatted error message
+       doc: The PVL document being parsed
+       pos: The start index of doc where parsing failed
+       lineno: The line corresponding to pos
+       colno: The column corresponding to pos
+    """
+
+    def __init__(self, msg, doc, pos):
+        lineno = doc.count('\n', 0, pos) + 1
+        colno = pos - doc.rfind('\n', 0, pos)
+        errmsg = f'{msg}: line {lineno} column {colno} (char {pos})'
+        ValueError.__init__(self, errmsg)
+        self.msg = msg
+        self.doc = doc
+        self.pos = pos
+        self.lineno = lineno
+        self.colno = colno
+
+    def __reduce__(self):
+        return self.__class__, (self.msg, self.doc, self.pos)
+
+
 class grammar():
     '''Describes a particular PVL grammar for use by the lexer and parser.
 
@@ -63,6 +88,8 @@ class grammar():
     # but it doesn't hurt to keep it here.
     numeric_start_chars = ('+', '-')
 
+    delimiters = (';',)
+
     comments = (('/*', '*/'),)
     group_keywords = (('BEGIN_GROUP', 'END_GROUP'),
                       ('GROUP', 'END_GROUP'))
@@ -73,6 +100,11 @@ class grammar():
     reserved_keywords = set(end_statements)
     for p in aggregation_keywords:
         reserved_keywords |= set(p)
+
+    quotes = ('"', "'")
+    set_delimiters = ('{', '}')
+    sequence_delimiters = ('(', ')')
+    units_delimiters = ('<', '>')
 
     date_formats = ('%Y-%m-%d', '%Y-%j')
     time_formats = ('%H:%M', '%H:%M:%S', '%H:%M:%S.%f')
@@ -92,12 +124,10 @@ class grammar():
                 datetime_formats.append(f'{d}T{t}Z')
 
     # [sign]radix#non_decimal_integer#
-    binary_re = re.compile(r'[+-]?(2)#([01]+)#')
-    octal_re = re.compile(r'[+-]?(8)#([0-7]+)#')
-    hex_re = re.compile(r'[+-]?(16)#([0-9|A-F|a-f]+)#')
-    # non_decimal_re = re.compile(r'{}|{}|{}'.format(binary_re.pattern,
-    #                                                octal_re.pattern,
-    #                                                hex_re.pattern))
+    _s = r'(?P<sign>[+-]?)'
+    binary_re = re.compile(fr'{_s}(?P<radix>2)#(?P<non_decimal>[01]+)#')
+    octal_re = re.compile(fr'{_s}(?P<radix>8)#(?P<non_decimal>[0-7]+)#')
+    hex_re = re.compile(fr'{_s}(?P<radix>16)#(?P<non_decimal>[0-9|A-F|a-f]+)#')
 
 
 class token(str):
@@ -114,10 +144,44 @@ class token(str):
         return (f'{self.__class__.__name__}(\'{self}\', '
                 f'\'{self.grammar}\')')
 
+    def isspace(self):
+        # Since there is a parent function with this name on str(),
+        # we override here, so that we don't get inconsisent behavior
+        # if someone forgets an underbar.
+        return self.is_space()
+
+    def is_space(self):
+        if len(self) == 0:
+            return False
+
+        return all(c in self.grammar.whitespace for c in self)
+
+    def is_WSC(self):
+        if self.is_comment():
+            return True
+
+        if self.is_space():
+            return True
+
+        return all(t.is_comment() for t in lexer(self, g=self.grammar))
+
     def is_comment(self):
         for pair in self.grammar.comments:
             if self.startswith(pair[0]) and self.endswith(pair[1]):
                 return True
+        return False
+
+    def is_quoted_string(self):
+        for q in self.grammar.quotes:
+            if(self.startswith(q) and
+               self.endswith(q) and
+               len(self) > 1):
+                return True
+        return False
+
+    def is_delimiter(self):
+        if self in self.grammar.delimiters:
+            return True
         return False
 
     def is_begin_aggregation(self):
@@ -126,13 +190,9 @@ class token(str):
                 return True
         return False
 
-    def is_parameter_name(self):
+    def is_unquoted_string(self):
         for char in self.grammar.reserved_characters:
             if char in self:
-                return False
-
-        for word in self.grammar.reserved_keywords:
-            if word.casefold() == self.casefold():
                 return False
 
         for pair in self.grammar.comments:
@@ -145,6 +205,18 @@ class token(str):
             return False
 
         return True
+
+    def is_string(self):
+        if self.is_quoted_string() or self.is_unquoted_string():
+            return True
+        return False
+
+    def is_parameter_name(self):
+        for word in self.grammar.reserved_keywords:
+            if word.casefold() == self.casefold():
+                return False
+
+        return self.is_unquoted_string()
 
     def is_end_statement(self):
         for e in self.grammar.end_statements:
@@ -223,6 +295,11 @@ class token(str):
                 return True
             except ValueError as err:
                 pass
+        return False
+
+    def is_simple_value(self):
+        if self.is_datetime() or self.is_numeric() or self.is_string():
+            return True
         return False
 
 
@@ -371,19 +448,22 @@ def lexer(s: str, g=grammar()):
 
         # Now having dealt with char, decide whether to
         # go on continue accumulating the lexeme, or yield it.
-        if lexeme != '':
-            if next_char is None:
-                yield(lexeme)
-                lexeme = ''
-            else:
-                if in_comment:
-                    continue
-                elif(next_char in g.whitespace or
-                     next_char in g.reserved_characters or
-                     s.startswith(tuple(p[0] for p in g.comments), i + 1) or
-                     lexeme.endswith(tuple(p[1] for p in g.comments)) or
-                     lexeme in g.reserved_characters):
-                    yield(lexeme)
+        try:
+            if lexeme != '':
+                if next_char is None:
+                    yield(token(lexeme, grammar=g))
                     lexeme = ''
                 else:
-                    continue
+                    if in_comment:
+                        continue
+                    elif(next_char in g.whitespace or
+                         next_char in g.reserved_characters or
+                         s.startswith(tuple(p[0] for p in g.comments), i + 1) or
+                         lexeme.endswith(tuple(p[1] for p in g.comments)) or
+                         lexeme in g.reserved_characters):
+                        yield(token(lexeme, grammar=g))
+                        lexeme = ''
+                    else:
+                        continue
+        except ValueError as err:
+            raise LexerError(err, s, i - len(lexeme))

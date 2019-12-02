@@ -1,10 +1,46 @@
 # -*- coding: utf-8 -*-
+'''Parameter Value Language decoder and parser.
+
+   The definition of PVL used in this module is from the Consultive
+   Committee for Space Data Systems, and their Parameter Value
+   Language Specification (CCSD0006 and CCSD0008), CCSDS 6441.0-B-2,
+   referred to as the Blue Book with a date of June 2000.
+
+   Some of the documention in this module represents the structure
+   diagrams from the Blue Book for parsing PVL in a Backus–Naur
+   form.
+
+   So Figure 1-1 from the Blue Book would be represented as :
+
+    <Item-A> ::= ( [ <Item-B>+ | <Item-C> ] <Item-D> )*
+
+   Finally, the Blue Book defines <WSC> as a possibly empty collection
+   of white space characters or comments:
+
+    <WSC> ::= ( <white-space-character> | <comment> )*
+
+   However, to help remember that <WSC> could be empty, we will typically
+   always show it as <WSC>*.
+
+   Likewise the <Statement-Delimiter> is defined as:
+
+    <Statement-Delimiter> ::= [WSC]* [ ';' | <EOF> ]
+
+   However, since all elements are optional, we will typically
+   show it as [<Statement-Delimiter>].
+
+
+'''
 from warnings import warn
 from .stream import BufferedStream, ByteStream
 from ._collections import PVLModule, PVLGroup, PVLObject, Units
 from ._strings import FORMATTING_CHARS
 
 import re
+from datetime import datetime
+
+from .lang import token as Token
+from .lang import grammar as Grammar
 
 
 class ParseError(ValueError):
@@ -166,9 +202,15 @@ class PVLDecoder(object):
     decimal_chars = char_set('0123456789')
     hex_chars = char_set('0123456789ABCDEFabcdef')
 
-    def __init__(self):
+    def __init__(self, grammar=Grammar(), module_class=PVLModule()):
         self.strict = True
         self.errors = []
+        self.grammar = grammar
+
+        if isinstance(module_class, PVLModule):
+            self.modcls = module_class
+        else:
+            raise Exception
 
     def set_strict(self, strict):
         self.strict = strict
@@ -271,33 +313,42 @@ class PVLDecoder(object):
         else:
             return token
 
-    def decode(self, s: str):
-        module = PVLModule(self.parse_block(s, 0, self.has_end))
-        module.errors = sorted(self.errors)
-        self.skip_end(s)
+    def decode(self, tokens: list):
+        # old:
+        # module = PVLModule(self.parse_block(s, 0, self.has_end))
+        # module.errors = sorted(self.errors)
+        # self.skip_end(s)
+        # return module
+
+        module = self.parse_module(tokens)
+        # module.errors = sorted(self.errors) need?
+        # self.skip_end(s) need?
         return module
 
     def parse_module(self, tokens):
         """Parses the tokens for a PVL Module.
 
-           PVL-Module-Contents ::=
-             (Assignment-Statement | WSC | Aggregation-Block)*
-             End-Statement ?
+            <PVL-Module-Contents> ::=
+             ( <Assignment-Statement> | <WSC>* | <Aggregation-Block> )*
+             [<End-Statement>]
         """
-        m = PVLModule()
+        m = self.modcls()
         for t in tokens:
-            if t.is_comment():
+            if t.is_WSC():
+                # If there's a comment, could parse here.
                 pass
             elif t.is_begin_aggregation():
-                m.append(parse_aggregation_block(t, tokens))
+                m.add(parse_aggregation_block(t, tokens))
             elif t.is_parameter_name():
-                m.append(parse_assignment_statement(t, tokens))
+                m.add(parse_assignment_statement(t, tokens))
             elif t.is_end_statement():
                 after = next(tokens, token())
                 if after.is_comment():
                     # Maybe do something with the last comment.
                     pass
                 break
+            else:
+                tokens.throw(ValueError, f'Unexpected Token: {t}')
         return m
 
     def parse_block(self, s, idx, has_end):
@@ -492,33 +543,154 @@ class PVLDecoder(object):
 
         return name, PVLGroup(statements), idx
 
-    def parse_aggregation(self, s: str, idx: int,
-                          begin_tokens: list, end_tokens: list,
-                          has_end_agg, cls) -> tuple:
-        """Aggregation Block Name must match the Block Name in the paired
-           End Aggregation Statement if the Block Name is present in the
-           End Aggregation Statement.
+    def parse_aggregation_block(self, begin_agg_stmt: Token,
+                                tokens: list) -> tuple:
+        """Parses the tokens for an Aggregation Block.
 
-        BeginGroupStmt ::=
-            BeginGroupKeywd WSC AssignmentSymbol WSC BlockName StatementDelim
+            <Aggregation-Block> ::= <Begin-Aggegation-Statement>
+                (<WSC>* (Assignment-Statement | Aggregation-Block) <WSC>*)+
+                <End-Aggregation-Statement>
+
+           The Begin-Aggregation-Statement Name must match the Block-Name in the
+           paired End-Aggregation-Statement if a Block-Name is present in the
+           End-Aggregation-Statement.
+
         """
-        idx = self.expect_in(s, idx, begin_tokens, f'Begin {begin_tokens[0]}')
+        m = self.modcls()
 
-        idx = self.skip_whitespace_or_comment(s, idx)
-        name = self.next_token(s, idx)
-        idx += len(name)
+        block_name, next_t = parse_begin_aggregation_statement(begin_agg_stmt,
+                                                               tokens)
 
-        idx = self.ensure_assignment(s, idx)
+        for t in itertools.chain(next_t, tokens):
+            if t.is_WSC():
+                # If there's a comment, could parse here.
+                pass
+            elif t.is_begin_aggregation():
+                m.add(parse_begin_aggregation_block(t, tokens))
+            elif t.is_parameter_name():
+                m.add(parse_assignment_statement(t, tokens))
+            elif t.is_WSC():
+                # If there's a comment, could parse here.
+                pass
+            elif t.is_end_aggregation_statement():
+                after = next(tokens, token())
+                if after.is_comment():
+                    # Maybe do something with the last comment.
+                    pass
+                break
+            else:
+                tokens.throw(ValueError, f'Unexpected Token: {t}')
+        return m
 
-        idx = self.skip_statement_delimiter(s, idx)
-        statements = self.parse_block(s, idx, self.has_end_agg)
+    def _parse_around_equals(self, tokens: list) -> Token:
+        """Parses white space and comments on either side
+           of an equals sign.
 
-        idx = self.expect_in(s, idx, end_tokens, f'End {begin_tokens[0]}')
+           This is shared functionality for Begin Aggregation Statements
+           and Assignment Statements.  It basically covers parsing
+           anything that has a syntax diagram like this:
 
-        idx = self.parse_end_assignment(s, idx, name)
-        idx = self.skip_statement_delimiter(s, idx)
+             <WSC>* '=' <WSC>*
 
-        return name, cls(statements), idx
+           It returns the next token (o) to be parsed.
+        """
+        for t in tokens:
+            if t.is_WSC():
+                # If there's a comment, could parse here and below.
+                pass
+            else:
+                break
+
+        if t != '=':
+            tokens.throw(ValueError, f'Expecting "=", got: {t}')
+
+        for t in tokens:
+            if not t.is_WSC():
+                break
+
+        return t
+
+    def parse_begin_aggregation_statement(self, begin_agg_stmt: Token,
+                                          tokens: list) -> tuple:
+        """Parses the tokens for a Begin Aggregation Statement.
+
+           <Begin-Aggregation-Statement-block> ::=
+                <Begin-Aggegation-Statement> <WSC>* '=' <WSC>*
+                <Block-Name> [<Statement-Delimiter>]
+
+           Where <Block-Name> ::= <Parameter-Name>
+
+        """
+        if not begin_agg_stmt.is_begin_aggregation():
+            raise ValueError('Expecting a Begin-Aggegation-Statement, but'
+                             f'found: {begin_agg_stmt}')
+
+        t = self._parse_around_equals(tokens)
+
+        if t.is_parameter_name():
+            block_name = t
+        else:
+            tokens.throw(ValueError,
+                         f'Expecting a Block-Name after "{begin_agg_stmt} =" '
+                         f'but found: "{t}"')
+
+        t = self.parse_statement_delimiter(tokens)
+
+        return(block_name, t)
+
+    def parse_assignment_statement(self, parameter_name: Token,
+                                   tokens: list) -> tuple:
+        """Parses the tokens for an Assignment Statement.
+
+            <Assignment-Statement> ::= <Parameter-Name> <WSC>* '=' <WSC>*
+                                        <Value> [<Statement-Delimiter>]
+
+        """
+        if not parameter_name.parameter_name():
+            raise ValueError('Expecting a Parameter Name, but'
+                             f'found: {parameter_name}')
+
+        Value = ''
+        t = self._parse_around_equals(tokens)
+
+        if t.is_value():
+            Value = self.parse_value(t, tokens)
+        else:
+            tokens.throw(ValueError,
+                         f'Expecting a Block-Name after "{begin_agg_stmt} =" '
+                         f'but found: "{t}"')
+
+        t = self.parse_statement_delimiter(tokens)
+
+        return(block_name, t)
+
+    def parse_statement_delimiter(self, tokens: list) -> Token:
+        """Parses the tokens for a Statement Delimiter.
+
+           Returns the next token *after* the Statement Delimiter.
+
+            <Statement-Delimiter> ::= <WSC>*
+                        (<white-space-character> | <comment> | ';' | <EOF>)
+
+           Although the above structure comes from Figure 2-4
+           of the Blue Book, the <white-space-character> and <comment>
+           elements are redundant with the presence of [WSC]*
+           so it can be simplified to:
+
+            <Statement-Delimiter> ::= <WSC>* [ ';' | <EOF> ]
+
+           Typically written [<Statement-Delimiter>].
+        """
+        for t in tokens:
+            if t.is_WSC():
+                # If there's a comment, could parse here.
+                    pass
+            elif t.is_delimiter():
+                return next(tokens)
+            else:
+                return t
+        # The token, t, is now the next thing past this Statement-Delimiter
+        # so we need to return it.
 
     def has_end_group(self, s: str, idx: int) -> bool:
         """
@@ -594,25 +766,40 @@ class PVLDecoder(object):
 
         return name, value, idx
 
-    def parse_value(self, s: str, idx: int) -> tuple:
+    def parse_value(self, t: Token, tokens: list) -> tuple:
+        """Parses PVL Values.
+
+            <Value> ::= (<Simple-Value> | <Set> | <Sequence>)
+                        [<WSC>* <Units Expression>]
+
         """
-        Value ::= (SimpleValue | Set | Sequence) WSC UnitsExpression?
-        """
-        if s.startswith(self.begin_sequence, idx):
-            value, idx = self.parse_iterable(s, idx, self.begin_sequence,
-                                             self.end_sequence)
-        elif s.startswith(self.begin_set, idx):
-            v, idx = self.parse_iterable(s, idx, self.begin_set, self.end_set)
-            value = set(v)
+        value = None
+        if t.is_simple_value:
+            value = self.decode_simple_value(t)
+        elif t.startswith(self.grammar.set_delimiter[0]):
+            value = self.parse_set(t, tokens)
+        elif t.startswith(self.grammar.sequence_delimiter[0]):
+            value = self.parse_sequence(t, tokens)
         else:
-            value, idx = self.parse_simple_value(s, idx)
+            tokens.throw(ValueError,
+                         'Was expecting a Simple Value, or the beginning of '
+                         f'a Set or Sequence, but found: "{t}"')
 
-        self.skip_whitespace_or_comment(stream)
+        units = None
+        for t in tokens:
+            if t.is_WSC():
+                # If there's a comment, could parse
+                pass
+            elif t.starswith(self.grammar.units_delimiter):
+                units, t = self.parse_units(t, tokens)
+                break
+            else:
+                break
 
-        if self.has_units(stream):
-            return Units(value, self.parse_units(stream)), idx
+        if units is not None:
+            value = Units(value, units)
 
-        return value, idx
+        return value, t
 
     def parse_iterable(self, s: str, idx: int, start: str, end: str):
         """
@@ -686,6 +873,39 @@ class PVLDecoder(object):
         self.expect(stream, self.end_units)
         return value.strip(b''.join(self.whitespace)).decode('utf-8')
 
+    def decode_simple_value(self, value: Token):
+        '''Takes a Simple Value and attempts to convert it to the appropriate
+           Python type.
+
+            <Simple-Value> ::= (<Date-Time> | <Numeric> | <String>)
+        '''
+        # Quoted String
+        if value.is_quoted_string():
+            return str(value[1:-1])
+
+        # Non-Decimal (Binary, Hex, and Octal)
+        for nd_re in (self.grammar.binary_re,
+                      self.grammar.octal_re,
+                      self.grammar.hex_re):
+            match = nd_re.fullmatch(value)
+            if match is not None:
+                d = match.groupdict('')
+                return int(d['sign'] + d['non_decimal'], base=d['radix'])
+
+        # Decimal Numbers (int and float)
+        try:
+            return int(value, base=10)
+        except ValueError:
+            try:
+                return float(value)
+            except ValueError:
+                pass
+
+        try:
+            return decode_datetime(value)
+        except ValueError:
+            return str(value)
+
     def parse_simple_value(self, s: str, idx: int) -> tuple:
         """
         SimpleValue ::= Integer
@@ -695,8 +915,7 @@ class PVLDecoder(object):
                       | OctalNum
                       | HexadecimalNum
                       | DateTimeValue
-                      | QuotedString
-                      | UnquotedString
+                      | QuotedStrin UnquotedString
         """
         if s.startswith(self.quote_marks, idx):
             return self.parse_quoted_string(s, idx)
@@ -923,15 +1142,45 @@ class PVLDecoder(object):
                 raise ValueError('Could not parse an int or a '
                                  f'float from {value}')
 
-    def parse_datetime(self, value):
+    def _get_datetime(self, value, formats):
+        dt = None
+        for f in formats:
+            try:
+                dt = datetime.strptime(value, f)
+            except ValueError:
+                pass
+
+        raise ValueError
+
+    def decode_datetime(self, value: str):
+        '''Takes a string and attempts to convert it to the appropriate
+           Python datetime time, date, or datetime type based on the
+           PVL standard.
+        '''
+        try:
+            return _get_datetime(value, self.grammar.date_formats).date()
+        except ValueError:
+            try:
+                return _get_datetime(value, self.grammar.time_formats).time()
+            except ValueError:
+                try:
+                    return _get_datetime(value, self.grammar.datetime_formats)
+                except ValueError:
+                    pass
+
+        return self.decode_dateutil(value)
+
+    def decode_dateutil(self, value: str):
+        '''Takes a string and attempts to convert it to the appropriate
+           Python datetime by using the 3rd party dateutil library (if
+           present) to parse ISO 8601 datetime strings, which have more
+           variety than those allowed by the PVL specification.
+        '''
         try:
             from dateutil.parser import isoparser
             isop = isoparser()
 
-            if isinstance(value, bytes):
-                value = value.decode()
-            if(isinstance(value, str)
-               and len(value) > 3
+            if(len(value) > 3
                and value[-2] == '+'
                and value[-1].isdigit()):
                 # This technically means that we accept slight more formats
@@ -951,8 +1200,9 @@ class PVLDecoder(object):
                     return isop.isoparse(value)
 
         except ImportError:
-            warn('The dateutil library is not present, so dates and times will be '
-                 'left as strings instead of being parsed and returned as datetime '
-                 'objects.', ImportWarning)
+            warn('The dateutil library is not present, so date and time '
+                 'formats beyond the PVL set will be left as strings '
+                 'instead of being parsed and returned as datetime objects.',
+                 ImportWarning)
 
-            raise ValueError
+        raise ValueError
