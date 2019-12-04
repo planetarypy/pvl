@@ -57,6 +57,8 @@ from ._collections import (
     Units,
 )
 
+from .grammar import grammar as Grammar
+
 __author__ = 'The PlanetaryPy Developers'
 __email__ = 'trevor@heytrevor.com'
 __version__ = '0.2.0'
@@ -96,7 +98,7 @@ def load(stream, cls=PVLDecoder, strict=True, **kwargs):
     return decoder.decode(stream)
 
 
-def loads(s: str, cls=PVLDecoder, strict=True, **kwargs):
+def loads(s: str, cls=PVLDecoder, grammar=Grammar(), strict=True, **kwargs):
     """Deserialize ``s`` as a pvl module.
 
     :param data: a pvl module as a string
@@ -106,7 +108,7 @@ def loads(s: str, cls=PVLDecoder, strict=True, **kwargs):
 
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
-    decoder = __create_decoder(cls, strict, **kwargs)
+    decoder = __create_decoder(cls, strict, grammar=grammar, **kwargs)
     return decoder.decode(s)
 
 

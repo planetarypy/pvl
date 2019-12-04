@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""This module has new tests for the pvl decoder functions."""
+"""This module has tests for the pvl decoder functions."""
 
 # Copyright 2019, Ross A. Beyer (rbeyer@seti.org)
 #
@@ -15,196 +15,150 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
+import itertools
 import unittest
-from unittest.mock import patch
 
-from pvl import decoder
-from pvl import lang
+from pvl.decoder import PVLDecoder, for_try_except
 
 
-class TestParse(unittest.TestCase):
+class TestForTryExcept(unittest.TestCase):
+
+    def test_for_try_except(self):
+        self.assertEqual(5, for_try_except(ValueError,
+                                           int,
+                                           ('frank', '7.7', '5')))
+        self.assertRaises(ValueError, for_try_except,
+                          ValueError, int, ('frank', '7.7', 'a'))
+
+        self.assertEqual(datetime.date(2001, 1, 1),
+                         for_try_except(ValueError,
+                                        datetime.datetime.strptime,
+                                        itertools.repeat('2001-001'),
+                                        ('%Y-%m-%d', '%Y-%j')).date())
+
+
+class TestDecoder(unittest.TestCase):
 
     def setUp(self):
-        self.d = decoder.PVLDecoder()
+        self.d = PVLDecoder()
 
-    def test_has_whitespace(self):
-        self.assertTrue(self.d.has_whitespace(' Starts with a space.', 0))
-        self.assertTrue(self.d.has_whitespace('\nStarts with a newline.', 0))
-        self.assertTrue(self.d.has_whitespace('Space at index.', 5))
-        self.assertFalse(self.d.has_whitespace('Does not starts with a space.',
-                                               0))
+    def test_decode_quoted_string(self):
+        self.assertEqual('Quoted', self.d.decode_quoted_string('"Quoted"'))
+        self.assertEqual('He said, "hello"',
+                         self.d.decode_quoted_string("""'He said, "hello"'"""))
+        self.assertEqual('She said, \\"bye\\"',
+                         self.d.decode_quoted_string(r"'She said, \"bye\"'"))
+        self.assertEqual('No\\tin Python',
+                         self.d.decode_quoted_string(r"'No\tin Python'"))
+        self.assertEqual('Line -\n Continued',
+                         self.d.decode_quoted_string("'Line -\n Continued'"))
 
-    def test_skip_whitespace(self):
-        self.assertEqual(1, self.d.skip_whitespace(' Starts with a space.', 0))
-        self.assertEqual(0, self.d.skip_whitespace('Does not.', 0))
-        self.assertEqual(2, self.d.skip_whitespace(' \nMore complicated.', 0))
+    def test_decode_unquoted_string(self):
+        self.assertEqual('Unquoted', self.d.decode_unquoted_string('Unquoted'))
 
-    def test_has_line_comment(self):
-        self.assertTrue(self.d.has_line_comment('# This is a comment.', 0))
-        self.assertFalse(self.d.has_line_comment('% This is not.', 0))
-
-    def test_has_multiline_comment(self):
-        self.assertTrue(self.d.has_multiline_comment('/* This is a comment.',
-                                                     0))
-        self.assertFalse(self.d.has_multiline_comment('# This is not multi.',
-                                                      0))
-
-    def test_skip_comment(self):
-        self.assertEqual(10, self.d.skip_comment('# Comment\nParse more.', 0))
-        self.assertEqual(19, self.d.skip_comment('/* This\nis\nmulti */Parse',
-                                                 0))
-
-    def test_skip_whitespace_or_comment(self):
-        self.assertEqual(0, self.d.skip_whitespace_or_comment('No comment.',
-                                                              0))
-        c = '# Comment\n/* Multi\nline */ Parse'
-        #    0123456789 012345678 9012345678901
-        #               1          2         3
-        # len(c) = 32
-        self.assertEqual(27, self.d.skip_whitespace_or_comment(c, 0))
-
-    def test_has_eof(self):
-        self.assertEqual(12, self.d.has_eof('Out of index', 12))
-        self.assertIsNone(self.d.has_eof('Out of index', 0))
-        self.assertEqual(1, self.d.has_eof('\0', 0))
-
-    def test_has_end(self):
-        self.assertFalse(self.d.has_end('No End here.', 0))
-        self.assertTrue(self.d.has_end('End here.', 0))
-        self.assertTrue(self.d.has_end('End', 0))
-        self.assertTrue(self.d.has_end('End/* Really */', 0))
-        self.assertTrue(self.d.has_end('End;', 0))
-        self.assertTrue(self.d.has_end('\0', 0))
-
-    def test_has_end_group(self):
-        self.assertFalse(self.d.has_end_group('No End here.', 0))
-        self.assertTrue(self.d.has_end_group('End_Group', 0))
-
-    def test_ensure_assignment(self):
-        self.assertEqual(3, self.d.ensure_assignment(' = ', 0))
-        self.assertEqual(3, self.d.ensure_assignment(' = ', 1))
-        self.assertEqual(1, self.d.ensure_assignment('=', 0))
-        self.assertRaises(decoder.DecodeError,
-                          self.d.ensure_assignment, 'Nope', 0)
-
-    def test_has_delimiter(self):
-        self.assertTrue(self.d.has_delimiter('\0'))
-        self.assertTrue(self.d.has_delimiter('#'))
-        self.assertTrue(self.d.has_delimiter('/*'))
-        self.assertTrue(self.d.has_delimiter('&'))
-        self.assertFalse(self.d.has_delimiter('A'))
-
-    def test_next_token(self):
-        self.assertEqual('Token', self.d.next_token('Token', 0))
-        self.assertEqual('Token', self.d.next_token('Token = value', 0))
-        self.assertEqual('Token', self.d.next_token('Token# Comment', 0))
-        self.assertRaises(decoder.DecodeError,
-                          self.d.next_token, ' Token', 0)
-
-    def test_skip_statement_delimiter(self):
-        self.assertEqual(0, self.d.skip_statement_delimiter('No delim', 0))
-        self.assertEqual(1, self.d.skip_statement_delimiter('; After delim', 0))
-        self.assertEqual(2, self.d.skip_statement_delimiter(' ; after', 0))
-
-    def test_expect_in(self):
-        self.assertEqual(2, self.d.expect_in('AaBb', 0, ('Aa', 'Bbb'), 'foo'))
-        self.assertEqual(3, self.d.expect_in('BbbAa', 0, ('Aa', 'Bbb'), 'foo'))
-        self.assertRaises(decoder.DecodeError,
-                          self.d.expect_in, 'No Tokens', 0, ('A', 'B'), 'foo')
-
-    def test_parse_end_assignment(self):
-        self.assertEqual(5, self.d.parse_end_assignment('=Name', 0, 'Name'))
-        self.assertEqual(1, self.d.parse_end_assignment(' Next', 0, 'Name'))
-        self.assertRaises(decoder.DecodeError,
-                          self.d.parse_end_assignment, '= Foo', 0, 'Name')
-
-    def test_has_end_object(self):
-        self.assertFalse(self.d.has_end_object('No End here.', 0))
-        self.assertTrue(self.d.has_end_object('End_Object', 0))
-
-    def test_broken_assignment(self):
-        self.assertRaises(decoder.DecodeError,
-                          self.d.broken_assignment, 'foo', 0)
-
-        self.d.strict = False
-        empty = decoder.EmptyValueAtLine(1)
-        self.assertEqual(empty, self.d.broken_assignment('foo', 0))
-
-    def test_parse_iterable(self):
-        def pv(s, idx):
-            (t, _, _) = s[idx:-1].partition(',')
-            v = t.strip()
-            i = s.find(v, idx)
-            return v, i + len(v)
-
-        with patch('pvl.decoder.PVLDecoder.parse_value', side_effect=pv):
-            i = '( a, b, c, d )'
-            v = ['a', 'b', 'c', 'd']
-            self.assertEqual((v, len(i)),
-                             self.d.parse_iterable(i, 0, '(', ')'))
-
-    def test_unescape_next_char(self):
-        self.assertEqual(('"', 1), self.d.unescape_next_char('"', 0))
-        self.assertEqual(('\n', 1), self.d.unescape_next_char('n', 0))
-        self.assertRaises(decoder.DecodeError,
-                          self.d.unescape_next_char, 'i', 0)
-
-    def test_parse_quoted_string(self):
-        self.assertEqual(('Quoted', 8),
-                         self.d.parse_quoted_string('"Quoted"', 0))
-        self.assertEqual(('He said, "hello"', 18),
-                         self.d.parse_quoted_string("'He said, \"hello\"'", 0))
-        self.assertEqual(('He said, "hello"', 20),
-                         self.d.parse_quoted_string(r"'He said, \"hello\"'", 0))
-        self.assertEqual(('No\tin Python', 15),
-                         self.d.parse_quoted_string(r"'No\tin Python'", 0))
-        self.assertEqual(('Line Continued', 19),
-                         self.d.parse_quoted_string("'Line -\n Continued'", 0))
-
-    # after the lexer implementation:
-
-    def test_parse_statement_delimiter(self):
-        pairs = (('after', 'after delimiter'),
-                 ('after', '; after delimiter'),
-                 ('after', '/*comment*/\n\nafter delimiter'))
-        for p in pairs:
-            with self.subTest(pair=p):
-                tokens = lang.lexer(p[1])
-                self.assertEqual(p[0], self.d.parse_statement_delimiter(tokens))
-
-    def test_parse_begin_aggregation_statement(self):
-        pairs = (('name', 'GROUP = name next'),
-                 ('name', 'OBJECT=name next'),
-                 ('name', 'BEGIN_GROUP /*c1*/ = /*c2*/ name /*c3*/ next'))
-        for p in pairs:
-            with self.subTest(pair=p):
-                tokens = lang.lexer(p[1])
-                next_t = p[1].split()[-1]
-                self.assertEqual((p[0], next_t),
-                                 self.d.parse_begin_aggregation_statement(next(tokens),
-                                                                          tokens))
-
-        tokens = lang.lexer('Not-a-Begin-Aggegation-Statement = name')
-        self.assertRaises(ValueError,
-                          self.d.parse_begin_aggregation_statement,
-                          next(tokens), tokens)
-
-        strings = ('GROUP equals name', 'GROUP = 5')
-        for s in strings:
+        for s in ('hhhhh"hello"', 'Reserved=',
+                  'No\tin Python', 'Line -\n Continued'):
             with self.subTest(string=s):
-                tokens = lang.lexer(s)
                 self.assertRaises(ValueError,
-                                  self.d.parse_begin_aggregation_statement,
-                                  next(tokens), tokens)
+                                  self.d.decode_unquoted_string, s)
 
-    # decode_datetime
-    # decode_simple_value
-    # parse_units
-    # parse_set
-    # parse_sequence
-    # parse_value
-    # parse_assignment_statement
-    # def test_parse_aggregation_block(self):
-    # def test_is_end_aggregation_statement(self)
-    # def test_parse_module(self):
-    # def test_decode(self):
+    def test_decode_decimal(self):
+        for p in (('125', 125), ('+211109', 211109), ('-79', -79),
+                  ('69.35', 69.35), ('+12456.345', 12456.345),  # Integers
+                  ('-0.23456', -0.23456), ('.05', 0.05),
+                  ('-7.', -7),  # Floating
+                  ('-2.345678E12', -2345678000000.0),
+                  ('1.567E-10', 1.567e-10),
+                  ('+4.99E+3', 4990.0)):  # Exponential
+            with self.subTest(pair=p):
+                self.assertEqual(p[1], self.d.decode_decimal(p[0]))
+
+        for s in ('2#0101#', 'frank'):
+            with self.subTest(string=s):
+                self.assertRaises(ValueError, self.d.decode_decimal, s)
+
+    def test_decode_non_decimal(self):
+        for p in (('2#0101#', 5), ('+2#0101#', 5), ('-2#0101#', -5),  # Binary
+                  ('8#0107#', 71), ('+8#0156#', 110), ('-8#0134#', -92),  # Oct
+                  ('16#100A#', 4106), ('+16#23Bc#', 9148),
+                  ('-16#98ef#', -39151)):  # Hex
+            with self.subTest(pair=p):
+                    self.assertEqual(p[1], self.d.decode_non_decimal(p[0]))
+
+    def test_decode_dateutil(self):
+        try:
+            from dateutil import tz
+            tz_plus_7 = tz.tzoffset('+7', datetime.timedelta(hours=7))
+
+            for p in (('1990-07-04', datetime.date(1990, 7, 4)),
+                      ('1990-158', datetime.date(1990, 6, 7)),
+                      ('2001-001', datetime.date(2001, 1, 1)),
+                      ('2001-01-01', datetime.date(2001, 1, 1)),
+                      ('12:00', datetime.time(12)),
+                      ('12:00:45', datetime.time(12, 0, 45)),
+                      ('12:00:45.4571', datetime.time(12, 0, 45, 457100)),
+                      ('15:24:12Z', datetime.time(15, 24, 12, tzinfo=tz.UTC)),
+                      ('01:12:22+07',
+                       datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
+                      ('01:12:22+7',
+                       datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
+                      ('01:10:39.4575+07',
+                       datetime.time(1, 10, 39, 457500, tzinfo=tz_plus_7)),
+                      ('1990-07-04T12:00', datetime.datetime(1990, 7, 4, 12)),
+                      ('1990-158T15:24:12Z',
+                       datetime.datetime(1990, 6, 7, 15, 24, 12,
+                                         tzinfo=tz.UTC)),
+                      ('2001-001T01:10:39+7',
+                       datetime.datetime(2001, 1, 1, 1, 10, 39,
+                                         tzinfo=tz_plus_7)),
+                      ('2001-001T01:10:39.457591+7',
+                       datetime.datetime(2001, 1, 1, 1, 10, 39, 457591,
+                                         tzinfo=tz_plus_7))):
+                with self.subTest(pair=p):
+                    self.assertEqual(p[1], self.d.decode_dateutil(p[0]))
+
+        except ImportError:  # dateutil isn't available.
+            pass
+
+    def test_decode_datetime(self):
+        for p in(('2001-01-01', datetime.date(2001, 1, 1)),
+                 ('2001-027', datetime.date(2001, 1, 27)),
+                 ('2001-027Z', datetime.date(2001, 1, 27)),
+                 ('23:45', datetime.time(23, 45)),
+                 ('01:42:57', datetime.time(1, 42, 57)),
+                 ('12:34:56.789', datetime.time(12, 34, 56, 789000)),
+                 ('2001-027T23:45', datetime.datetime(2001, 1, 27, 23, 45)),
+                 ('2001-01-01T01:34Z', datetime.datetime(2001, 1, 1, 1, 34)),
+                 ('01:42:57Z', datetime.time(1, 42, 57)),
+                 ('2001-12-31T01:59:60.123Z', '2001-12-31T01:59:60.123Z'),
+                 ('01:00:60', '01:00:60')):
+            with self.subTest(pair=p):
+                self.assertEqual(p[1], self.d.decode_datetime(p[0]))
+
+        self.assertRaises(ValueError, self.d.decode_datetime, 'frank')
+
+        fancy = '2001-001T01:10:39+7'
+        self.assertRaises(ValueError, self.d.decode_datetime, fancy)
+
+        try:
+            from dateutil import tz
+            tz_plus_7 = tz.tzoffset('+7', datetime.timedelta(hours=7))
+
+            self.d.strict = False
+            self.assertEqual(datetime.datetime(2001, 1, 1, 1, 10, 39,
+                                               tzinfo=tz_plus_7),
+                             self.d.decode_datetime(fancy))
+        except ImportError:  # dateutil isn't available.
+            pass
+
+    def test_decode_simple_value(self):
+        for p in(('2001-01-01', datetime.date(2001, 1, 1)),
+                 ('2#0101#', 5),
+                 ('-79', -79),
+                 ('Unquoted', 'Unquoted'),
+                 ('"Quoted"', 'Quoted')):
+            with self.subTest(pair=p):
+                self.assertEqual(p[1], self.d.decode_simple_value(p[0]))
+
+    # def test_decode
