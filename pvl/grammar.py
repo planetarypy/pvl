@@ -79,6 +79,16 @@ class grammar():
     sequence_delimiters = ('(', ')')
     units_delimiters = ('<', '>')
 
+    # These keywords allow recognition for type conversion.  When these
+    # variables are used, they should be compared via casefold(),
+    # so 'NULL'.casefold(), 'Null'.casefold(), and 'NuLl".casefold()
+    # all compare equals to none_keyword.casefold().
+    # These are the versions that will get written out via the
+    # encoder.
+    none_keyword = 'NULL'
+    true_keyword = 'TRUE'
+    false_keyword = 'FALSE'
+
     # [sign]radix#non_decimal_integer#
     _s = r'(?P<sign>[+-]?)'
     binary_re = re.compile(fr'{_s}(?P<radix>2)#(?P<non_decimal>[01]+)#')

@@ -75,12 +75,32 @@ class token(str):
         str_list = super().split(sep, maxsplit)
         tkn_list = list()
         for t in str_list:
-            tkn_list.append(token(t, grammar=self.grammar))
+            tkn_list.append(token(t, grammar=self.grammar,
+                                  decoder=self.decoder))
         return tkn_list
 
     def replace(self, *args):
         # Override parent function to return a token.
-        return token(super().replace(*args))
+        return token(super().replace(*args),
+                     grammar=self.grammar, decoder=self.decoder)
+
+    def lstrip(self, chars=None):
+        # Override parent function to strip the grammar's whitespace
+        return self._strip(super().lstrip, chars)
+
+    def rstrip(self, chars=None):
+        # Override parent function to strip the grammar's whitespace
+        return self._strip(super().rstrip, chars)
+
+    def strip(self, chars=None):
+        # Override parent function to strip the grammar's whitespace
+        return self._strip(super().strip, chars)
+
+    def _strip(self, strip_func, chars=None):
+        if chars is None:
+            chars = ''.join(self.grammar.whitespace)
+        return token(strip_func(chars),
+                     grammar=self.grammar, decoder=self.decoder)
 
     def isspace(self) -> bool:
         # Since there is a parent function with this name on str(),

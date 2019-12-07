@@ -157,7 +157,10 @@ class TestDecoder(unittest.TestCase):
                  ('2#0101#', 5),
                  ('-79', -79),
                  ('Unquoted', 'Unquoted'),
-                 ('"Quoted"', 'Quoted')):
+                 ('"Quoted"', 'Quoted'),
+                 ('Null', None),
+                 ('TRUE', True),
+                 ('false', False)):
             with self.subTest(pair=p):
                 self.assertEqual(p[1], self.d.decode_simple_value(p[0]))
 

@@ -33,6 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import re
+from enum import Enum, auto
 from datetime import datetime
 
 from .grammar import grammar as Grammar
@@ -64,30 +65,49 @@ class LexerError(ValueError):
         return self.__class__, (self.msg, self.doc, self.pos)
 
 
-def lex_singlechar_comments(char: str,
-                            lexeme: str, in_comment: bool,
-                            end_comment: str,
+class Preserve(Enum):
+    FALSE = auto()
+    COMMENT = auto()
+    UNIT = auto()
+
+
+def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple:
+    # print(f'in preserve: char "{char}", lexeme "{lexeme}, p {preserve}"')
+    if char == preserve['end']:
+        return (lexeme + char, dict(state=Preserve.FALSE, end=None))
+    else:
+        return (lexeme + char, preserve)
+
+
+def lex_unit(char: str, lexeme: str, preserve: dict,
+             units_delimiters: tuple) -> tuple:
+    if preserve['state'] == Preserve.UNIT:
+        return lex_preserve(char, lexeme, preserve)
+    elif char == units_delimiters[0]:
+        return (lexeme + char, dict(state=Preserve.UNIT,
+                                    end=units_delimiters[1]))
+    return (lexeme, preserve)
+
+
+def lex_singlechar_comments(char: str, lexeme: str, preserve: dict,
                             comments: dict) -> tuple:
-    '''Returns a tuple with new current states of ``lexeme``,
-       ``in_comment``, and ``end_comment``.
+    '''Returns a tuple with new current states of ``lexeme``
+       and ``preserve``.
     '''
-    if in_comment:
-        if char == end_comment:
-            return (lexeme + char, False, None)
-        else:
-            return (lexeme + char, in_comment, end_comment)
-
+    if preserve['state'] == Preserve.COMMENT:
+        return lex_preserve(char, lexeme, preserve)
     elif char in comments:
-        return (lexeme + char, True, comments[char])
+        return (lexeme + char, dict(state=Preserve.COMMENT,
+                                    end=comments[char]))
 
-    return (lexeme, in_comment, end_comment)
+    return (lexeme, preserve)
 
 
 def lex_multichar_comments(char: str, prev_char: str, next_char: str,
-                           lexeme: str, in_comment: bool, end_comment: str,
+                           lexeme: str, preserve: dict,
                            comments=Grammar().comments) -> tuple:
     '''Returns a tuple with new current states of ``lexeme``,
-       ``in_comment``, and ``end_comment``.
+       and ``preserve``.
     '''
 
     if len(comments) == 0:
@@ -104,31 +124,30 @@ def lex_multichar_comments(char: str, prev_char: str, next_char: str,
     if ('/*', '*/') in comments:
         if char == '*':
             if prev_char == '/':
-                return (lexeme + '/*', True, end_comment)
+                return (lexeme + '/*', dict(state=Preserve.COMMENT, end='*/'))
             elif next_char == '/':
-                return (lexeme + '*/', False, None)
+                return (lexeme + '*/', dict(state=Preserve.FALSE, end=None))
             else:
-                return (lexeme + '*', in_comment, end_comment)
+                return (lexeme + '*', preserve)
         elif char == '/':
             # If part of a comment ignore, and let the char == '*' handler
             # above deal with it, otherwise add it to the lexeme.
             if prev_char != '*' and next_char != '*':
-                return (lexeme + '/', in_comment, end_comment)
+                return (lexeme + '/', preserve)
 
-    return (lexeme, in_comment, end_comment)
+    return (lexeme, preserve)
 
 
 def lex_comment(char: str, prev_char: str, next_char: str,
-                lexeme: str, in_comment: bool, end_comment: str,
+                lexeme: str, preserve: dict,
                 comments: tuple, c_info: dict) -> tuple:
 
     if char in c_info['multi_chars']:
         return lex_multichar_comments(char, prev_char, next_char,
-                                      lexeme, in_comment, end_comment,
+                                      lexeme, preserve,
                                       comments=comments)
     else:
-        return lex_singlechar_comments(char,
-                                       lexeme, in_comment, end_comment,
+        return lex_singlechar_comments(char, lexeme, preserve,
                                        c_info['single_comments'])
 
 
@@ -169,22 +188,35 @@ def _prepare_comment_tuples(comments: tuple) -> tuple:
 
 
 def lex_char(char: str, prev_char: str, next_char: str,
-             lexeme: str, in_comment: bool, end_comment: str,
+             lexeme: str, preserve: dict,
              g: Grammar, c_info: dict) -> tuple:
-    # Handle comments first.
-    # Since we want comments to consume everything, and they may have
-    # reserved characters within them, deal with them first.
-    if in_comment or char in c_info['chars']:
+    # When we are 'in' a comment or a units expression,
+    # we want those to consume everything, regardless.
+    # So we must handle the 'preserve' states first,
+    # and then after that we can check to see if the char
+    # should put us into one of those states.
+
+    # print(f'lex_char start: char "{char}", lexeme "{lexeme}", "{preserve}"')
+    if preserve['state'] == Preserve.COMMENT:
         (lexeme,
-         in_comment,
-         end_comment) = lex_comment(char, prev_char, next_char,
-                                    lexeme, in_comment, end_comment,
-                                    g.comments, c_info)
+         preserve) = lex_comment(char, prev_char, next_char,
+                                 lexeme, preserve, g.comments, c_info)
+    elif preserve['state'] == Preserve.UNIT:
+        (lexeme,
+         preserve) = lex_unit(char, lexeme, preserve, g.units_delimiters)
+    elif char in c_info['chars']:
+        (lexeme,
+         preserve) = lex_comment(char, prev_char, next_char,
+                                 lexeme, preserve, g.comments, c_info)
+    elif char in g.units_delimiters:
+        (lexeme,
+         preserve) = lex_unit(char, lexeme, preserve, g.units_delimiters)
     else:
         if char not in g.whitespace:
             lexeme += char  # adding a char each time
 
-    return (lexeme, in_comment, end_comment)
+    # print(f'lex_char end: char "{char}", lexeme "{lexeme}", "{preserve}"')
+    return (lexeme, preserve)
 
 
 def lexer(s: str, g=Grammar()):
@@ -194,8 +226,7 @@ def lexer(s: str, g=Grammar()):
     c_info = _prepare_comment_tuples(g.comments)
 
     lexeme = ''
-    in_comment = False  # If we are in a comment, preserve all characters.
-    end_comment = None
+    preserve = dict(state=Preserve.FALSE, end=None)
     for i, char in enumerate(s):
         prev_char = _prev_char(s, i)
         next_char = _next_char(s, i)
@@ -203,11 +234,8 @@ def lexer(s: str, g=Grammar()):
         # print(f'lexeme at top: {lexeme}, char: {char}, '
         #       f'prev: {prev_char}, next: {next_char}')
 
-        (lexeme,
-         in_comment,
-         end_comment) = lex_char(char, prev_char, next_char,
-                                 lexeme, in_comment, end_comment,
-                                 g, c_info)
+        (lexeme, preserve) = lex_char(char, prev_char, next_char,
+                                      lexeme, preserve, g, c_info)
 
         # print(f'lexeme at bottom: {lexeme}')
 
@@ -237,7 +265,7 @@ def lexer(s: str, g=Grammar()):
                     # to run around again and don't want to get
                     # caught by the clause in the elif, should
                     # test true here.
-                    if(in_comment  # no matter the lexeme
+                    if(preserve['state'] != Preserve.FALSE
                        or Token(char + next_char, grammar=g).is_numeric()
                        # Since Numeric objects can begin with a reserved
                        # characters, the reserved characters may split up

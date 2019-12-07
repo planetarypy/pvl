@@ -136,6 +136,15 @@ class PVLDecoder(object):
         except ValueError:
             pass
 
+        if value.casefold() == self.grammar.none_keyword.casefold():
+            return None
+
+        if value.casefold() == self.grammar.true_keyword.casefold():
+            return True
+
+        if value.casefold() == self.grammar.false_keyword.casefold():
+            return False
+
         return self.decode_unquoted_string(value)  # Unquoted String
 
     def decode_unquoted_string(self, value: str) -> str:

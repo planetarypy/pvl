@@ -48,57 +48,63 @@ class TestInternal(unittest.TestCase):
 class TestLexComments(unittest.TestCase):
 
     def test_lex_multichar_comments(self):
-        self.assertEqual(('', False, None),
+        pfn = dict(state=Lexer.Preserve.FALSE, end=None)
+        pcom = dict(state=Lexer.Preserve.COMMENT, end='*/')
+        self.assertEqual(('', pfn),
                          Lexer.lex_multichar_comments('a', 'b', 'c',
-                                                      '', False, None))
-        self.assertEqual(('', False, None),
+                                                      '', pfn))
+        self.assertEqual(('', pfn),
                          Lexer.lex_multichar_comments('/', '*', 'c',
-                                                      '', False, None))
-        self.assertEqual(('', False, None),
+                                                      '', pfn))
+        self.assertEqual(('', pfn),
                          Lexer.lex_multichar_comments('/', 'b', '*',
-                                                      '', False, None))
-        self.assertEqual(('/', False, None),
+                                                      '', pfn))
+        self.assertEqual(('/', pfn),
                          Lexer.lex_multichar_comments('/', 'b', 'c',
-                                                      '', False, None))
-        self.assertEqual(('*', True, None),
+                                                      '', pfn))
+        self.assertEqual(('*', pcom),
                          Lexer.lex_multichar_comments('*', 'b', 'c',
-                                                      '', True, None))
-        self.assertEqual(('/*', True, None),
+                                                      '', pcom))
+        self.assertEqual(('/*', pcom),
                          Lexer.lex_multichar_comments('*', '/', 'c',
-                                                      '', False, None))
-        self.assertEqual(('*/', False, None),
+                                                      '', pfn))
+        self.assertEqual(('*/', pfn),
                          Lexer.lex_multichar_comments('*', 'c', '/',
-                                                      '', True, None))
+                                                      '', pcom))
 
         self.assertRaises(ValueError,
                           Lexer.lex_multichar_comments, 'a', 'b', 'c',
-                          '', False, None, tuple())
+                          '', pfn, tuple())
         self.assertRaises(NotImplementedError,
                           Lexer.lex_multichar_comments, 'a', 'b', 'c',
-                          '', False, None, (('/*', '*/'), ('#', '\n')))
+                          '', pfn, (('/*', '*/'), ('|*', '*|')))
 
     def test_lex_singlechar_comments(self):
-        self.assertEqual(('', False, 'end'),
-                         Lexer.lex_singlechar_comments('a', '', False, 'end',
+        pfn = dict(state=Lexer.Preserve.FALSE, end=None)
+        phash = dict(state=Lexer.Preserve.COMMENT, end='\n')
+        self.assertEqual(('', pfn),
+                         Lexer.lex_singlechar_comments('a', '', pfn,
                                                        {'k': 'v'}))
-        self.assertEqual(('#', True, '\n'),
-                         Lexer.lex_singlechar_comments('#', '', False, 'end',
+        self.assertEqual(('#', phash),
+                         Lexer.lex_singlechar_comments('#', '', pfn,
                                                        {'#': '\n'}))
-        self.assertEqual(('#\n', False, None),
-                         Lexer.lex_singlechar_comments('\n', '#', True, '\n',
+        self.assertEqual(('#\n', pfn),
+                         Lexer.lex_singlechar_comments('\n', '#', phash,
                                                        {'#': '\n'}))
 
     def test_lex_comment(self):
-        self.assertEqual(('', False, 'end'),
+        pfn = dict(state=Lexer.Preserve.FALSE, end=None)
+        pcom = dict(state=Lexer.Preserve.COMMENT, end='*/')
+        self.assertEqual(('', pfn),
                          Lexer.lex_comment('a', 'b', 'c',
-                                           '', False, 'end',
+                                           '', pfn,
                                            (('/*', '*/'),),
                                            dict(single_comments={'k': 'v'},
                                                 multi_chars=set(('/', '*')))))
 
-        self.assertEqual(('/*', True, None),
+        self.assertEqual(('/*', pcom),
                          Lexer.lex_comment('*', '/', 'c',
-                                           '', False, None,
+                                           '', pfn,
                                            (('/*', '*/'),),
                                            dict(single_comments={'k': 'v'},
                                                 multi_chars=set(('/', '*')))))
@@ -195,10 +201,10 @@ class TestLexer(unittest.TestCase):
 
     def test_lex_char(self):
         g = Grammar()
-        self.assertEqual(('a', False, 'end'),
+        p = dict(state=Lexer.Preserve.FALSE, end='end')
+        self.assertEqual(('a', p),
                          Lexer.lex_char('a', 'b', 'c',
-                                        '', False, 'end',
-                                        g,
+                                        '', p, g,
                                         dict(chars=set(['k', 'v', '/', '*']),
                                              single_comments={'k': 'v'},
                                              multi_chars=set(('/', '*')))))

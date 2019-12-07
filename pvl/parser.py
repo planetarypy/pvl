@@ -46,6 +46,16 @@ from .grammar import grammar as Grammar
 from .decoder import PVLDecoder as Decoder
 
 
+_tokens_docstring = """*tokens* is expected to be a *generator iterator*
+                       which provides ``pvl.token`` objects.  It should
+                       allow for a generated object to be 'returned' via
+                       the generator's send() function.  Will throw
+                       a ``ValueError`` into the *token's* generator
+                       iterator (via throw()) if there are any parsing
+                       anomalies.
+                    """
+
+
 class PVLParser(object):
 
     def __init__(self, grammar=Grammar(), decoder=Decoder(),
@@ -72,7 +82,9 @@ class PVLParser(object):
 
     def parse(self, tokens: list):
         '''Accepts a list of Tokens, and returns a PVLModule.
-        '''
+
+           {}
+        '''.format(_tokens_docstring)
         # old:
         # module = PVLModule(self.parse_block(s, 0, self.has_end))
         # module.errors = sorted(self.errors)
@@ -87,10 +99,12 @@ class PVLParser(object):
     def parse_module(self, tokens):
         """Parses the tokens for a PVL Module.
 
+           {}
+
             <PVL-Module-Contents> ::=
              ( <Assignment-Statement> | <WSC>* | <Aggregation-Block> )*
              [<End-Statement>]
-        """
+        """.format(_tokens_docstring)
         m = self.modcls()
         for t in tokens:
             if t.is_WSC():
@@ -110,9 +124,12 @@ class PVLParser(object):
                 tokens.throw(ValueError, f'Unexpected Token: {t}')
         return m
 
-    def parse_aggregation_block(self, begin_agg_stmt: Token,
-                                tokens: list) -> tuple:
-        """Parses the tokens for an Aggregation Block.
+    def parse_aggregation_block(self, tokens: abc.Generator):
+        """Parses the tokens for an Aggregation Block, and returns
+           the modcls object that is the result of the parsing and
+           decoding.
+
+           {}
 
             <Aggregation-Block> ::= <Begin-Aggegation-Statement>
                 (<WSC>* (Assignment-Statement | Aggregation-Block) <WSC>*)+
@@ -121,14 +138,12 @@ class PVLParser(object):
            The Begin-Aggregation-Statement Name must match the Block-Name in the
            paired End-Aggregation-Statement if a Block-Name is present in the
            End-Aggregation-Statement.
-
-        """
+        """.format(_tokens_docstring)
         m = self.modcls()
 
-        block_name, next_t = parse_begin_aggregation_statement(begin_agg_stmt,
-                                                               tokens)
+        block_name = parse_begin_aggregation_statement(tokens)
 
-        for t in itertools.chain(next_t, tokens):
+        for t in tokens:
             if t.is_WSC():
                 # If there's a comment, could parse here.
                 pass
@@ -149,9 +164,11 @@ class PVLParser(object):
                 tokens.throw(ValueError, f'Unexpected Token: {t}')
         return m
 
-    def _parse_around_equals(self, tokens: list) -> Token:
+    def _parse_around_equals(self, tokens: abc.Generator) -> None:
         """Parses white space and comments on either side
            of an equals sign.
+
+           {}
 
            This is shared functionality for Begin Aggregation Statements
            and Assignment Statements.  It basically covers parsing
@@ -159,8 +176,7 @@ class PVLParser(object):
 
              <WSC>* '=' <WSC>*
 
-           It returns the next token (o) to be parsed.
-        """
+        """.format(_tokens_docstring)
         for t in tokens:
             if t.is_WSC():
                 # If there's a comment, could parse here and below.
@@ -175,11 +191,14 @@ class PVLParser(object):
             if not t.is_WSC():
                 break
 
-        return t
+        tokens.send(t)
+        return
 
-    def parse_begin_aggregation_statement(self, begin_agg_stmt: Token,
-                                          tokens: list) -> tuple:
-        """Parses the tokens for a Begin Aggregation Statement.
+    def parse_begin_aggregation_statement(self, tokens: abc.Generator) -> str:
+        """Parses the tokens for a Begin Aggregation Statement, and returns
+           the name Block Name as a ``str``.
+
+           {}
 
            <Begin-Aggregation-Statement-block> ::=
                 <Begin-Aggegation-Statement> <WSC>* '=' <WSC>*
@@ -187,57 +206,125 @@ class PVLParser(object):
 
            Where <Block-Name> ::= <Parameter-Name>
 
-        """
-        if not begin_agg_stmt.is_begin_aggregation():
+        """.format(_tokens_docstring)
+        b = next(tokens)
+        if not b.is_begin_aggregation():
             raise ValueError('Expecting a Begin-Aggegation-Statement, but'
-                             f'found: {begin_agg_stmt}')
+                             f'found: {b}')
 
-        t = self._parse_around_equals(tokens)
+        self._parse_around_equals(tokens)
 
+        t = next(tokens)
         if t.is_parameter_name():
             block_name = t
         else:
             tokens.throw(ValueError,
-                         f'Expecting a Block-Name after "{begin_agg_stmt} =" '
+                         f'Expecting a Block-Name after "{b} =" '
                          f'but found: "{t}"')
 
-        t = self.parse_statement_delimiter(tokens)
+        self.parse_statement_delimiter(tokens)
 
-        return(block_name, t)
+        return(str(block_name))
 
-    def parse_assignment_statement(self, parameter_name: Token,
-                                   tokens: list) -> tuple:
+    def parse_assignment_statement(self, tokens: abc.Generator) -> tuple:
         """Parses the tokens for an Assignment Statement.
+
+           The returned two-tuple contains the Parameter Name in the
+           first element, and the Value in the second.
+
+           {}
 
             <Assignment-Statement> ::= <Parameter-Name> <WSC>* '=' <WSC>*
                                         <Value> [<Statement-Delimiter>]
 
-        """
-        if not parameter_name.parameter_name():
+        """.format(_tokens_docstring)
+        parameter_name = None
+        t = next(tokens)
+        if t.is_parameter_name():
+            parameter_name = str(t)
+        else:
             raise ValueError('Expecting a Parameter Name, but'
-                             f'found: {parameter_name}')
+                             f'found: "{t}"')
 
-        Value = ''
-        t = self._parse_around_equals(tokens)
+        Value = None
+        self._parse_around_equals(tokens)
 
+        t = next(tokens)
         if t.is_value():
-            Value = self.parse_value(t, tokens)
+            tokens.send(t)
+            Value = self.parse_value(tokens)
         else:
             tokens.throw(ValueError,
                          f'Expecting a Block-Name after "{begin_agg_stmt} =" '
                          f'but found: "{t}"')
 
-        t = self.parse_statement_delimiter(tokens)
+        self.parse_statement_delimiter(tokens)
 
-        return(block_name, t)
+        return(parameter_name, Value)
+
+    def parse_WSC_until(self, token: str, tokens: abc.Generator) -> bool:
+        """Consumes objects from *tokens*, if the object's *.is_WSC()*
+           function returns *True*, it will continue until *token* is
+           encountered and will return *True*.  If it encounters an object
+           that does not meet these conditions, it will 'return' that
+           object to *tokens* and will return *False*.
+
+           {}
+        """.format(_tokens_docstring)
+        for t in tokens:
+            if t == token:
+                return True
+            elif t.is_WSC():
+                # If there's a comment, could parse here.
+                    pass
+            else:
+                tokens.send(t)
+                return False
+
+    def parse_set(self, tokens: abc.Generator) -> tuple:
+        """Parses a PVL Set.
+
+            <Set> ::= "{{" <WSC>*
+                       [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
+                      "}}"
+
+           Returns the decoded <Set> as a Python ``set``.
+
+           {}
+        """.format(_tokens_docstring)
+
+        t = next(tokens)
+        if t != self.grammar.set_delimiters[0]:
+            tokens.throw(ValueError,
+                         'Expecting a begin Set delimiter '
+                         f'"{self.grammar.set_delimiter[0]} =" '
+                         f'but found: "{t}"')
+        the_set = set()
+        # Initial WSC and/or empty set
+        if self.parse_WSC_until(self.grammar.set_delimiters[1], tokens):
+            return the_set
+
+        # First item:
+        the_set.add(self.parse_value(tokens))
+        if self.parse_WSC_until(self.grammar.set_delimiters[1], tokens):
+            return the_set
+
+        # Remaining items, if any
+        for t in tokens:
+            if t == ',':
+                self.parse_WSC_until(None, tokens)  # consume WSC after ','
+                the_set.add(self.parse_value(tokens))
+                if self.parse_WSC_until(self.grammar.set_delimiters[1], tokens):
+                    return the_set
+            else:
+                tokens.throw(ValueError,
+                             'While parsing a Set, expected a comma (,)'
+                             f'but found: "{t}"')
 
     def parse_statement_delimiter(self, tokens: abc.Generator) -> None:
         """Parses the tokens for a Statement Delimiter.
 
-           *tokens* is expected to be a *generator iterator* which
-           provides ``pvl.token`` objects, and should allow for a
-           generated object to be 'returned' via the generator's send()
-           function.
+           {}
 
             <Statement-Delimiter> ::= <WSC>*
                         (<white-space-character> | <comment> | ';' | <EOF>)
@@ -250,7 +337,7 @@ class PVLParser(object):
             <Statement-Delimiter> ::= <WSC>* [ ';' | <EOF> ]
 
            Typically written [<Statement-Delimiter>].
-        """
+        """.format(_tokens_docstring)
         for t in tokens:
             if t.is_WSC():
                 # If there's a comment, could parse here.
@@ -267,21 +354,18 @@ class PVLParser(object):
             <Value> ::= (<Simple-Value> | <Set> | <Sequence>)
                         [<WSC>* <Units Expression>]
 
-           Returns the decoded <Value> as an appropriate Python object,
-           *tokens* is expected to be a *generator iterator* which
-           provides ``pvl.token`` objects, and should allow for a
-           generated object to be 'returned' via the generator's send()
-           function.  A ValueError will be thrown into the *generator
-           iterator* if there was a parsing error.
-        """
+           Returns the decoded <Value> as an appropriate Python object.
+
+           {}
+        """.format(_tokens_docstring)
         value = None
         t = next(tokens)
         if t.is_simple_value:
             value = self.decoder.decode_simple_value(t)
-        elif t.startswith(self.grammar.set_delimiter[0]):
+        elif t.startswith(self.grammar.set_delimiters[0]):
             tokens.send(t)
             value = self.parse_set(tokens)
-        elif t.startswith(self.grammar.sequence_delimiter[0]):
+        elif t.startswith(self.grammar.sequence_delimiters[0]):
             tokens.send(t)
             value = self.parse_sequence(tokens)
         else:
@@ -294,7 +378,7 @@ class PVLParser(object):
             if t.is_WSC():
                 # If there's a comment, could parse
                 pass
-            elif t.starswith(self.grammar.units_delimiter):
+            elif t.startswith(self.grammar.units_delimiters):
                 tokens.send(t)
                 units = self.parse_units(tokens)
                 break
@@ -307,50 +391,44 @@ class PVLParser(object):
         tokens.send(t)  # Put the next token back into the generator
         return value
 
-    def parse_units(self, t: str, tokens: abc.Generator) -> str:
+    def parse_units(self, tokens: abc.Generator) -> str:
         """Parses PVL Units Expression.
 
-            <Units-Expression> ::= "<" <WSC>* <Units-Value> <WSC>* ">"
+            <Units-Expression> ::= "<" [<white-space>] <Units-Value>
+                                       [<white-space>] ">"
 
            and
 
             <Units-Value> ::= <units-character>
-                                [ ( <units-character> | <WSC>* )* ]
+                                [ [ <units-character> | <white-space> ]*
+                                    <units-character> ]
 
-           Returns a <Units-Value> as a ``str``.  *t* is expected to
-           be a ``str`` (but is likely to be a ``pvl.token``) that
-           compares true to the start units delimiter (typically "<").
-           *tokens* is expected to be a *generator iterator* which
-           provides ``pvl.token`` objects.
+           Returns a <Units-Value> as a ``str``.
 
-           Only consumes *tokens* through the final end units delimiter
-           (typically ">")  Will throw a ``ValueError`` back to the
-           *tokens* generator iterator if there are any parsing anomalies.
-        """
-        if t != self.grammar.units_delimiters[0]:
+           {}
+        """.format(_tokens_docstring)
+        t = next(tokens)
+
+        if not t.startswith(self.grammar.units_delimiters[0]):
             tokens.throw(ValueError,
                          'Was expecting the start units delimiter, ' +
                          '"{}" '.format(self.grammar.units_delimiters[0]) +
                          f'but found "{t}"')
 
-        for t in tokens:
-            if t.is_WSC():
-                # If there's a comment, could parse here.
-                pass
-
-        if t in self.grammar.units_delimiters:
+        if not t.endswith(self.grammar.units_delimiters[1]):
             tokens.throw(ValueError,
-                         'Was expecting a units character, but found a'
-                         f'unit delimiter, "{t}" instead.')
+                         'Was expecting the end units delimiter, ' +
+                         '"{}" '.format(self.grammar.units_delimiters[1]) +
+                         f'at the end, but found "{t}"')
 
-        units = ''
-        for t in tokens:
-            if t == self.grammar.units_delimiters[1]:
-                return units
-            elif t == self.grammar.units_delimiters[0]:
+        delim_strip = t.strip(''.join(self.grammar.units_delimiters))
+
+        units_value = delim_strip.strip(''.join(self.grammar.whitespace))
+
+        for d in self.grammar.units_delimiters:
+            if d in units_value:
                 tokens.throw(ValueError,
-                             'Was parsing a Units-Expression "{units}", '
-                             'but came across another starting unit '
-                             f'delimiter: "{t}"')
-            else:
-                units + t
+                             'Was expecting a units character, but found a '
+                             f'unit delimiter, "{d}" instead.')
+
+        return str(units_value)

@@ -54,15 +54,14 @@ class TestParse(unittest.TestCase):
         for x in pairs:
             with self.subTest(pair=x):
                 tokens = Lexer(x[1])
-                next_t = x[1].split()[-1]
-                self.assertEqual((x[0], next_t),
-                                 self.p.parse_begin_aggregation_statement(next(tokens),
-                                                                          tokens))
+                # next_t = x[1].split()[-1]
+                self.assertEqual(x[0],
+                                 self.p.parse_begin_aggregation_statement(tokens))
 
         tokens = Lexer('Not-a-Begin-Aggegation-Statement = name')
         self.assertRaises(ValueError,
                           self.p.parse_begin_aggregation_statement,
-                          next(tokens), tokens)
+                          tokens)
 
         strings = ('GROUP equals name', 'GROUP = 5')
         for s in strings:
@@ -70,11 +69,27 @@ class TestParse(unittest.TestCase):
                 tokens = Lexer(s)
                 self.assertRaises(ValueError,
                                   self.p.parse_begin_aggregation_statement,
-                                  next(tokens), tokens)
+                                  tokens)
 
-    # def test_parse_units(self):
+    def test_parse_units(self):
+        pairs = (('m', '<m>'), ('m', '< m >'),
+                 ('m /* comment */', '< m /* comment */>'),
+                 ('m\nfoo', '< m\nfoo >'))
+        for p in pairs:
+            with self.subTest(pairs=p):
+                tokens = Lexer(p[1])
+                self.assertEqual(p[0], self.p.parse_units(tokens))
 
-    # parse_set
+    def test_parse_set(self):
+        pairs = ((set(['a', 'b', 'c']), '{a,b,c}'),
+                 (set(['a', 'b', 'c']), '{ a, b, c }'),
+                 (set(['a', 'b', 'c']), '{ a, /* random */b, c }'))
+        # (set(['a', set(['x', 'y']), 'c']), '{ a, {x,y}, c }'))
+        for p in pairs:
+            with self.subTest(pairs=p):
+                tokens = Lexer(p[1])
+                self.assertEqual(p[0], self.p.parse_set(tokens))
+
     # parse_sequence
     # parse_value
     # parse_assignment_statement
