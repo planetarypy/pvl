@@ -54,7 +54,7 @@ class LexerError(ValueError):
         lineno = doc.count('\n', 0, pos) + 1
         colno = pos - doc.rfind('\n', 0, pos)
         errmsg = f'{msg}: line {lineno} column {colno} (char {pos})'
-        ValueError.__init__(self, errmsg)
+        super().__init__(self, errmsg)
         self.msg = msg
         self.doc = doc
         self.pos = pos
@@ -69,6 +69,8 @@ class Preserve(Enum):
     FALSE = auto()
     COMMENT = auto()
     UNIT = auto()
+    QUOTE = auto()
+    NONDECIMAL = auto()
 
 
 def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple:
@@ -77,16 +79,6 @@ def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple:
         return (lexeme + char, dict(state=Preserve.FALSE, end=None))
     else:
         return (lexeme + char, preserve)
-
-
-def lex_unit(char: str, lexeme: str, preserve: dict,
-             units_delimiters: tuple) -> tuple:
-    if preserve['state'] == Preserve.UNIT:
-        return lex_preserve(char, lexeme, preserve)
-    elif char == units_delimiters[0]:
-        return (lexeme + char, dict(state=Preserve.UNIT,
-                                    end=units_delimiters[1]))
-    return (lexeme, preserve)
 
 
 def lex_singlechar_comments(char: str, lexeme: str, preserve: dict,
@@ -197,20 +189,34 @@ def lex_char(char: str, prev_char: str, next_char: str,
     # should put us into one of those states.
 
     # print(f'lex_char start: char "{char}", lexeme "{lexeme}", "{preserve}"')
-    if preserve['state'] == Preserve.COMMENT:
-        (lexeme,
-         preserve) = lex_comment(char, prev_char, next_char,
-                                 lexeme, preserve, g.comments, c_info)
-    elif preserve['state'] == Preserve.UNIT:
-        (lexeme,
-         preserve) = lex_unit(char, lexeme, preserve, g.units_delimiters)
+    if preserve['state'] != Preserve.FALSE:
+        if preserve['state'] == Preserve.COMMENT:
+            (lexeme,
+             preserve) = lex_comment(char, prev_char, next_char,
+                                     lexeme, preserve, g.comments, c_info)
+        elif preserve['state'] in (Preserve.UNIT, Preserve.QUOTE,
+                                   Preserve.NONDECIMAL):
+            (lexeme,
+             preserve) = lex_preserve(char, lexeme, preserve)
+        else:
+            raise ValueError('{} is not a '.format(preserve['state']) +
+                             'recognized preservation state.')
     elif char in c_info['chars']:
         (lexeme,
          preserve) = lex_comment(char, prev_char, next_char,
-                                 lexeme, preserve, g.comments, c_info)
-    elif char in g.units_delimiters:
-        (lexeme,
-         preserve) = lex_unit(char, lexeme, preserve, g.units_delimiters)
+                                 lexeme, preserve,
+                                 g.comments, c_info)
+    elif char in g.units_delimiters[0]:
+        lexeme += char
+        preserve = dict(state=Preserve.UNIT, end=g.units_delimiters[1])
+    elif char in g.quotes:
+        lexeme += char
+        preserve = dict(state=Preserve.QUOTE, end=char)
+    elif char == '#':
+        if(prev_char in ('2', '8', '6') and
+           g.nondecimal_pre_re.fullmatch(lexeme + char) is not None):
+            lexeme += char
+            preserve = dict(state=Preserve.NONDECIMAL, end='#')
     else:
         if char not in g.whitespace:
             lexeme += char  # adding a char each time
@@ -268,8 +274,14 @@ def lexer(s: str, g=Grammar()):
                     if(preserve['state'] != Preserve.FALSE
                        or Token(char + next_char, grammar=g).is_numeric()
                        # Since Numeric objects can begin with a reserved
-                       # characters, the reserved characters may split up
+                       # character, the reserved characters may split up
                        # the lexeme.
+                       #
+                       or g.nondecimal_pre_re.fullmatch(lexeme +
+                                                        next_char) is not None
+                       # Since Non Decimal Numerics can have reserved
+                       # characters in them.
+                       #
                        ):
                         continue
 

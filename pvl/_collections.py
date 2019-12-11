@@ -201,7 +201,7 @@ class OrderedMultiDict(dict, MutableMapping):
     def extend(self, *args, **kwargs):
         """Add key value pairs for an iterable."""
         if len(args) > 1:
-            raise TypeError('expected at most 1 arguments, got {len(args)}')
+            raise TypeError(f'expected at most 1 arguments, got {len(args)}')
 
         iterable = args[0] if args else None
         if iterable:

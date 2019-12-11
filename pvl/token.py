@@ -132,6 +132,12 @@ class token(str):
                 return True
         return False
 
+    def is_quote(self) -> bool:
+        if self in self.grammar.quotes:
+            return True
+        else:
+            return False
+
     def is_quoted_string(self) -> bool:
         try:
             self.decoder.decode_quoted_string(self)
@@ -145,8 +151,8 @@ class token(str):
         return False
 
     def is_begin_aggregation(self) -> bool:
-        for pair in self.grammar.aggregation_keywords:
-            if self.casefold() == pair[0].casefold():
+        for k in self.grammar.aggregation_keywords.keys():
+            if self.casefold() == k.casefold():
                 return True
         return False
 

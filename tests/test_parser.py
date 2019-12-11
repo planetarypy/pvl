@@ -15,10 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import unittest
 
 from pvl.parser import PVLParser
 from pvl.lexer import lexer as Lexer
+from pvl._collections import Units, PVLModule
 
 
 class TestParse(unittest.TestCase):
@@ -48,14 +50,15 @@ class TestParse(unittest.TestCase):
     #                          self.d.parse_iterable(i, 0, '(', ')'))
 
     def test_parse_begin_aggregation_statement(self):
-        pairs = (('name', 'GROUP = name next'),
-                 ('name', 'OBJECT=name next'),
-                 ('name', 'BEGIN_GROUP /*c1*/ = /*c2*/ name /*c3*/ next'))
+        pairs = (('GROUP = name next', 'GROUP', 'name'),
+                 ('OBJECT=name next', 'OBJECT', 'name'),
+                 ('BEGIN_GROUP /*c1*/ = /*c2*/ name /*c3*/ next',
+                  'BEGIN_GROUP', 'name'))
         for x in pairs:
             with self.subTest(pair=x):
-                tokens = Lexer(x[1])
+                tokens = Lexer(x[0])
                 # next_t = x[1].split()[-1]
-                self.assertEqual(x[0],
+                self.assertEqual((x[1], x[2]),
                                  self.p.parse_begin_aggregation_statement(tokens))
 
         tokens = Lexer('Not-a-Begin-Aggegation-Statement = name')
@@ -71,6 +74,46 @@ class TestParse(unittest.TestCase):
                                   self.p.parse_begin_aggregation_statement,
                                   tokens)
 
+    def test_parse_end_aggregation(self):
+        groups = (('END_GROUP', 'GROUP', 'name'),
+                  ('END_GROUP = name', 'BEGIN_GROUP', 'name'),
+                  ('END_OBJECT /*c1*/ =   \n name', 'OBJECT', 'name'))
+        for g in groups:
+            with self.subTest(groups=g):
+                tokens = Lexer(g[0])
+                self.assertIsNone(self.p.parse_end_aggregation(g[1], g[2],
+                                                               tokens))
+
+        bad_groups = (('END_GROUP', 'OBJECT', 'name'),
+                      ('END_GROUP = foo', 'BEGIN_GROUP', 'name'))
+        for g in bad_groups:
+            with self.subTest(groups=g):
+                tokens = Lexer(g[0])
+                self.assertRaises(ValueError,
+                                  self.p.parse_end_aggregation, g[1], g[2],
+                                  tokens)
+
+        tokens = Lexer('END_GROUP = ')
+        self.assertRaises(StopIteration, self.p.parse_end_aggregation,
+                          'BEGIN_GROUP', 'name', tokens)
+
+    def test_parse_around_equals(self):
+        strings = ('=', ' = ', '/*c1*/ = /*c2*/')
+        for s in strings:
+            with self.subTest(string=s):
+                tokens = Lexer(s)
+                self.assertIsNone(self.p._parse_around_equals(tokens))
+        bad_strings = ('f', ' f ', '')
+        for s in bad_strings:
+            with self.subTest(string=s):
+                tokens = Lexer(s)
+                self.assertRaises(ValueError,
+                                  self.p._parse_around_equals, tokens)
+        tokens = Lexer(' = f')
+        self.p._parse_around_equals(tokens)
+        f = next(tokens)
+        self.assertEqual(f, 'f')
+
     def test_parse_units(self):
         pairs = (('m', '<m>'), ('m', '< m >'),
                  ('m /* comment */', '< m /* comment */>'),
@@ -83,16 +126,81 @@ class TestParse(unittest.TestCase):
     def test_parse_set(self):
         pairs = ((set(['a', 'b', 'c']), '{a,b,c}'),
                  (set(['a', 'b', 'c']), '{ a, b, c }'),
-                 (set(['a', 'b', 'c']), '{ a, /* random */b, c }'))
-        # (set(['a', set(['x', 'y']), 'c']), '{ a, {x,y}, c }'))
+                 (set(['a', 'b', 'c']), '{ a, /* random */b, c }'),
+                 (set(['a', frozenset(['x', 'y']), 'c']), '{ a, {x,y}, c }'))
         for p in pairs:
             with self.subTest(pairs=p):
                 tokens = Lexer(p[1])
                 self.assertEqual(p[0], self.p.parse_set(tokens))
 
-    # parse_sequence
-    # parse_value
-    # parse_assignment_statement
-    # def test_parse_aggregation_block(self):
+    def test_parse_sequence(self):
+        pairs = ((['a', 'b', 'c'], '(a,b,c)'),
+                 (['a', 'b', 'c'], '( a, b, c )'),
+                 (['a', 'b', 'c'], '( a, /* random */b, c )'),
+                 (['a', ['x', 'y'], 'c'], '( a, (x,y), c )'))
+        for p in pairs:
+            with self.subTest(pairs=p):
+                tokens = Lexer(p[1])
+                self.assertEqual(p[0], self.p.parse_sequence(tokens))
+
+    def test_parse_WSC_until(self):
+        triplets = (('   stop <units>', 'stop', True),)
+        for t in triplets:
+            with self.subTest(triplet=t):
+                tokens = Lexer(t[0])
+                self.assertEqual(t[2], self.p.parse_WSC_until(t[1], tokens))
+
+    def test_parse_value(self):
+        pairs = (('(a,b,c)', ['a', 'b', 'c']),
+                 ('{ a, b, c }', set(['a', 'b', 'c'])),
+                 ('2001-01-01', datetime.date(2001, 1, 1)),
+                 ('2#0101#', 5),
+                 ('-79', -79),
+                 ('Unquoted', 'Unquoted'),
+                 ('"Quoted"', 'Quoted'),
+                 ('Null', None),
+                 ('TRUE', True),
+                 ('false', False),
+                 ('9 <planets>', Units(9, 'planets')))
+        for p in pairs:
+            with self.subTest(pairs=p):
+                tokens = Lexer(p[0])
+                self.assertEqual(p[1], self.p.parse_value(tokens))
+
+    def test_parse_assignment_statement(self):
+        pairs = (('a=b', 'a', 'b'),
+                 ('a =\tb', 'a', 'b'),
+                 ('a /*comment*/ = +80', 'a', 80),
+                 ('a = b c = d', 'a', 'b'),
+                 ('a = b; c = d', 'a', 'b'))
+        for p in pairs:
+            with self.subTest(pairs=p):
+                tokens = Lexer(p[0])
+                self.assertEqual((p[1], p[2]),
+                                 self.p.parse_assignment_statement(tokens))
+
+    def test_parse_aggregation_block(self):
+        groups = (('GROUP = name bob = uncle END_GROUP',
+                   PVLModule(name=PVLModule(bob='uncle'))),
+                  ('GROUP = name GROUP = uncle name = bob END_GROUP END_GROUP',
+                   PVLModule(name=PVLModule(uncle=PVLModule(name='bob')))))
+        for g in groups:
+            with self.subTest(groups=g):
+                tokens = Lexer(g[0])
+                self.assertEqual(g[1],
+                                 self.p.parse_aggregation_block(tokens))
+
+        bad_blocks = ('Group = name bob = uncle END_OBJECT',
+                      'GROUP= name = bob = uncle END_GROUP',)
+        for b in bad_blocks:
+            with self.subTest(block=b):
+                tokens = Lexer(b)
+                self.assertRaises(ValueError,
+                                  self.p.parse_aggregation_block, tokens)
+
+        tokens = Lexer('')
+        self.assertRaises(StopIteration,
+                          self.p.parse_aggregation_block, tokens)
+
     # def test_is_end_aggregation_statement(self)
     # def test_parse_module(self):

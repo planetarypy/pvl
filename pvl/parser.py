@@ -49,25 +49,32 @@ from .decoder import PVLDecoder as Decoder
 _tokens_docstring = """*tokens* is expected to be a *generator iterator*
                        which provides ``pvl.token`` objects.  It should
                        allow for a generated object to be 'returned' via
-                       the generator's send() function.  Will throw
-                       a ``ValueError`` into the *token's* generator
-                       iterator (via throw()) if there are any parsing
-                       anomalies.
+                       the generator's send() function.  When parsing the
+                       first object from *tokens*, if an unexpected object
+                       is encountered, it will 'return' the object to
+                       *tokens*, and raise a ``ValueError``, so that
+                       ``try``-``except`` bloks can be used, and the
+                       *generator iterator* is left in a good state. However,
+                       if a parsing anomaly is discovered deeper in
+                       parsing a PVL sequence, then a ``ValueError`` will
+                       be thrown into the *tokens* generator
+                       iterator (via .throw()).
                     """
 
 
 class PVLParser(object):
 
     def __init__(self, grammar=Grammar(), decoder=Decoder(),
-                 module_class=PVLModule()):
+                 module_class=PVLModule, strict=False):
         self.errors = []
         self.grammar = grammar
         self.decoder = decoder
+        self.strict = strict
 
-        if isinstance(module_class, PVLModule):
+        if issubclass(module_class, PVLModule):
             self.modcls = module_class
         else:
-            raise Exception
+            raise TypeError('The module_class must be a subclass of PVLModule.')
 
     def broken_assignment(self, s: str, idx: int):
         if self.strict:
@@ -121,6 +128,7 @@ class PVLParser(object):
                     pass
                 break
             else:
+                tokens.send(t)
                 tokens.throw(ValueError, f'Unexpected Token: {t}')
         return m
 
@@ -141,34 +149,32 @@ class PVLParser(object):
         """.format(_tokens_docstring)
         m = self.modcls()
 
-        block_name = parse_begin_aggregation_statement(tokens)
+        (begin, block_name) = self.parse_begin_aggregation_statement(tokens)
 
-        for t in tokens:
-            if t.is_WSC():
-                # If there's a comment, could parse here.
-                pass
-            elif t.is_begin_aggregation():
-                m.add(parse_begin_aggregation_block(t, tokens))
-            elif t.is_parameter_name():
-                m.add(parse_assignment_statement(t, tokens))
-            elif t.is_WSC():
-                # If there's a comment, could parse here.
-                pass
-            elif t.is_end_aggregation_statement():
-                after = next(tokens, token())
-                if after.is_comment():
-                    # Maybe do something with the last comment.
-                    pass
-                break
-            else:
-                tokens.throw(ValueError, f'Unexpected Token: {t}')
-        return m
+        while True:
+            self.parse_WSC_until(None, tokens)
+            try:
+                m.extend(self.parse_aggregation_block(tokens))
+            except ValueError:
+                try:
+                    m.append(*self.parse_assignment_statement(tokens))
+                except ValueError:
+                    try:
+                        self.parse_end_aggregation(begin, block_name, tokens)
+                        break
+                    except ValueError:
+                        t = next(tokens)
+                        tokens.send(t)
+                        tokens.throw(ValueError, f'Unexpected Token: "{t}".')
+
+        return self.modcls({block_name: m})
 
     def _parse_around_equals(self, tokens: abc.Generator) -> None:
         """Parses white space and comments on either side
            of an equals sign.
 
-           {}
+           *tokens* is expected to be a *generator iterator* which
+           provides ``pvl.token`` objects.
 
            This is shared functionality for Begin Aggregation Statements
            and Assignment Statements.  It basically covers parsing
@@ -176,25 +182,20 @@ class PVLParser(object):
 
              <WSC>* '=' <WSC>*
 
-        """.format(_tokens_docstring)
-        for t in tokens:
-            if t.is_WSC():
-                # If there's a comment, could parse here and below.
-                pass
-            else:
-                break
+        """
 
-        if t != '=':
-            tokens.throw(ValueError, f'Expecting "=", got: {t}')
+        if not self.parse_WSC_until('=', tokens):
+            try:
+                t = next(tokens)
+                tokens.send(t)
+                raise ValueError(f'Expecting "=", got: {t}')
+            except StopIteration:
+                raise ValueError(f'Expecting "=", but ran out of tokens.')
 
-        for t in tokens:
-            if not t.is_WSC():
-                break
-
-        tokens.send(t)
+        self.parse_WSC_until(None, tokens)
         return
 
-    def parse_begin_aggregation_statement(self, tokens: abc.Generator) -> str:
+    def parse_begin_aggregation_statement(self, tokens: abc.Generator) -> tuple:
         """Parses the tokens for a Begin Aggregation Statement, and returns
            the name Block Name as a ``str``.
 
@@ -207,24 +208,69 @@ class PVLParser(object):
            Where <Block-Name> ::= <Parameter-Name>
 
         """.format(_tokens_docstring)
-        b = next(tokens)
-        if not b.is_begin_aggregation():
-            raise ValueError('Expecting a Begin-Aggegation-Statement, but'
-                             f'found: {b}')
+        begin = next(tokens)
+        if not begin.is_begin_aggregation():
+            tokens.send(begin)
+            raise ValueError('Expecting a Begin-Aggegation-Statement, but '
+                             f'found: {begin}')
 
         self._parse_around_equals(tokens)
 
-        t = next(tokens)
-        if t.is_parameter_name():
-            block_name = t
-        else:
+        block_name = next(tokens)
+        if not block_name.is_parameter_name():
             tokens.throw(ValueError,
-                         f'Expecting a Block-Name after "{b} =" '
-                         f'but found: "{t}"')
+                         f'Expecting a Block-Name after "{begin} =" '
+                         f'but found: "{block_name}"')
 
         self.parse_statement_delimiter(tokens)
 
-        return(str(block_name))
+        return(begin, str(block_name))
+
+    def parse_end_aggregation(self, begin_agg: str, block_name: str,
+                              tokens: abc.Generator) -> None:
+        """Parses the tokens for an End Aggregation Statement.
+
+           {}
+
+           <End-Aggregation-Statement-block> ::=
+                <End-Aggegation-Statement> [<WSC>* '=' <WSC>*
+                <Block-Name>] [<Statement-Delimiter>]
+
+           Where <Block-Name> ::= <Parameter-Name>
+
+        """.format(_tokens_docstring)
+        end_agg = next(tokens)
+
+        # Need to do a little song and dance to case-independently
+        # match the keys:
+        for k in self.grammar.aggregation_keywords.keys():
+            if k.casefold() == begin_agg.casefold():
+                truecase_begin = k
+                break
+        if(end_agg.casefold() !=
+           self.grammar.aggregation_keywords[truecase_begin].casefold()):
+            tokens.send(end_agg)
+            raise ValueError('Expecting an End-Aggegation-Statement that '
+                             'matched the Begin-Aggregation_Statement, '
+                             f'"{begin_agg}" but found: {end_agg}')
+
+        try:
+            self._parse_around_equals(tokens)
+        except ValueError as err:  # No equals statement, which is fine.
+            self.parse_statement_delimiter(tokens)
+            return None
+
+        t = next(tokens)
+        if t != block_name:
+            tokens.send(t)
+            tokens.throw(ValueError,
+                         f'Expecting a Block-Name after "{end_agg} =" '
+                         f'that matches "{block_name}", but found: '
+                         f'"{t}"')
+
+        self.parse_statement_delimiter(tokens)
+
+        return None
 
     def parse_assignment_statement(self, tokens: abc.Generator) -> tuple:
         """Parses the tokens for an Assignment Statement.
@@ -243,19 +289,17 @@ class PVLParser(object):
         if t.is_parameter_name():
             parameter_name = str(t)
         else:
-            raise ValueError('Expecting a Parameter Name, but'
-                             f'found: "{t}"')
+            tokens.send(t)
+            raise ValueError(f'Expecting a Parameter Name, but found: "{t}"')
 
         Value = None
         self._parse_around_equals(tokens)
 
-        t = next(tokens)
-        if t.is_value():
-            tokens.send(t)
+        try:
             Value = self.parse_value(tokens)
-        else:
+        except ValueError:
             tokens.throw(ValueError,
-                         f'Expecting a Block-Name after "{begin_agg_stmt} =" '
+                         f'Expecting a Block-Name after "{parameter_name} =" '
                          f'but found: "{t}"')
 
         self.parse_statement_delimiter(tokens)
@@ -269,8 +313,9 @@ class PVLParser(object):
            that does not meet these conditions, it will 'return' that
            object to *tokens* and will return *False*.
 
-           {}
-        """.format(_tokens_docstring)
+           *tokens* is expected to be a *generator iterator* which
+           provides ``pvl.token`` objects.
+        """
         for t in tokens:
             if t == token:
                 return True
@@ -281,50 +326,86 @@ class PVLParser(object):
                 tokens.send(t)
                 return False
 
-    def parse_set(self, tokens: abc.Generator) -> tuple:
+    def _parse_set_seq(self, delimiters, tokens: abc.Generator) -> list:
+        '''The internal parsing of PVL Sets and Sequences are very
+           similar, and this function provides that shared logic.
+
+           *delimiters* are a two-tuple containing the start and end
+           characters for the PVL Set or Sequence.
+
+           {}
+        '''.format(_tokens_docstring)
+        t = next(tokens)
+        if t != delimiters[0]:
+            tokens.send(t)
+            raise ValueError(f'Expecting a begin delimiter "{delimiters[0]} =" '
+                             f'but found: "{t}"')
+        set_seq = list()
+        # Initial WSC and/or empty
+        if self.parse_WSC_until(delimiters[1], tokens):
+            return set_seq
+
+        # First item:
+        set_seq.append(self.parse_value(tokens))
+        if self.parse_WSC_until(delimiters[1], tokens):
+            return set_seq
+
+        # Remaining items, if any
+        for t in tokens:
+            # print(f'in loop, t: {t}, set_seq: {set_seq}')
+            if t == ',':
+                self.parse_WSC_until(None, tokens)  # consume WSC after ','
+                set_seq.append(self.parse_value(tokens))
+                if self.parse_WSC_until(delimiters[1], tokens):
+                    return set_seq
+            else:
+                tokens.send(t)
+                tokens.throw(ValueError,
+                             'While parsing, expected a comma (,)'
+                             f'but found: "{t}"')
+
+    def parse_set(self, tokens: abc.Generator) -> set:
         """Parses a PVL Set.
 
             <Set> ::= "{{" <WSC>*
                        [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
                       "}}"
 
-           Returns the decoded <Set> as a Python ``set``.
+           Returns the decoded <Set> as a Python ``frozenset``.  The PVL
+           specification doesn't seem to indicate that a PVL Set
+           has distinct values (like a Python ``set``), only that the
+           ordering of the values is unimportant.  For now, we will
+           implement PVL Sets as Python ``frozenset`` objects.
+
+           They are returned as ``frozenset`` objects because PVL Sets
+           can contain as their elements other PVL Sets, but since Python
+           ``set``s are non-hashable, they cannot be members of a set,
+           however, ``frozenset``s can.
+
+           {}
+        """.format(_tokens_docstring)
+        return frozenset(self._parse_set_seq(self.grammar.set_delimiters,
+                                             tokens))
+
+    def parse_sequence(self, tokens: abc.Generator) -> list:
+        """Parses a PVL Sequence.
+
+            <Set> ::= "(" <WSC>*
+                       [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
+                      ")"
+
+           Returns the decoded <Sequence> as a Python ``list``.
 
            {}
         """.format(_tokens_docstring)
 
-        t = next(tokens)
-        if t != self.grammar.set_delimiters[0]:
-            tokens.throw(ValueError,
-                         'Expecting a begin Set delimiter '
-                         f'"{self.grammar.set_delimiter[0]} =" '
-                         f'but found: "{t}"')
-        the_set = set()
-        # Initial WSC and/or empty set
-        if self.parse_WSC_until(self.grammar.set_delimiters[1], tokens):
-            return the_set
+        return self._parse_set_seq(self.grammar.sequence_delimiters, tokens)
 
-        # First item:
-        the_set.add(self.parse_value(tokens))
-        if self.parse_WSC_until(self.grammar.set_delimiters[1], tokens):
-            return the_set
-
-        # Remaining items, if any
-        for t in tokens:
-            if t == ',':
-                self.parse_WSC_until(None, tokens)  # consume WSC after ','
-                the_set.add(self.parse_value(tokens))
-                if self.parse_WSC_until(self.grammar.set_delimiters[1], tokens):
-                    return the_set
-            else:
-                tokens.throw(ValueError,
-                             'While parsing a Set, expected a comma (,)'
-                             f'but found: "{t}"')
-
-    def parse_statement_delimiter(self, tokens: abc.Generator) -> None:
+    def parse_statement_delimiter(self, tokens: abc.Generator) -> bool:
         """Parses the tokens for a Statement Delimiter.
 
-           {}
+           *tokens* is expected to be a *generator iterator* which
+           provides ``pvl.token`` objects.
 
             <Statement-Delimiter> ::= <WSC>*
                         (<white-space-character> | <comment> | ';' | <EOF>)
@@ -337,18 +418,18 @@ class PVLParser(object):
             <Statement-Delimiter> ::= <WSC>* [ ';' | <EOF> ]
 
            Typically written [<Statement-Delimiter>].
-        """.format(_tokens_docstring)
+        """
         for t in tokens:
             if t.is_WSC():
                 # If there's a comment, could parse here.
                     pass
             elif t.is_delimiter():
-                return
+                return True
             else:
                 tokens.send(t)  # Put the next token back into the generator
-                return
+                return False
 
-    def parse_value(self, tokens: abc.Generator) -> tuple:
+    def parse_value(self, tokens: abc.Generator):
         """Parses PVL Values.
 
             <Value> ::= (<Simple-Value> | <Set> | <Sequence>)
@@ -359,37 +440,31 @@ class PVLParser(object):
            {}
         """.format(_tokens_docstring)
         value = None
-        t = next(tokens)
-        if t.is_simple_value:
+
+        try:
+            t = next(tokens)
             value = self.decoder.decode_simple_value(t)
-        elif t.startswith(self.grammar.set_delimiters[0]):
+        except ValueError:
             tokens.send(t)
-            value = self.parse_set(tokens)
-        elif t.startswith(self.grammar.sequence_delimiters[0]):
-            tokens.send(t)
-            value = self.parse_sequence(tokens)
-        else:
-            tokens.throw(ValueError,
-                         'Was expecting a Simple Value, or the beginning of '
-                         f'a Set or Sequence, but found: "{t}"')
+            try:
+                value = self.parse_set(tokens)
+            except ValueError:
+                try:
+                    value = self.parse_sequence(tokens)
+                except ValueError as err:
+                    tokens.throw(ValueError,
+                                 'Was expecting a Simple Value, or the '
+                                 'beginning of a Set or Sequence, but '
+                                 f'found: "{t}"')
 
+        # print(f'in parse_value, value is: {value}')
         units = None
-        for t in tokens:
-            if t.is_WSC():
-                # If there's a comment, could parse
-                pass
-            elif t.startswith(self.grammar.units_delimiters):
-                tokens.send(t)
-                units = self.parse_units(tokens)
-                break
-            else:
-                break
-
-        if units is not None:
-            value = Units(value, units)
-
-        tokens.send(t)  # Put the next token back into the generator
-        return value
+        self.parse_WSC_until(None, tokens)
+        try:
+            units = self.parse_units(tokens)
+            return Units(value, units)
+        except (ValueError, StopIteration):
+            return value
 
     def parse_units(self, tokens: abc.Generator) -> str:
         """Parses PVL Units Expression.
@@ -410,16 +485,16 @@ class PVLParser(object):
         t = next(tokens)
 
         if not t.startswith(self.grammar.units_delimiters[0]):
-            tokens.throw(ValueError,
-                         'Was expecting the start units delimiter, ' +
-                         '"{}" '.format(self.grammar.units_delimiters[0]) +
-                         f'but found "{t}"')
+            tokens.send(t)
+            raise ValueError('Was expecting the start units delimiter, ' +
+                             '"{}" '.format(self.grammar.units_delimiters[0]) +
+                             f'but found "{t}"')
 
         if not t.endswith(self.grammar.units_delimiters[1]):
-            tokens.throw(ValueError,
-                         'Was expecting the end units delimiter, ' +
-                         '"{}" '.format(self.grammar.units_delimiters[1]) +
-                         f'at the end, but found "{t}"')
+            tokens.send(t)
+            raise ValueError('Was expecting the end units delimiter, ' +
+                             '"{}" '.format(self.grammar.units_delimiters[1]) +
+                             f'at the end, but found "{t}"')
 
         delim_strip = t.strip(''.join(self.grammar.units_delimiters))
 

@@ -183,11 +183,26 @@ class TestLexer(unittest.TestCase):
         out = get_tokens(s)
         self.assertEqual(tokens, out)
 
+    def test_quotes(self):
+        pairs = (('"This is quoted." Notquoted',
+                  ['"This is quoted."', 'Notquoted']),
+                 ('"These \'are\' inner" quotes',
+                  ['"These \'are\' inner"', 'quotes']),
+                 ("'Other # reserved <chars>' outside",
+                  ["'Other # reserved <chars>'", 'outside']))
+        for p in pairs:
+            with self.subTest(pairs=p):
+                out = self.get_tokens(p[0])
+                self.assertEqual(p[1], out)
+
     def test_numeric(self):
-        s = 'Number: +79'
-        tokens = ['Number:', '+79']
-        out = self.get_tokens(s)
-        self.assertEqual(tokens, out)
+        pairs = (('Number: +79', ['Number:', '+79']),
+                 ('Binary: +2#0101#', ['Binary:', '+2#0101#']))
+        # ('Binary: +2#0101#', ['Binary:', '+2', '#', '0101', '#']))
+        for p in pairs:
+            with self.subTest(pairs=p):
+                out = self.get_tokens(p[0])
+                self.assertEqual(p[1], out)
 
     def test_send(self):
         s = "One Two Three"

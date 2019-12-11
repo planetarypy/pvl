@@ -64,14 +64,16 @@ class grammar():
     delimiters = (';',)
 
     comments = (('/*', '*/'),)
-    group_keywords = (('BEGIN_GROUP', 'END_GROUP'),
-                      ('GROUP', 'END_GROUP'))
-    object_keywords = (('BEGIN_OBJECT', 'END_OBJECT'),
-                       ('OBJECT', 'END_OBJECT'))
-    aggregation_keywords = (group_keywords + object_keywords)
+    group_keywords = {'BEGIN_GROUP': 'END_GROUP',
+                      'GROUP': 'END_GROUP'}
+    object_keywords = {'BEGIN_OBJECT': 'END_OBJECT',
+                       'OBJECT': 'END_OBJECT'}
+    aggregation_keywords = dict()
+    aggregation_keywords.update(group_keywords)
+    aggregation_keywords.update(object_keywords)
     end_statements = ('END',)
     reserved_keywords = set(end_statements)
-    for p in aggregation_keywords:
+    for p in aggregation_keywords.items():
         reserved_keywords |= set(p)
 
     quotes = ('"', "'")
@@ -91,6 +93,7 @@ class grammar():
 
     # [sign]radix#non_decimal_integer#
     _s = r'(?P<sign>[+-]?)'
+    nondecimal_pre_re = re.compile(fr'{_s}(?P<radix>2|8|16)#')
     binary_re = re.compile(fr'{_s}(?P<radix>2)#(?P<non_decimal>[01]+)#')
     octal_re = re.compile(fr'{_s}(?P<radix>8)#(?P<non_decimal>[0-7]+)#')
     hex_re = re.compile(fr'{_s}(?P<radix>16)#(?P<non_decimal>[0-9|A-F|a-f]+)#')
