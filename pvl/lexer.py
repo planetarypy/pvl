@@ -38,6 +38,7 @@ from datetime import datetime
 
 from .grammar import grammar as Grammar
 from .token import token as Token
+from .decoder import PVLDecoder as Decoder
 
 
 class LexerError(ValueError):
@@ -225,7 +226,7 @@ def lex_char(char: str, prev_char: str, next_char: str,
     return (lexeme, preserve)
 
 
-def lexer(s: str, g=Grammar()):
+def lexer(s: str, g=Grammar(), d=Decoder()):
     # We're going to assume that beyond the /* */ pair, every
     # other comment pair is just single characters.  Otherwise
     # we'll need to generalize the for loop.
@@ -261,7 +262,7 @@ def lexer(s: str, g=Grammar()):
             # generator.
             if lexeme != '':
                 if next_char is None:
-                    t = yield(Token(lexeme, grammar=g))
+                    t = yield(Token(lexeme, grammar=g, decoder=d))
                     while t is not None:
                         yield None
                         t = yield(t)
@@ -290,7 +291,7 @@ def lexer(s: str, g=Grammar()):
                          s.startswith(tuple(p[0] for p in g.comments), i + 1) or
                          lexeme.endswith(tuple(p[1] for p in g.comments)) or
                          lexeme in g.reserved_characters):
-                        t = yield(Token(lexeme, grammar=g))
+                        t = yield(Token(lexeme, grammar=g, decoder=d))
                         while t is not None:
                             yield None
                             t = yield(t)

@@ -95,8 +95,8 @@ class EmptyValueAtLine(str):
 
 class PVLDecoder(object):
 
-    def __init__(self, grammar=None):
-        self.strict = True
+    def __init__(self, grammar=None, strict=False):
+        self.strict = strict
         self.errors = []
 
         if grammar is None:

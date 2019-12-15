@@ -45,7 +45,7 @@ class grammar():
        :var reserved_characters: Tuple of characters that may not
        occur in Parameter Names, Unquoted Strings, or Block Names.
 
-       :var comment: Tuple of two-tuples with each two-tuple containing
+       :var comments: Tuple of two-tuples with each two-tuple containing
        a pair of character sequences that enclose a comment.
     '''
 
@@ -64,6 +64,15 @@ class grammar():
     delimiters = (';',)
 
     comments = (('/*', '*/'),)
+
+    # A note on keywords:  If the Decoder is set to strict, these must
+    # match exactly.  If the Decoder is not set to strict, tokens will
+    # be compared to these keyword strings with the casefold() function.
+    # So 'NULL'.casefold(), 'Null'.casefold(), and 'NuLl".casefold()
+    # all compare equals to none_keyword.casefold().
+    none_keyword = 'NULL'
+    true_keyword = 'TRUE'
+    false_keyword = 'FALSE'
     group_keywords = {'BEGIN_GROUP': 'END_GROUP',
                       'GROUP': 'END_GROUP'}
     object_keywords = {'BEGIN_OBJECT': 'END_OBJECT',
@@ -80,16 +89,6 @@ class grammar():
     set_delimiters = ('{', '}')
     sequence_delimiters = ('(', ')')
     units_delimiters = ('<', '>')
-
-    # These keywords allow recognition for type conversion.  When these
-    # variables are used, they should be compared via casefold(),
-    # so 'NULL'.casefold(), 'Null'.casefold(), and 'NuLl".casefold()
-    # all compare equals to none_keyword.casefold().
-    # These are the versions that will get written out via the
-    # encoder.
-    none_keyword = 'NULL'
-    true_keyword = 'TRUE'
-    false_keyword = 'FALSE'
 
     # [sign]radix#non_decimal_integer#
     _s = r'(?P<sign>[+-]?)'

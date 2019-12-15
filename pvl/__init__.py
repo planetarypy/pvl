@@ -48,7 +48,6 @@ Building pvl modules::
 """
 import io
 
-from .decoder import PVLDecoder
 from .encoder import PVLEncoder
 from ._collections import (
     PVLModule,
@@ -57,7 +56,8 @@ from ._collections import (
     Units,
 )
 
-from .grammar import grammar as Grammar
+from .decoder import PVLDecoder as Decoder
+from .parser import PVLParser as Parser
 
 __author__ = 'The PlanetaryPy Developers'
 __email__ = 'trevor@heytrevor.com'
@@ -80,7 +80,7 @@ def __create_decoder(cls, strict, **kwargs):
     return decoder
 
 
-def load(stream, cls=PVLDecoder, strict=True, **kwargs):
+def load(stream, cls=Decoder, strict=True, **kwargs):
     """Deserialize ``stream`` as a pvl module.
 
     :param stream: a ``.read()``-supporting file-like object containing a
@@ -98,7 +98,8 @@ def load(stream, cls=PVLDecoder, strict=True, **kwargs):
     return decoder.decode(stream)
 
 
-def loads(s: str, cls=PVLDecoder, grammar=Grammar(), strict=True, **kwargs):
+def loads(s: str, parser=None, grammar=None, decoder=None, modcls=PVLModule,
+          grpcls=PVLGroup, objcls=PVLObject, strict=False, **kwargs):
     """Deserialize ``s`` as a pvl module.
 
     :param data: a pvl module as a string
@@ -108,8 +109,19 @@ def loads(s: str, cls=PVLDecoder, grammar=Grammar(), strict=True, **kwargs):
 
     :param **kwargs: the keyword arguments to pass to the decoder class.
     """
-    decoder = __create_decoder(cls, strict, grammar=grammar, **kwargs)
-    return decoder.decode(s)
+    # decoder = __create_decoder(cls, strict, grammar=grammar, **kwargs)
+    # return decoder.decode(s)
+
+    if parser is None:
+        parser = Parser(grammar=grammar, decoder=decoder,
+                        module_class=modcls,
+                        group_class=grpcls,
+                        object_class=objcls,
+                        strict=strict)
+    elif not isinstance(parser, Parser):
+        raise TypeError('The parser must be an instance of pvl.PVLParser.')
+
+    return parser.parse(s)
 
 
 def dump(module, stream, cls=PVLEncoder, **kwargs):

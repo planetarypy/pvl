@@ -44,6 +44,7 @@ from ._collections import PVLModule, PVLGroup, PVLObject, Units
 from .token import token as Token
 from .grammar import grammar as Grammar
 from .decoder import PVLDecoder as Decoder
+from .lexer import lexer as Lexer
 
 
 _tokens_docstring = """*tokens* is expected to be a *generator iterator*
@@ -64,46 +65,64 @@ _tokens_docstring = """*tokens* is expected to be a *generator iterator*
 
 class PVLParser(object):
 
-    def __init__(self, grammar=Grammar(), decoder=Decoder(),
-                 module_class=PVLModule, strict=False):
-        self.errors = []
-        self.grammar = grammar
-        self.decoder = decoder
-        self.strict = strict
+    def __init__(self, grammar=None, decoder=None, lexer=None,
+                 module_class=PVLModule, group_class=PVLGroup,
+                 object_class=PVLObject, strict=False):
+
+        if lexer is None:
+            self.lexer = Lexer
+        else:
+            self.lexer = lexer
+
+        if grammar is None:
+            self.grammar = Grammar()
+        elif isinstance(grammar, Grammar):
+            self.grammar = grammar
+        else:
+            raise TypeError('The grammar must be an instance of pvl.grammar.')
+
+        if decoder is None:
+            self.decoder = Decoder(grammar=self.grammar, strict=strict)
+        elif isinstance(decoder, Decoder):
+            self.decoder = decoder
+        else:
+            raise TypeError('The decode must be an instance of pvl.PVLDecoder.')
 
         if issubclass(module_class, PVLModule):
             self.modcls = module_class
         else:
             raise TypeError('The module_class must be a subclass of PVLModule.')
 
-    def broken_assignment(self, s: str, idx: int):
-        if self.strict:
-            raise DecodeError("Broken Parameter-Value. Using 'strict=False' "
-                              "when calling 'pvl.load' may help you parse the "
-                              "label, it could also inadvertently mask other "
-                              "errors.", s, idx)
+        if issubclass(group_class, PVLGroup):
+            self.grpcls = group_class
         else:
-            lineno = s.count('\n', 0, idx) + 1
-            self.errors.append(lineno)
-            return EmptyValueAtLine(lineno)
+            raise TypeError('The group_class must be a subclass of PVLGroup.')
 
-    def parse(self, tokens: list):
-        '''Accepts a list of Tokens, and returns a PVLModule.
+        if issubclass(object_class, PVLObject):
+            self.objcls = object_class
+        else:
+            raise TypeError('The object_class must be a subclass of PVLObject.')
 
-           {}
-        '''.format(_tokens_docstring)
-        # old:
-        # module = PVLModule(self.parse_block(s, 0, self.has_end))
-        # module.errors = sorted(self.errors)
-        # self.skip_end(s)
-        # return module
+    def parse(self, s: str):
+        '''Converts the string to a PVLModule.
+        '''
+        tokens = self.lexer(s, g=self.grammar, d=self.decoder)
+        return self.parse_module(tokens)
 
-        module = self.parse_module(tokens)
-        # module.errors = sorted(self.errors) need?
-        # self.skip_end(s) need?
-        return module
+    def aggregation_cls(self, begin: str):
+        begin_fold = begin.casefold()
+        for gk in self.grammar.group_keywords.keys():
+            if begin_fold == gk.casefold():
+                return self.grpcls()
 
-    def parse_module(self, tokens):
+        for ok in self.grammar.object_keywords.keys():
+            if begin_fold == ok.casefold():
+                return self.objcls()
+
+        raise ValueError(f'The value "{begin}" did not match a Begin '
+                         'Aggregation Statement.')
+
+    def parse_module(self, tokens: abc.Generator):
         """Parses the tokens for a PVL Module.
 
            {}
@@ -111,25 +130,26 @@ class PVLParser(object):
             <PVL-Module-Contents> ::=
              ( <Assignment-Statement> | <WSC>* | <Aggregation-Block> )*
              [<End-Statement>]
+
         """.format(_tokens_docstring)
         m = self.modcls()
-        for t in tokens:
-            if t.is_WSC():
-                # If there's a comment, could parse here.
-                pass
-            elif t.is_begin_aggregation():
-                m.add(parse_aggregation_block(t, tokens))
-            elif t.is_parameter_name():
-                m.add(parse_assignment_statement(t, tokens))
-            elif t.is_end_statement():
-                after = next(tokens, token())
-                if after.is_comment():
-                    # Maybe do something with the last comment.
-                    pass
-                break
-            else:
-                tokens.send(t)
-                tokens.throw(ValueError, f'Unexpected Token: {t}')
+
+        while True:
+            self.parse_WSC_until(None, tokens)
+            try:
+                m.append(*self.parse_aggregation_block(tokens))
+            except ValueError:
+                try:
+                    m.append(*self.parse_assignment_statement(tokens))
+                except ValueError:
+                    try:
+                        self.parse_end_statement(tokens)
+                        break
+                    except ValueError:
+                        t = next(tokens)
+                        tokens.send(t)
+                        tokens.throw(ValueError, f'Unexpected Token: "{t}".')
+
         return m
 
     def parse_aggregation_block(self, tokens: abc.Generator):
@@ -143,21 +163,22 @@ class PVLParser(object):
                 (<WSC>* (Assignment-Statement | Aggregation-Block) <WSC>*)+
                 <End-Aggregation-Statement>
 
-           The Begin-Aggregation-Statement Name must match the Block-Name in the
-           paired End-Aggregation-Statement if a Block-Name is present in the
-           End-Aggregation-Statement.
+           The Begin-Aggregation-Statement Name must match the Block-Name
+           in the paired End-Aggregation-Statement if a Block-Name is
+           present in the End-Aggregation-Statement.
         """.format(_tokens_docstring)
-        m = self.modcls()
 
         (begin, block_name) = self.parse_begin_aggregation_statement(tokens)
+
+        agg = self.aggregation_cls(begin)
 
         while True:
             self.parse_WSC_until(None, tokens)
             try:
-                m.extend(self.parse_aggregation_block(tokens))
+                agg.append(*self.parse_aggregation_block(tokens))
             except ValueError:
                 try:
-                    m.append(*self.parse_assignment_statement(tokens))
+                    agg.append(*self.parse_assignment_statement(tokens))
                 except ValueError:
                     try:
                         self.parse_end_aggregation(begin, block_name, tokens)
@@ -167,7 +188,7 @@ class PVLParser(object):
                         tokens.send(t)
                         tokens.throw(ValueError, f'Unexpected Token: "{t}".')
 
-        return self.modcls({block_name: m})
+        return (block_name, agg)
 
     def _parse_around_equals(self, tokens: abc.Generator) -> None:
         """Parses white space and comments on either side
@@ -271,6 +292,37 @@ class PVLParser(object):
         self.parse_statement_delimiter(tokens)
 
         return None
+
+    def parse_end_statement(self, tokens: abc.Generator) -> None:
+        """Parses the tokens for an End Statement.
+
+           {}
+
+           <End-Statement> ::= "END" ( <WSC>* | [<Statement-Delimiter>] )
+
+        """.format(_tokens_docstring)
+
+        try:
+            end = next(tokens)
+            if not end.is_end_statement():
+                tokens.send(end)
+                raise ValueError('Expecting an End Statement, like '
+                                 f'"{self.grammar.end_statements}" but found '
+                                 f'"{end}"')
+
+            t = next(tokens)
+            if t.is_end_statement():
+                pass
+            elif t.is_WSC():
+                # maybe process comment
+                return
+            else:
+                tokens.send(t)
+                return
+        except StopIteration:
+            pass
+
+        return
 
     def parse_assignment_statement(self, tokens: abc.Generator) -> tuple:
         """Parses the tokens for an Assignment Statement.

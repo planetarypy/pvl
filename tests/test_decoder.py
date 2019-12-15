@@ -139,6 +139,7 @@ class TestDecoder(unittest.TestCase):
         self.assertRaises(ValueError, self.d.decode_datetime, 'frank')
 
         fancy = '2001-001T01:10:39+7'
+        self.d.strict = True
         self.assertRaises(ValueError, self.d.decode_datetime, fancy)
 
         try:
