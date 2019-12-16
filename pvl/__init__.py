@@ -47,6 +47,7 @@ Building pvl modules::
     END
 """
 import io
+from pathlib import Path
 
 from .encoder import PVLEncoder
 from ._collections import (
@@ -56,7 +57,6 @@ from ._collections import (
     Units,
 )
 
-from .decoder import PVLDecoder as Decoder
 from .parser import PVLParser as Parser
 
 __author__ = 'The PlanetaryPy Developers'
@@ -74,33 +74,75 @@ __all__ = [
 ]
 
 
-def __create_decoder(cls, strict, **kwargs):
-    decoder = cls(**kwargs)
-    decoder.set_strict(strict)
-    return decoder
+# def __create_decoder(cls, strict, **kwargs):
+#     decoder = cls(**kwargs)
+#     decoder.set_strict(strict)
+#     return decoder
 
 
-def load(stream, cls=Decoder, strict=True, **kwargs):
-    """Deserialize ``stream`` as a pvl module.
+def load(path, **kwargs):
+    """Takes an os.PathLike *path* which presumably has a PVL Module
+       in it, and deserializes it to a Python object.
 
-    :param stream: a ``.read()``-supporting file-like object containing a
-        module. If ``stream`` is a string it will be treated as a filename
+       If *path* is not an os.PathLike, it will be assumed to be an
+       already-opened file object, and ``.read()`` will be applied
+       to extract the text.
 
-    :param cls: the decoder class used to deserialize the pvl module. You may
-        use the default ``PVLDecoder`` class or provide a custom sublcass.
+       If the os.PathLike or file object contains some bytes decodable as
+       text, followed by some that is not (e.g. an ISIS cube file), that's
+       fine, this function will just extract the decodable text.
 
-    :param **kwargs: the keyword arguments to pass to the decoder class.
+       :param **kwargs: all other arguments will be passed to the
+        loads() function and are described there.
     """
-    decoder = __create_decoder(cls, strict, **kwargs)
-    if isinstance(stream, str):
-        with open(stream, 'rb') as fp:
-            return decoder.decode(fp)
-    return decoder.decode(stream)
+    try:
+        try:
+            p = Path(path)
+            return loads(p.read_text(), **kwargs)
+        except TypeError:
+            # Not an os.PathLike, maybe it is an already-opened file object
+            return loads(path.read(), **kwargs)
+    except UnicodeDecodeError:
+        # This may be the result of an ISIS cube file (or anything else)
+        # where the first set of bytes might be decodable, but once the
+        # image data starts, they won't be, and the above tidy functions
+        # fail.  So open the file as a bytestream, and read until
+        # we can't decode.  We don't want to just run the .read_bytes()
+        # method of Path, because this could be a giant file.
+        try:
+            with open(p, mode='rb') as f:
+                s = decode_bytes(f)
+        except TypeError:
+            s = decode_bytes(path)
+
+        return loads(s, **kwargs)
+
+
+def decode_bytes(f: io.RawIOBase) -> str:
+    """Deserialize ``f`` which is expected to be a file object which
+       has been opened in binary mode.
+
+       The ``f`` stream will have one byte at a time read from it,
+       and will attempt to decode each byte to a string and accumulate
+       those individual strings together.  Once the end of the file is found
+       or a byte can no longer be decoded, the accumulated string will
+       be returned.
+    """
+    s = ''
+    try:
+        for byte in iter(lambda: f.read(1), b''):
+            s += byte.decode()
+    except UnicodeError:
+        # Expecting this to mean that we got to the end of decodable
+        # bytes, so we're all done, and pass through to return s.
+        pass
+
+    return s
 
 
 def loads(s: str, parser=None, grammar=None, decoder=None, modcls=PVLModule,
           grpcls=PVLGroup, objcls=PVLObject, strict=False, **kwargs):
-    """Deserialize ``s`` as a pvl module.
+    """Deserialize the string, ``s``, as a pvl module.
 
     :param data: a pvl module as a string
 

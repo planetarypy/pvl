@@ -238,13 +238,14 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
         prev_char = _prev_char(s, i)
         next_char = _next_char(s, i)
 
-        # print(f'lexeme at top: {lexeme}, char: {char}, '
-        #       f'prev: {prev_char}, next: {next_char}')
+        # print(repr(f'lexeme at top: {lexeme}, char: {char}, '
+        #            f'prev: {prev_char}, next: {next_char}, '
+        #            f'{preserve}'))
 
         (lexeme, preserve) = lex_char(char, prev_char, next_char,
                                       lexeme, preserve, g, c_info)
 
-        # print(f'lexeme at bottom: {lexeme}')
+        # print(repr(f'lexeme at bottom: {lexeme}'))
 
         # Now having dealt with char, decide whether to
         # go on continue accumulating the lexeme, or yield it.
@@ -273,7 +274,8 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
                     # caught by the clause in the elif, should
                     # test true here.
                     if(preserve['state'] != Preserve.FALSE
-                       or Token(char + next_char, grammar=g).is_numeric()
+                       or (char in g.numeric_start_chars and
+                           Token(char + next_char, grammar=g).is_numeric())
                        # Since Numeric objects can begin with a reserved
                        # character, the reserved characters may split up
                        # the lexeme.

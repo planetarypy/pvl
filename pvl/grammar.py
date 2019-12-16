@@ -73,10 +73,10 @@ class grammar():
     none_keyword = 'NULL'
     true_keyword = 'TRUE'
     false_keyword = 'FALSE'
-    group_keywords = {'BEGIN_GROUP': 'END_GROUP',
-                      'GROUP': 'END_GROUP'}
-    object_keywords = {'BEGIN_OBJECT': 'END_OBJECT',
-                       'OBJECT': 'END_OBJECT'}
+    group_keywords = {'GROUP': 'END_GROUP',
+                      'BEGIN_GROUP': 'END_GROUP'}
+    object_keywords = {'OBJECT': 'END_OBJECT',
+                       'BEGIN_OBJECT': 'END_OBJECT'}
     aggregation_keywords = dict()
     aggregation_keywords.update(group_keywords)
     aggregation_keywords.update(object_keywords)
@@ -125,3 +125,15 @@ class grammar():
     # _time_frag = fr'{_H_frag}:{_M_frag}]'  # Only times with 60 s
     leap_second_Ymd_re = re.compile(fr'({_Ymd_frag}T)?{_time_frag}')
     leap_second_Yj_re = re.compile(fr'({_Yj_frag}T)?{_time_frag}')
+
+
+class ODLgrammar(grammar):
+    '''This defines a PDS3 ODL grammar.
+    '''
+
+    def __init__(self):
+        super().__init__()
+
+        # ODL does not allow times with a seconds value of 60.
+        self.leap_second_Ymd_re = None
+        self.leap_second_Yj_re = None
