@@ -137,3 +137,23 @@ class ODLgrammar(grammar):
         # ODL does not allow times with a seconds value of 60.
         self.leap_second_Ymd_re = None
         self.leap_second_Yj_re = None
+
+class ISISgrammar(grammar):
+    '''This defines the ISIS version of PVL.
+
+       Or it will.  
+
+       In
+       https://astrodiscuss.usgs.gov/t/what-pvl-specification-does-isis-conform-to/
+    Stuart Sides, ISIS developer, says:
+	The ISIS3 implementation of PVL/ODL (like) does not strictly
+	follow any of the published standards. It was based on PDS3
+	ODL from the 1990s, but has several extensions (your example
+	of continuation lines) adopted from existing and prior data
+	sets from ISIS2, PDS, JAXA, ISRO, …, and extensions used
+	only within ISIS3 files (cub, net). This is one of the
+	reasons using ISIS cube files as an archive format has been
+	strongly discouraged. So to answer your question, there is
+	no published specification for ISIS3 PVL.
+
+    '''

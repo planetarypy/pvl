@@ -37,6 +37,8 @@ END'''
         decoded = pvl.PVLModule(a='b', c=pvl.PVLGroup(c='d'), e=False)
         self.assertEqual(decoded, pvl.loads(some_pvl))
 
+        self.assertEqual(pvl.PVLModule(a='b'), pvl.loads('a=b'))
+
 
 class TestLoad(unittest.TestCase):
 

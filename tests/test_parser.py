@@ -20,6 +20,7 @@ import unittest
 
 from pvl.parser import PVLParser
 from pvl.lexer import lexer as Lexer
+from pvl.lexer import LexerError
 from pvl._collections import Units, PVLModule, PVLGroup, PVLObject
 
 
@@ -193,16 +194,13 @@ class TestParse(unittest.TestCase):
                                  self.p.parse_aggregation_block(tokens))
 
         bad_blocks = ('Group = name bob = uncle END_OBJECT',
-                      'GROUP= name = bob = uncle END_GROUP',)
+                      'GROUP= name = bob = uncle END_GROUP',
+                      '')
         for b in bad_blocks:
             with self.subTest(block=b):
                 tokens = Lexer(b)
                 self.assertRaises(ValueError,
                                   self.p.parse_aggregation_block, tokens)
-
-        tokens = Lexer('')
-        self.assertRaises(StopIteration,
-                          self.p.parse_aggregation_block, tokens)
 
     def test_parse_end_statement(self):
         strings = ('END;', 'End ; ', 'End /*comment*/', 'END next',
@@ -234,12 +232,14 @@ class TestParse(unittest.TestCase):
                                  self.p.parse_module(tokens))
 
         tokens = Lexer('blob =')
-        self.assertRaises(StopIteration,
-                          self.p.parse_module, tokens)
+        self.assertRaises(StopIteration, self.p.parse_module, tokens)
 
         tokens = Lexer('GROUP GROUP')
-        self.assertRaises(ValueError,
-                          self.p.parse_module, tokens)
+        self.assertRaises(LexerError, self.p.parse_module, tokens)
+
+    def test_foo(self):
+        tokens = Lexer('BEGIN_OBJECT = foo END_OBJECT = bar')
+        self.assertRaises(ValueError, self.p.parse_module, tokens)
 
     def test_parse(self):
         groups = (('a = b c = d END', PVLModule(a='b', c='d')),

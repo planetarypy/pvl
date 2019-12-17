@@ -38,6 +38,7 @@ import collections.abc as abc
 import re
 
 from datetime import datetime
+from itertools import cycle
 from warnings import warn
 
 from ._collections import PVLModule, PVLGroup, PVLObject, Units
@@ -45,6 +46,7 @@ from .token import token as Token
 from .grammar import grammar as Grammar
 from .decoder import PVLDecoder as Decoder
 from .lexer import lexer as Lexer
+from .lexer import LexerError
 
 
 _tokens_docstring = """*tokens* is expected to be a *generator iterator*
@@ -134,21 +136,20 @@ class PVLParser(object):
         """.format(_tokens_docstring)
         m = self.modcls()
 
-        while True:
-            self.parse_WSC_until(None, tokens)
+        for p in cycle((self.parse_aggregation_block,
+                        self.parse_assignment_statement,
+                        self.parse_end_statement)):
             try:
-                m.append(*self.parse_aggregation_block(tokens))
+                self.parse_WSC_until(None, tokens)
+                parsed = p(tokens)
+                if parsed is None:  # because parse_end_statement returned
+                    break
+                else:
+                    m.append(*parsed)
+            except LexerError:
+                raise
             except ValueError:
-                try:
-                    m.append(*self.parse_assignment_statement(tokens))
-                except ValueError:
-                    try:
-                        self.parse_end_statement(tokens)
-                        break
-                    except ValueError:
-                        t = next(tokens)
-                        tokens.send(t)
-                        tokens.throw(ValueError, f'Unexpected Token: "{t}".')
+                pass
 
         return m
 
@@ -180,13 +181,8 @@ class PVLParser(object):
                 try:
                     agg.append(*self.parse_assignment_statement(tokens))
                 except ValueError:
-                    try:
-                        self.parse_end_aggregation(begin, block_name, tokens)
-                        break
-                    except ValueError:
-                        t = next(tokens)
-                        tokens.send(t)
-                        tokens.throw(ValueError, f'Unexpected Token: "{t}".')
+                    self.parse_end_aggregation(begin, block_name, tokens)
+                    break
 
         return (block_name, agg)
 
@@ -229,13 +225,21 @@ class PVLParser(object):
            Where <Block-Name> ::= <Parameter-Name>
 
         """.format(_tokens_docstring)
-        begin = next(tokens)
-        if not begin.is_begin_aggregation():
-            tokens.send(begin)
-            raise ValueError('Expecting a Begin-Aggegation-Statement, but '
-                             f'found: {begin}')
+        try:
+            begin = next(tokens)
+            if not begin.is_begin_aggregation():
+                tokens.send(begin)
+                raise ValueError('Expecting a Begin-Aggegation-Statement, but '
+                                 f'found: {begin}')
+        except StopIteration:
+            raise ValueError('Ran out of tokens before starting to parse '
+                             'a Begin-Aggegation-Statement.')
 
-        self._parse_around_equals(tokens)
+        try:
+            self._parse_around_equals(tokens)
+        except ValueError:
+            tokens.throw(ValueError,
+                         f'Expecting an equals sign after "{begin}" ')
 
         block_name = next(tokens)
         if not block_name.is_parameter_name():
@@ -337,12 +341,17 @@ class PVLParser(object):
 
         """.format(_tokens_docstring)
         parameter_name = None
-        t = next(tokens)
-        if t.is_parameter_name():
-            parameter_name = str(t)
-        else:
-            tokens.send(t)
-            raise ValueError(f'Expecting a Parameter Name, but found: "{t}"')
+        try:
+            t = next(tokens)
+            if t.is_parameter_name():
+                parameter_name = str(t)
+            else:
+                tokens.send(t)
+                raise ValueError('Expecting a Parameter Name, but '
+                                 f'found: "{t}"')
+        except StopIteration:
+            raise ValueError('Ran out of tokens before starting to parse '
+                             'an Assignment-Statement.')
 
         Value = None
         self._parse_around_equals(tokens)

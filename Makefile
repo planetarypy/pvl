@@ -31,6 +31,15 @@ lint:
 test:
 	python -m pytest
 
+# rtest:
+rtest:
+	python -m pytest tests/test_grammar.py\
+			         tests/test_decoder.py\
+					 tests/test_token.py\
+					 tests/test_lexer.py\
+					 tests/test_parser.py\
+					 tests/test_init.py
+
 test-all:
 	tox
 
