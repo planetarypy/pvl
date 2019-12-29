@@ -54,6 +54,8 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual('Line -\n Continued',
                          self.d.decode_quoted_string("'Line -\n Continued'"))
 
+        # print(self.d.decode_quoted_string("""'mixed"\\'quotes'"""))
+
     def test_decode_unquoted_string(self):
         self.assertEqual('Unquoted', self.d.decode_unquoted_string('Unquoted'))
 

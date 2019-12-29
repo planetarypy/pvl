@@ -99,23 +99,33 @@ def load(path, **kwargs):
         try:
             p = Path(path)
             return loads(p.read_text(), **kwargs)
-        except TypeError:
-            # Not an os.PathLike, maybe it is an already-opened file object
-            return loads(path.read(), **kwargs)
-    except UnicodeDecodeError:
-        # This may be the result of an ISIS cube file (or anything else)
-        # where the first set of bytes might be decodable, but once the
-        # image data starts, they won't be, and the above tidy functions
-        # fail.  So open the file as a bytestream, and read until
-        # we can't decode.  We don't want to just run the .read_bytes()
-        # method of Path, because this could be a giant file.
-        try:
+        except UnicodeDecodeError:
+            # This may be the result of an ISIS cube file (or anything else)
+            # where the first set of bytes might be decodable, but once the
+            # image data starts, they won't be, and the above tidy function
+            # fails.  So open the file as a bytestream, and read until
+            # we can't decode.  We don't want to just run the .read_bytes()
+            # method of Path, because this could be a giant file.
             with open(p, mode='rb') as f:
                 s = decode_bytes(f)
-        except TypeError:
-            s = decode_bytes(path)
+                return loads(s, **kwargs)
 
-        return loads(s, **kwargs)
+    except TypeError:
+        # Not an os.PathLike, maybe it is an already-opened file object
+        if path.readable():
+            try:
+                position = path.tell()
+                return loads(path.read(), **kwargs)
+            except UnicodeDecodeError:
+                # All of the bytes weren't decodeable, maybe the initial
+                # sequence is (as above)?
+                path.seek(position)  # Reset after the previous .read():
+                s = decode_bytes(path)
+                return loads(s, **kwargs)
+        else:
+            # Not a path, not an already-opened file.
+            raise TypeError('Expected an os.PathLike or an already-opened '
+                            'file object, but did not get either.')
 
 
 def decode_bytes(f: io.RawIOBase) -> str:
@@ -153,6 +163,11 @@ def loads(s: str, parser=None, grammar=None, decoder=None, modcls=PVLModule,
     """
     # decoder = __create_decoder(cls, strict, grammar=grammar, **kwargs)
     # return decoder.decode(s)
+
+    if isinstance(s, bytes):
+        # Someone passed us an old-style bytes sequence.  Although it isn't
+        # a string, we can deal with it:
+        s = s.decode()
 
     if parser is None:
         parser = Parser(grammar=grammar, decoder=decoder,

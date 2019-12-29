@@ -34,11 +34,13 @@ class TestInternal(unittest.TestCase):
 
     def test_prepare_comment_tuples(self):
         d = dict(single_comments=dict(),
+                 multi_comments=(('/*', '*/'),),
                  multi_chars=set('/*'),
                  chars=set('/*'))
         self.assertEqual(d, Lexer._prepare_comment_tuples((('/*', '*/'),)))
 
         d = dict(single_comments={'#': '\n'},
+                 multi_comments=(('/*', '*/'),),
                  multi_chars=set('/*'),
                  chars=set('/*#'))
         self.assertEqual(d, Lexer._prepare_comment_tuples((('/*', '*/'),
@@ -100,6 +102,7 @@ class TestLexComments(unittest.TestCase):
                                            '', pfn,
                                            (('/*', '*/'),),
                                            dict(single_comments={'k': 'v'},
+                                                multi_comments=(('/*', '*/'),),
                                                 multi_chars=set(('/', '*')))))
 
         self.assertEqual(('/*', pcom),
@@ -107,6 +110,7 @@ class TestLexComments(unittest.TestCase):
                                            '', pfn,
                                            (('/*', '*/'),),
                                            dict(single_comments={'k': 'v'},
+                                                multi_comments=(('/*', '*/'),),
                                                 multi_chars=set(('/', '*')))))
 
 
@@ -194,6 +198,12 @@ class TestLexer(unittest.TestCase):
             with self.subTest(pairs=p):
                 out = self.get_tokens(p[0])
                 self.assertEqual(p[1], out)
+
+    # def test_foo(self):
+    #     out = self.get_tokens("""single = 'single"quotes'
+    #     mixed = 'mixed"\\'quotes'
+    #     number = '123'
+    # """)
 
     def test_numeric(self):
         pairs = (('Number: +79', ['Number:', '+79']),

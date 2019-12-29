@@ -126,3 +126,12 @@ class TestLeapSeconds(unittest.TestCase):
                   '01:59:60Z', '01:59:60'):
             with self.subTest(string=s):
                 self.assertIsNotNone(self.g.leap_second_Yj_re.fullmatch(s))
+
+    def test_allowed(self):
+        for c in ('a', 'b', ' ', '\n'):
+            with self.subTest(char=c):
+                self.assertTrue(self.g.char_allowed(c))
+
+        for c in ('\b', chr(127)):
+            with self.subTest(char=c):
+                self.assertFalse(self.g.char_allowed(c))

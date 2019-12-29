@@ -95,3 +95,7 @@ class TestISIScub(unittest.TestCase):
 
     def test_load_cub(self):
         self.assertEqual(self.cubpvl, pvl.load(self.cub))
+
+    def test_load_cub_opened(self):
+        with open(self.cub, 'rb') as f:
+            self.assertEqual(self.cubpvl, pvl.load(f))

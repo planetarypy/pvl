@@ -103,6 +103,7 @@ def lex_multichar_comments(char: str, prev_char: str, next_char: str,
        and ``preserve``.
     '''
 
+    # print(f'lex_multichar got these comments: {comments}')
     if len(comments) == 0:
         raise ValueError('The variable provided to comments is empty.')
 
@@ -138,7 +139,7 @@ def lex_comment(char: str, prev_char: str, next_char: str,
     if char in c_info['multi_chars']:
         return lex_multichar_comments(char, prev_char, next_char,
                                       lexeme, preserve,
-                                      comments=comments)
+                                      comments=c_info['multi_comments'])
     else:
         return lex_singlechar_comments(char, lexeme, preserve,
                                        c_info['single_comments'])
@@ -164,17 +165,20 @@ def _prepare_comment_tuples(comments: tuple) -> tuple:
     # it every time you pass into the lex_comment() function,
     # which seemed excessive.
     d = dict()
+    m = list()
     d['single_comments'] = dict()
     d['multi_chars'] = set()
     for pair in comments:
         if len(pair[0]) == 1:
             d['single_comments'][pair[0]] = pair[1]
         else:
+            m.append(pair)
             for p in pair:
                 d['multi_chars'] |= set(p)
 
     d['chars'] = set(d['single_comments'].keys())
     d['chars'] |= d['multi_chars']
+    d['multi_comments'] = tuple(m)
 
     # print(d)
     return d
@@ -190,6 +194,7 @@ def lex_char(char: str, prev_char: str, next_char: str,
     # should put us into one of those states.
 
     # print(f'lex_char start: char "{char}", lexeme "{lexeme}", "{preserve}"')
+
     if preserve['state'] != Preserve.FALSE:
         if preserve['state'] == Preserve.COMMENT:
             (lexeme,
@@ -235,6 +240,10 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
     lexeme = ''
     preserve = dict(state=Preserve.FALSE, end=None)
     for i, char in enumerate(s):
+        if not g.char_allowed(char):
+            raise LexerError(f'The character "{char}" (ord: {ord(char)}) '
+                             ' is not allowed by the grammar.', s, i)
+
         prev_char = _prev_char(s, i)
         next_char = _next_char(s, i)
 
@@ -245,25 +254,28 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
         (lexeme, preserve) = lex_char(char, prev_char, next_char,
                                       lexeme, preserve, g, c_info)
 
-        # print(repr(f'lexeme at bottom: {lexeme}'))
+        # print(repr(f'       at bot: {lexeme},          '
+        #            f'                  '
+        #            f'{preserve}'))
 
         # Now having dealt with char, decide whether to
         # go on continue accumulating the lexeme, or yield it.
-        try:
-            # The ``while t is not None: yield None; t = yield(t)``
-            # construction below allows a user of the lexer to
-            # yield a token, not like what they see, and then use
-            # the generator's send() function to put the token
-            # back into the generator.
-            #
-            # The first yield None in there allows the call to send() on
-            # this generator to return None, and keep the value of t ready
-            # for the next call of next() on the generator.  This is the
-            # magic # that allows a user to 'return' a token to the
-            # generator.
-            if lexeme != '':
-                if next_char is None:
-                    t = yield(Token(lexeme, grammar=g, decoder=d))
+        if lexeme != '':
+            try:
+                # The ``while t is not None: yield None; t = yield(t)``
+                # construction below allows a user of the lexer to
+                # yield a token, not like what they see, and then use
+                # the generator's send() function to put the token
+                # back into the generator.
+                #
+                # The first yield None in there allows the call to send() on
+                # this generator to return None, and keep the value of t ready
+                # for the next call of next() on the generator.  This is the
+                # magic that allows a user to 'return' a token to the
+                # generator.
+                tok = Token(lexeme, grammar=g, decoder=d)
+                if next_char is None or not g.char_allowed(next_char):
+                    t = yield(tok)
                     while t is not None:
                         yield None
                         t = yield(t)
@@ -285,6 +297,12 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
                        # Since Non Decimal Numerics can have reserved
                        # characters in them.
                        #
+                       or (next_char in g.numeric_start_chars and
+                           tok.is_datetime())
+                       # Some datetimes can have trailing numeric tz offsets,
+                       # if the decoder allows it, this means there could be
+                       # a '+' that splits the lexeme that we don't want.
+                       #
                        ):
                         continue
 
@@ -292,13 +310,15 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
                          next_char in g.reserved_characters or
                          s.startswith(tuple(p[0] for p in g.comments), i + 1) or
                          lexeme.endswith(tuple(p[1] for p in g.comments)) or
-                         lexeme in g.reserved_characters):
-                        t = yield(Token(lexeme, grammar=g, decoder=d))
+                         lexeme in g.reserved_characters or
+                         tok.is_quoted_string()):
+                        t = yield(tok)
                         while t is not None:
                             yield None
                             t = yield(t)
                         lexeme = ''
                     else:
                         continue
-        except ValueError as err:
-            raise LexerError(err, s, i - len(lexeme))
+
+            except ValueError as err:
+                raise LexerError(err, s, i - len(lexeme))

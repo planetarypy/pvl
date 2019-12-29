@@ -18,7 +18,7 @@
 import datetime
 import unittest
 
-from pvl.parser import PVLParser
+from pvl.parser import PVLParser, ParseError
 from pvl.lexer import lexer as Lexer
 from pvl.lexer import LexerError
 from pvl._collections import Units, PVLModule, PVLGroup, PVLObject
@@ -104,12 +104,15 @@ class TestParse(unittest.TestCase):
             with self.subTest(string=s):
                 tokens = Lexer(s)
                 self.assertIsNone(self.p._parse_around_equals(tokens))
-        bad_strings = ('f', ' f ', '')
+        bad_strings = ('f', ' f ')
         for s in bad_strings:
             with self.subTest(string=s):
                 tokens = Lexer(s)
                 self.assertRaises(ValueError,
                                   self.p._parse_around_equals, tokens)
+        tokens = Lexer('')
+        self.assertRaises(ParseError, self.p._parse_around_equals, tokens)
+
         tokens = Lexer(' = f')
         self.p._parse_around_equals(tokens)
         f = next(tokens)
@@ -180,6 +183,9 @@ class TestParse(unittest.TestCase):
                 self.assertEqual((p[1], p[2]),
                                  self.p.parse_assignment_statement(tokens))
 
+        tokens = Lexer('empty = 2##')
+        self.assertRaises(LexerError, self.p.parse_assignment_statement, tokens)
+
     def test_parse_aggregation_block(self):
         groups = (('GROUP = name bob = uncle END_GROUP',
                    ('name', PVLGroup(bob='uncle'))),
@@ -223,23 +229,28 @@ class TestParse(unittest.TestCase):
                   ('GROUP = g f=g END_GROUP END',
                    PVLModule(g=PVLGroup(f='g'))),
                   ('GROUP = g f=g END_GROUP a = b OBJECT = o END_OBJECT END',
-                   PVLModule(g=PVLGroup(f='g'), a='b', o=PVLObject())),
-                  ('blob', PVLModule()))
+                   PVLModule(g=PVLGroup(f='g'), a='b', o=PVLObject())))
         for g in groups:
             with self.subTest(groups=g):
                 tokens = Lexer(g[0])
                 self.assertEqual(g[1],
                                  self.p.parse_module(tokens))
 
+        tokens = Lexer('blob')
+        self.assertRaises(ParseError, self.p.parse_module, tokens)
+
         tokens = Lexer('blob =')
-        self.assertRaises(StopIteration, self.p.parse_module, tokens)
+        self.assertRaises(ParseError, self.p.parse_module, tokens)
 
         tokens = Lexer('GROUP GROUP')
         self.assertRaises(LexerError, self.p.parse_module, tokens)
 
-    def test_foo(self):
         tokens = Lexer('BEGIN_OBJECT = foo END_OBJECT = bar')
         self.assertRaises(ValueError, self.p.parse_module, tokens)
+
+        tokens = Lexer(""" mixed = 'mixed"\\'quotes'
+                           number = '123' """)
+        self.assertRaises(LexerError, self.p.parse_module, tokens)
 
     def test_parse(self):
         groups = (('a = b c = d END', PVLModule(a='b', c='d')),
@@ -248,8 +259,9 @@ class TestParse(unittest.TestCase):
                   ('GROUP = g f=g END_GROUP END',
                    PVLModule(g=PVLGroup(f='g'))),
                   ('GROUP = g f=g END_GROUP a = b OBJECT = o END_OBJECT END',
-                   PVLModule(g=PVLGroup(f='g'), a='b', o=PVLObject())),
-                  ('blob', PVLModule()))
+                   PVLModule(g=PVLGroup(f='g'), a='b', o=PVLObject())))
         for g in groups:
             with self.subTest(groups=g):
                 self.assertEqual(g[1], self.p.parse(g[0]))
+
+        self.assertRaises(ParseError, self.p.parse, 'blob')

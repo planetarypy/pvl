@@ -65,6 +65,12 @@ _tokens_docstring = """*tokens* is expected to be a *generator iterator*
                     """
 
 
+class ParseError(Exception):
+    '''A simple parser exception.
+    '''
+    pass
+
+
 class PVLParser(object):
 
     def __init__(self, grammar=None, decoder=None, lexer=None,
@@ -136,22 +142,31 @@ class PVLParser(object):
         """.format(_tokens_docstring)
         m = self.modcls()
 
-        for p in cycle((self.parse_aggregation_block,
-                        self.parse_assignment_statement,
-                        self.parse_end_statement)):
-            try:
-                self.parse_WSC_until(None, tokens)
-                parsed = p(tokens)
-                if parsed is None:  # because parse_end_statement returned
-                    break
-                else:
-                    m.append(*parsed)
-            except LexerError:
-                raise
-            except ValueError:
-                pass
+        parsing = True
+        while parsing:
+            parsing = False
+            for p in (self.parse_aggregation_block,
+                      self.parse_assignment_statement,
+                      self.parse_end_statement):
+                try:
+                    self.parse_WSC_until(None, tokens)
+                    parsed = p(tokens)
+                    # print(parsed)
+                    if parsed is None:  # because parse_end_statement returned
+                        return m
+                    else:
+                        m.append(*parsed)
+                        parsing = True
+                except LexerError:
+                    raise
+                except ValueError:
+                    pass
 
-        return m
+        t = next(tokens)
+        tokens.throw(ValueError,
+                     'Expecting an Aggregation Block, an Assignment '
+                     'Statement, or an End Statement, but found '
+                     f'"{t}" ')
 
     def parse_aggregation_block(self, tokens: abc.Generator):
         """Parses the tokens for an Aggregation Block, and returns
@@ -207,7 +222,7 @@ class PVLParser(object):
                 tokens.send(t)
                 raise ValueError(f'Expecting "=", got: {t}')
             except StopIteration:
-                raise ValueError(f'Expecting "=", but ran out of tokens.')
+                raise ParseError(f'Expecting "=", but ran out of tokens.')
 
         self.parse_WSC_until(None, tokens)
         return
@@ -281,7 +296,7 @@ class PVLParser(object):
 
         try:
             self._parse_around_equals(tokens)
-        except ValueError as err:  # No equals statement, which is fine.
+        except (ParseError, ValueError):  # No equals statement, which is fine.
             self.parse_statement_delimiter(tokens)
             return None
 
@@ -314,15 +329,16 @@ class PVLParser(object):
                                  f'"{self.grammar.end_statements}" but found '
                                  f'"{end}"')
 
-            t = next(tokens)
-            if t.is_end_statement():
+            try:
+                t = next(tokens)
+                if t.is_WSC():
+                    # maybe process comment
+                    return
+                else:
+                    tokens.send(t)
+                    return
+            except LexerError:
                 pass
-            elif t.is_WSC():
-                # maybe process comment
-                return
-            else:
-                tokens.send(t)
-                return
         except StopIteration:
             pass
 
@@ -350,7 +366,7 @@ class PVLParser(object):
                 raise ValueError('Expecting a Parameter Name, but '
                                  f'found: "{t}"')
         except StopIteration:
-            raise ValueError('Ran out of tokens before starting to parse '
+            raise ParseError('Ran out of tokens before starting to parse '
                              'an Assignment-Statement.')
 
         Value = None
@@ -358,10 +374,10 @@ class PVLParser(object):
 
         try:
             Value = self.parse_value(tokens)
-        except ValueError:
-            tokens.throw(ValueError,
-                         f'Expecting a Block-Name after "{parameter_name} =" '
-                         f'but found: "{t}"')
+        except StopIteration:
+            raise ParseError('Ran out of tokens to parse after the equals '
+                             'sign in an Assignment-Statement: '
+                             f'"{parameter_name} =".')
 
         self.parse_statement_delimiter(tokens)
 
