@@ -44,7 +44,8 @@ from warnings import warn
 from ._collections import PVLModule, PVLGroup, PVLObject, Units
 from .token import token as Token
 from .grammar import grammar as Grammar
-from .decoder import PVLDecoder as Decoder
+from .grammar import Omnigrammar
+from .decoder import PVLDecoder, OmniDecoder
 from .lexer import lexer as Lexer
 from .lexer import LexerError
 
@@ -83,15 +84,15 @@ class PVLParser(object):
             self.lexer = lexer
 
         if grammar is None:
-            self.grammar = Grammar()
+            self.grammar = Omnigrammar()
         elif isinstance(grammar, Grammar):
             self.grammar = grammar
         else:
             raise TypeError('The grammar must be an instance of pvl.grammar.')
 
         if decoder is None:
-            self.decoder = Decoder(grammar=self.grammar, strict=strict)
-        elif isinstance(decoder, Decoder):
+            self.decoder = OmniDecoder(grammar=self.grammar, strict=strict)
+        elif isinstance(decoder, PVLDecoder):
             self.decoder = decoder
         else:
             raise TypeError('The decode must be an instance of pvl.PVLDecoder.')
@@ -584,3 +585,19 @@ class PVLParser(object):
                              f'unit delimiter, "{d}" instead.')
 
         return str(units_value)
+
+
+class OmniParser(PVLParser):
+
+    def parse(self, s: str):
+        '''Converts the string to a PVLModule.
+
+           If *any* line ends with a dash (-) followed by a carriage
+           return, form-feed, or newline, plus one or more whitespace
+           characters on the following line, then those characters, and
+           all whitespace characters that begin the next line will
+           be removed.
+        '''
+        nodash = re.sub(r'-[\n\r\f]\s+', '', s)
+
+        return super().parse(nodash)

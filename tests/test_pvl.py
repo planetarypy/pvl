@@ -57,17 +57,14 @@ def test_spacing():
     assert label['like'] == 'aboss'
 
 
-# This is a tricky test, the dash (-) continuation character is
-# not allowed in plain PVL, and only allowed in ODL, when inside
-# a quoted string.  However, the ISIS PVL allows it _anywhere_!
-# def test_linewrap():
-#     label = pvl.loads("""
-#         foo = bar-
-#               baz
-#         End
-#     """)
-#
-#     assert label['foo'] == 'barbaz'
+def test_linewrap():
+    label = pvl.loads("""
+        foo = bar-
+              baz
+        End
+    """)
+
+    assert label['foo'] == 'barbaz'
 
 
 def test_special():
@@ -372,13 +369,12 @@ def test_quotes():
         date = '1918-05-11'
         multiline = 'this is a
                      multi-line string'
+        continuation = "The planet Jupi-
+                        ter is very big"
         """)
 #         formating = "\\n\\t\\f\\v\\\\\\n\\t\\f\\v\\\\"
 #         End
 #         """)
-
-#         continuation = "The planet Jupi-
-#                         ter is very big"
 
     assert isinstance(label['foo'], str)
     assert label['foo'] == 'bar'
@@ -407,16 +403,13 @@ def test_quotes():
     assert isinstance(label['date'], str)
     assert label['date'] == '1918-05-11'
 
+    # This test is really for ODL-only, PVL will retain the newline and space.
     assert isinstance(label['multiline'], str)
-    # This test is incorrect.  since whitespace is quoted, it should
-    # not be collapsed.
-    # assert label['multiline'] == 'this is a multi-line string'
-    assert label['multiline'] == """this is a
-                     multi-line string"""
+    assert label['multiline'] == 'this is a multi-line string'
 
-    # Commented out for now
-    # assert isinstance(label['continuation'], str)
-    # assert label['continuation'] == 'The planet Jupiter is very big'
+    # Also for ODL-only, but tests the OmniDecoder
+    assert isinstance(label['continuation'], str)
+    assert label['continuation'] == 'The planet Jupiter is very big'
 
     # Come back to this one
     # assert isinstance(label['formating'], str)
@@ -450,11 +443,10 @@ def test_comments():
 
     # Strict PVL doesn't allow #-comments
     with pytest.raises(pvl.lexer.LexerError):
-        pvl.loads(some_pvl)
+        pvl.loads(some_pvl, grammar=pvl.grammar.grammar())
 
-    g = pvl.grammar.grammar()
-    g.comments = (('/*', '*/'), ('#', '\n'))
-    label = pvl.loads(some_pvl, grammar=g)
+    # Fortunately, we use the Omnigrammar as the default.
+    label = pvl.loads(some_pvl)
 
     assert len(label) == 3
 
@@ -491,10 +483,11 @@ def test_dates():
         End
     """)
 
-    # Strict PVL doesn't allow numeric TZ offsets, like "+07"
+    # PVL doesn't allow numeric TZ offsets, like "+07"
     with pytest.raises(pvl.lexer.LexerError):
-        pvl.loads(some_pvl, strict=True)
+        pvl.loads(some_pvl, decoder=pvl.decoder.PVLDecoder())
 
+    # But ODL, and the OmniDecoder do:
     label = pvl.loads(some_pvl)
 
     try:
@@ -771,13 +764,11 @@ def test_pds3_sample_image():
     assert image_group['CHECKSUM'] == 25549531
 
 
-# in based_integer1.lbl, there is a 10#75# that doesn't meet the spec,
-# may be other issues.
-# def test_load_all_sample_labels():
-#     for filename in PDS_LABELS:
-#         print(filename)
-#         label = pvl.load(filename)
-#         assert isinstance(label, Label)
+def test_load_all_sample_labels():
+    for filename in PDS_LABELS:
+        # print(filename)
+        label = pvl.load(filename)
+        assert isinstance(label, Label)
 
 
 def test_unicode():
@@ -823,8 +814,8 @@ def test_parse_error():
 
 
 # EV = decoder.EmptyValueAtLine
-# 
-# 
+#
+#
 # @pytest.mark.parametrize(
 #     'label, expected, expected_errors',
 #     [
@@ -898,7 +889,7 @@ def test_parse_error():
 #                 ('empty', EV(2)), ('multiline', ['a', 'b'])
 #             ],
 #             [2]
-# 
+#
 #         ),
 #         (
 #             'broken13.lbl',
@@ -929,16 +920,16 @@ def test_parse_error():
 #     with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
 #         module = pvl.load(stream, strict=False)
 #     expected = pvl.PVLModule(expected)
-# 
+#
 #     assert module == expected
 #     assert module.errors == expected_errors
 #     assert not module.valid
-# 
+#
 #     with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
 #         with pytest.raises(pvl.decoder.ParseError):
 #             pvl.load(stream, strict=True)
-# 
-# 
+#
+#
 # def test_EmptyValueAtLine():
 #     test_ev = decoder.EmptyValueAtLine(1)
 #     assert test_ev == ''
@@ -951,8 +942,8 @@ def test_parse_error():
 #         'EmptyValueAtLine(1 does not have a value. Treat as an empty string)'
 #     )
 #     assert repr(test_ev) == trep
-# 
-# 
+#
+#
 # def test_load_all_bad_sample_labels():
 #     for filename in BAD_PDS_LABELS:
 #         label = pvl.load(filename, strict=False)

@@ -49,7 +49,9 @@ class grammar():
        a pair of character sequences that enclose a comment.
     '''
 
-    whitespace = (' ', '\n', '\r', '\t', '\v', '\f')
+    spacing_characters = (' ', '\t')
+    format_effectors = ('\n', '\r', '\v', '\f')
+    whitespace = spacing_characters + format_effectors
     reserved_characters = ('&', '<', '>', "'", '{', '}', ',',
                            '[', ']', '=', '!', '#', '(', ')',
                            '%', '+', '"', ';', '~', '|')
@@ -149,12 +151,16 @@ class ODLgrammar(grammar):
     '''This defines a PDS3 ODL grammar.
     '''
 
-    def __init__(self):
-        super().__init__()
+    # ODL does not allow times with a seconds value of 60.
+    leap_second_Ymd_re = None
+    leap_second_Yj_re = None
 
-        # ODL does not allow times with a seconds value of 60.
-        self.leap_second_Ymd_re = None
-        self.leap_second_Yj_re = None
+    # ODL allows the radix to be from 2 to 16, but the optional sign
+    # must be after the first octothorpe (#).
+    # radix#[sign]non_decimal_integer#
+    _s = r'(?P<sign>[+-]?)'
+    nondecimal_pre_re = re.compile(fr'(?P<radix>[2-9]|1[0-6])#{_s}')
+    nondecimal_re = re.compile(fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')
 
 
 class ISISgrammar(grammar):
@@ -176,3 +182,22 @@ class ISISgrammar(grammar):
         no published specification for ISIS3 PVL.
 
     '''
+
+
+class Omnigrammar(grammar):
+    '''The most permissive grammar.
+    '''
+
+    # Interestingly, a single-line comment that starts with the
+    # octothorpe (#) is neither part of PVL nor ODL, but people use
+    # it all the time.
+    comments = (('/*', '*/'), ('#', '\n'))
+
+    # ODL allows the radix to be from 2 to 16, and allows the sign to be
+    # 'inside' the octothorpes, so we need to allow for the wide variety
+    # of radix, and the variational placement of the optional sign:
+    # [sign]radix#[sign]non_decimal_integer#
+    _s = r'(?P<sign>[+-]?)'
+    _ss = r'(?P<second_sign>[+-]?)'
+    nondecimal_pre_re = re.compile(fr'{_s}(?P<radix>[2-9]|1[0-6])#{_ss}')
+    nondecimal_re = re.compile(fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')

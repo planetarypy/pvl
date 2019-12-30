@@ -16,6 +16,7 @@ from time import strptime
 from warnings import warn
 
 from .grammar import grammar as Grammar
+from .grammar import ODLgrammar
 
 
 def for_try_except(exception, function, *iterable):
@@ -180,7 +181,7 @@ class PVLDecoder(object):
         return str(value)
 
     def decode_quoted_string(self, value: str) -> str:
-        '''Removes the allowed PVL quote characters from the either
+        '''Removes the allowed PVL quote characters from either
            end of the input str and returns the resulting str.
         '''
         for q in self.grammar.quotes:
@@ -257,49 +258,117 @@ class PVLDecoder(object):
         # if we can regex a 60-second time, return str
         for r in (self.grammar.leap_second_Ymd_re,
                   self.grammar.leap_second_Yj_re):
-            if r.fullmatch(value) is not None:
+            if r is not None and r.fullmatch(value) is not None:
                 return str(value)
 
-        if self.strict:
-            raise ValueError
-        else:
-            return self.decode_dateutil(value)
+        raise ValueError
 
-    @staticmethod
-    def decode_dateutil(value: str):
+
+class ODLDecoder(PVLDecoder):
+    '''A decoder for PDS ODL.
+    '''
+
+    def __init__(self, grammar=None, strict=False):
+        self.strict = strict
+        self.errors = []
+
+        if grammar is None:
+            super().__init__(grammar=ODLgrammar(), strict=strict)
+        else:
+            super().__init__(grammar=grammar, strict=strict)
+
+    def decode_datetime(self, value: str):
         '''Takes a string and attempts to convert it to the appropriate
            Python datetime time, date, or datetime by using the 3rd party
-           dateutil library (if present) to parse ISO 8601 datetime strings,
-           which have more variety than those allowed by the PVL
-           specification.
+           dateutil library (if present) to parse ISO 8601 datetime strings.
         '''
+
         try:
-            from dateutil.parser import isoparser
-            isop = isoparser()
-
-            if(len(value) > 3
-               and value[-2] == '+'
-               and value[-1].isdigit()):
-                # This technically means that we accept slight more formats
-                # than ISO 8601 strings, since under that specification, two
-                # digits after the '+' are required for an hour offset, but if
-                # we find only one digit, we'll just assume it means an hour
-                # and insert a zero so that it can be parsed.
-                tokens = value.rpartition('+')
-                value = tokens[0] + '+0' + tokens[-1]
-
+            return super().decode_datetime(value)
+        except ValueError:
             try:
-                return isop.parse_isodate(value)
-            except ValueError:
+                from dateutil.parser import isoparser
+                isop = isoparser()
+
+                if(len(value) > 3
+                   and value[-2] == '+'
+                   and value[-1].isdigit()):
+                    # This technically means that we accept slightly more
+                    # formats than ISO 8601 strings, since under that
+                    # specification, two digits after the '+' are required
+                    # for an hour offset, but ODL doesn't have this
+                    # requirement.  If we find only one digit, we'll
+                    # just assume it means an hour and insert a zero so
+                    # that it can be parsed.
+                    tokens = value.rpartition('+')
+                    value = tokens[0] + '+0' + tokens[-1]
+
                 try:
-                    return isop.parse_isotime(value)
+                    return isop.parse_isodate(value)
                 except ValueError:
-                    return isop.isoparse(value)
+                    try:
+                        return isop.parse_isotime(value)
+                    except ValueError:
+                        return isop.isoparse(value)
 
-        except ImportError:
-            warn('The dateutil library is not present, so date and time '
-                 'formats beyond the PVL set will be left as strings '
-                 'instead of being parsed and returned as datetime objects.',
-                 ImportWarning)
+            except ImportError:
+                warn('The dateutil library is not present, so date and time '
+                     'formats beyond the PVL set will be left as strings '
+                     'instead of being parsed and returned as datetime '
+                     'objects.', ImportWarning)
 
+            raise ValueError
+
+    def decode_non_decimal(self, value: str) -> int:
+        # Non-Decimal with a variety or radix values.
+        match = self.grammar.nondecimal_re.fullmatch(value)
+        if match is not None:
+            d = match.groupdict('')
+            return int(d['sign'] + d['non_decimal'], base=int(d['radix']))
+        raise ValueError
+
+    def decode_quoted_string(self, value: str) -> str:
+        '''Removes the allowed PVL quote characters from either
+           end of the input str and returns the resulting str.
+           The ODL specification allows for a dash (-) line continuation
+           character that results in the dash, the line end, and any
+           leading whitespace on the next line to be removed.  It also
+           allows for a sequence of format effectors surrounded by
+           spacing characters to be collapsed to a single space.
+        '''
+        s = super().decode_quoted_string(value)
+
+        # Deal with dash (-) continuation:
+        sp = ''.join(self.grammar.spacing_characters)
+        fe = ''.join(self.grammar.format_effectors)
+        ws = ''.join(self.grammar.whitespace)
+        nodash = re.sub(fr'-[{fe}][{ws}]*', '', s)
+
+        # Collapse split lines
+        return re.sub(fr'[{sp}]*[{fe}]+[{sp}]*', ' ', nodash)
+
+
+class OmniDecoder(ODLDecoder):
+    '''The most permissive decoder.
+    '''
+    # Based on the ODLDecoder with some extras:
+
+    def decode_non_decimal(self, value: str) -> int:
+        # Non-Decimal with a variety of radix values and sign
+        # positions.
+        match = self.grammar.nondecimal_re.fullmatch(value)
+        if match is not None:
+            d = match.groupdict('')
+            if 'second_sign' in d:
+                if d['sign'] != '' and d['second_sign'] != '':
+                    raise ValueError(f'The non-decimal value, "{value}", '
+                                     'has two signs.')
+                elif d['sign'] != '':
+                    sign = d['sign']
+                else:
+                    sign = d['second_sign']
+            else:
+                sign = d['sign']
+
+            return int(sign + d['non_decimal'], base=int(d['radix']))
         raise ValueError

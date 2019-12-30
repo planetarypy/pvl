@@ -92,34 +92,38 @@ class TestToken(unittest.TestCase):
         for s in ('2#0101#', '+2#0101#', '-2#0101#'):
             with self.subTest(string=s):
                 t = Token(s)
-                self.assertTrue(t.is_binary())
+                # self.assertTrue(t.is_binary())
+                self.assertTrue(t.is_non_decimal())
 
-        for s in ('+211109', 'echo', '+8#0156#'):
+        # for s in ('+211109', 'echo', '+8#0156#'):
+        for s in ('+211109', 'echo'):
             with self.subTest(string=s):
                 t = Token(s)
-                self.assertFalse(t.is_binary())
+                self.assertFalse(t.is_non_decimal())
 
     def test_is_octal(self):
         for s in ('8#0107#', '+8#0156#', '-8#0134#'):
             with self.subTest(string=s):
                 t = Token(s)
-                self.assertTrue(t.is_octal())
+                # self.assertTrue(t.is_octal())
+                self.assertTrue(t.is_non_decimal())
 
-        for s in ('+211109', 'echo', '2#0101#'):
-            with self.subTest(string=s):
-                t = Token(s)
-                self.assertFalse(t.is_octal())
+        # for s in ('+211109', 'echo', '2#0101#'):
+        #     with self.subTest(string=s):
+        #         t = Token(s)
+        #         self.assertFalse(t.is_octal())
 
     def test_is_hex(self):
         for s in ('16#100A#', '+16#23Bc#', '-16#98ef#'):
             with self.subTest(string=s):
                 t = Token(s)
-                self.assertTrue(t.is_hex())
+                # self.assertTrue(t.is_hex())
+                self.assertTrue(t.is_non_decimal())
 
-        for s in ('+211109', 'echo', '2#0101#', '8#0107#'):
-            with self.subTest(string=s):
-                t = Token(s)
-                self.assertFalse(t.is_hex())
+        # for s in ('+211109', 'echo', '2#0101#', '8#0107#'):
+        #     with self.subTest(string=s):
+        #         t = Token(s)
+        #         self.assertFalse(t.is_hex())
 
     def test_isnumeric(self):
         for s in ('125', '+211109', '-79',  # Integers

@@ -57,7 +57,7 @@ from ._collections import (
     Units,
 )
 
-from .parser import PVLParser as Parser
+from .parser import PVLParser, OmniParser
 
 __author__ = 'The PlanetaryPy Developers'
 __email__ = 'trevor@heytrevor.com'
@@ -170,12 +170,12 @@ def loads(s: str, parser=None, grammar=None, decoder=None, modcls=PVLModule,
         s = s.decode()
 
     if parser is None:
-        parser = Parser(grammar=grammar, decoder=decoder,
-                        module_class=modcls,
-                        group_class=grpcls,
-                        object_class=objcls,
-                        strict=strict)
-    elif not isinstance(parser, Parser):
+        parser = OmniParser(grammar=grammar, decoder=decoder,
+                            module_class=modcls,
+                            group_class=grpcls,
+                            object_class=objcls,
+                            strict=strict)
+    elif not isinstance(parser, PVLParser):
         raise TypeError('The parser must be an instance of pvl.PVLParser.')
 
     return parser.parse(s)

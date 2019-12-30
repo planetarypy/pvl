@@ -19,7 +19,7 @@ import datetime
 import itertools
 import unittest
 
-from pvl.decoder import PVLDecoder, for_try_except
+from pvl.decoder import PVLDecoder, ODLDecoder, for_try_except
 
 
 class TestForTryExcept(unittest.TestCase):
@@ -88,41 +88,6 @@ class TestDecoder(unittest.TestCase):
             with self.subTest(pair=p):
                     self.assertEqual(p[1], self.d.decode_non_decimal(p[0]))
 
-    def test_decode_dateutil(self):
-        try:
-            from dateutil import tz
-            tz_plus_7 = tz.tzoffset('+7', datetime.timedelta(hours=7))
-
-            for p in (('1990-07-04', datetime.date(1990, 7, 4)),
-                      ('1990-158', datetime.date(1990, 6, 7)),
-                      ('2001-001', datetime.date(2001, 1, 1)),
-                      ('2001-01-01', datetime.date(2001, 1, 1)),
-                      ('12:00', datetime.time(12)),
-                      ('12:00:45', datetime.time(12, 0, 45)),
-                      ('12:00:45.4571', datetime.time(12, 0, 45, 457100)),
-                      ('15:24:12Z', datetime.time(15, 24, 12, tzinfo=tz.UTC)),
-                      ('01:12:22+07',
-                       datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
-                      ('01:12:22+7',
-                       datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
-                      ('01:10:39.4575+07',
-                       datetime.time(1, 10, 39, 457500, tzinfo=tz_plus_7)),
-                      ('1990-07-04T12:00', datetime.datetime(1990, 7, 4, 12)),
-                      ('1990-158T15:24:12Z',
-                       datetime.datetime(1990, 6, 7, 15, 24, 12,
-                                         tzinfo=tz.UTC)),
-                      ('2001-001T01:10:39+7',
-                       datetime.datetime(2001, 1, 1, 1, 10, 39,
-                                         tzinfo=tz_plus_7)),
-                      ('2001-001T01:10:39.457591+7',
-                       datetime.datetime(2001, 1, 1, 1, 10, 39, 457591,
-                                         tzinfo=tz_plus_7))):
-                with self.subTest(pair=p):
-                    self.assertEqual(p[1], self.d.decode_dateutil(p[0]))
-
-        except ImportError:  # dateutil isn't available.
-            pass
-
     def test_decode_datetime(self):
         for p in(('2001-01-01', datetime.date(2001, 1, 1)),
                  ('2001-027', datetime.date(2001, 1, 27)),
@@ -141,19 +106,7 @@ class TestDecoder(unittest.TestCase):
         self.assertRaises(ValueError, self.d.decode_datetime, 'frank')
 
         fancy = '2001-001T01:10:39+7'
-        self.d.strict = True
         self.assertRaises(ValueError, self.d.decode_datetime, fancy)
-
-        try:
-            from dateutil import tz
-            tz_plus_7 = tz.tzoffset('+7', datetime.timedelta(hours=7))
-
-            self.d.strict = False
-            self.assertEqual(datetime.datetime(2001, 1, 1, 1, 10, 39,
-                                               tzinfo=tz_plus_7),
-                             self.d.decode_datetime(fancy))
-        except ImportError:  # dateutil isn't available.
-            pass
 
     def test_decode_simple_value(self):
         for p in(('2001-01-01', datetime.date(2001, 1, 1)),
@@ -167,4 +120,42 @@ class TestDecoder(unittest.TestCase):
             with self.subTest(pair=p):
                 self.assertEqual(p[1], self.d.decode_simple_value(p[0]))
 
-    # def test_decode
+
+class TestODLDecoder(unittest.TestCase):
+
+    def setUp(self):
+        self.d = ODLDecoder()
+
+    def test_decode_datetime(self):
+        try:
+            from dateutil import tz
+            tz_plus_7 = tz.tzoffset('+7', datetime.timedelta(hours=7))
+
+            for p in (('1990-07-04', datetime.date(1990, 7, 4)),
+                      ('1990-158', datetime.date(1990, 6, 7)),
+                      ('2001-001', datetime.date(2001, 1, 1)),
+                      ('2001-01-01', datetime.date(2001, 1, 1)),
+                      ('12:00', datetime.time(12)),
+                      ('12:00:45', datetime.time(12, 0, 45)),
+                      ('12:00:45.4571', datetime.time(12, 0, 45, 457100)),
+                      ('15:24:12Z', datetime.time(15, 24, 12)),
+                      ('01:12:22+07',
+                       datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
+                      ('01:12:22+7',
+                       datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
+                      ('01:10:39.4575+07',
+                       datetime.time(1, 10, 39, 457500, tzinfo=tz_plus_7)),
+                      ('1990-07-04T12:00', datetime.datetime(1990, 7, 4, 12)),
+                      ('1990-158T15:24:12Z',
+                       datetime.datetime(1990, 6, 7, 15, 24, 12)),
+                      ('2001-001T01:10:39+7',
+                       datetime.datetime(2001, 1, 1, 1, 10, 39,
+                                         tzinfo=tz_plus_7)),
+                      ('2001-001T01:10:39.457591+7',
+                       datetime.datetime(2001, 1, 1, 1, 10, 39, 457591,
+                                         tzinfo=tz_plus_7))):
+                with self.subTest(pair=p):
+                    self.assertEqual(p[1], self.d.decode_datetime(p[0]))
+
+        except ImportError:  # dateutil isn't available.
+            pass

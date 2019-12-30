@@ -207,6 +207,10 @@ def lex_char(char: str, prev_char: str, next_char: str,
         else:
             raise ValueError('{} is not a '.format(preserve['state']) +
                              'recognized preservation state.')
+    elif (char == '#' and
+          g.nondecimal_pre_re.fullmatch(lexeme + char) is not None):
+            lexeme += char
+            preserve = dict(state=Preserve.NONDECIMAL, end='#')
     elif char in c_info['chars']:
         (lexeme,
          preserve) = lex_comment(char, prev_char, next_char,
@@ -218,17 +222,37 @@ def lex_char(char: str, prev_char: str, next_char: str,
     elif char in g.quotes:
         lexeme += char
         preserve = dict(state=Preserve.QUOTE, end=char)
-    elif char == '#':
-        if(prev_char in ('2', '8', '6') and
-           g.nondecimal_pre_re.fullmatch(lexeme + char) is not None):
-            lexeme += char
-            preserve = dict(state=Preserve.NONDECIMAL, end='#')
     else:
         if char not in g.whitespace:
             lexeme += char  # adding a char each time
 
     # print(f'lex_char end: char "{char}", lexeme "{lexeme}", "{preserve}"')
     return (lexeme, preserve)
+
+
+def lex_continue(char: str, next_char: str, lexeme: str,
+                 token: Token, preserve: dict, g: Grammar):
+    if preserve['state'] != Preserve.FALSE:
+        return True
+
+    # Since Numeric objects can begin with a reserved
+    # character, the reserved characters may split up
+    # the lexeme.
+    if(char in g.numeric_start_chars and
+       Token(char + next_char, grammar=g).is_numeric()):
+        return True
+
+    # Since Non Decimal Numerics can have reserved characters in them.
+    if g.nondecimal_pre_re.fullmatch(lexeme + next_char) is not None:
+        return True
+
+    # Some datetimes can have trailing numeric tz offsets,
+    # if the decoder allows it, this means there could be
+    # a '+' that splits the lexeme that we don't want.
+    if (next_char in g.numeric_start_chars and token.is_datetime()):
+        return True
+
+    return False
 
 
 def lexer(s: str, g=Grammar(), d=Decoder()):
@@ -285,25 +309,7 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
                     # to run around again and don't want to get
                     # caught by the clause in the elif, should
                     # test true here.
-                    if(preserve['state'] != Preserve.FALSE
-                       or (char in g.numeric_start_chars and
-                           Token(char + next_char, grammar=g).is_numeric())
-                       # Since Numeric objects can begin with a reserved
-                       # character, the reserved characters may split up
-                       # the lexeme.
-                       #
-                       or g.nondecimal_pre_re.fullmatch(lexeme +
-                                                        next_char) is not None
-                       # Since Non Decimal Numerics can have reserved
-                       # characters in them.
-                       #
-                       or (next_char in g.numeric_start_chars and
-                           tok.is_datetime())
-                       # Some datetimes can have trailing numeric tz offsets,
-                       # if the decoder allows it, this means there could be
-                       # a '+' that splits the lexeme that we don't want.
-                       #
-                       ):
+                    if lex_continue(char, next_char, lexeme, tok, preserve, g):
                         continue
 
                     elif(next_char in g.whitespace or

@@ -237,23 +237,26 @@ class token(str):
         except ValueError:
             return False
 
-    def is_binary(self) -> bool:
-        if self.grammar.binary_re.fullmatch(self) is None:
-            return False
-        else:
-            return True
+    # Took these out, since some grammars allow a much wider
+    # range of radix values.
+    #
+    # def is_binary(self) -> bool:
+    #     if self.grammar.binary_re.fullmatch(self) is None:
+    #         return False
+    #     else:
+    #         return True
 
-    def is_octal(self) -> bool:
-        if self.grammar.octal_re.fullmatch(self) is None:
-            return False
-        else:
-            return True
+    # def is_octal(self) -> bool:
+    #     if self.grammar.octal_re.fullmatch(self) is None:
+    #         return False
+    #     else:
+    #         return True
 
-    def is_hex(self) -> bool:
-        if self.grammar.hex_re.fullmatch(self) is None:
-            return False
-        else:
-            return True
+    # def is_hex(self) -> bool:
+    #     if self.grammar.hex_re.fullmatch(self) is None:
+    #         return False
+    #     else:
+    #         return True
 
     def is_datetime(self) -> bool:
         # Separate is_date() or is_time() functions aren't needed,
