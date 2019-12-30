@@ -145,14 +145,18 @@ class PVLParser(object):
 
         parsing = True
         while parsing:
+            # print(f'top of while parsing: {m}')
             parsing = False
             for p in (self.parse_aggregation_block,
                       self.parse_assignment_statement,
                       self.parse_end_statement):
                 try:
                     self.parse_WSC_until(None, tokens)
+                    # t = next(tokens)
+                    # print(f'next token: {t}')
+                    # tokens.send(t)
                     parsed = p(tokens)
-                    # print(parsed)
+                    # print(f'parsed: {parsed}')
                     if parsed is None:  # because parse_end_statement returned
                         return m
                     else:
@@ -160,9 +164,12 @@ class PVLParser(object):
                         parsing = True
                 except LexerError:
                     raise
-                except ValueError:
+                except ValueError as err:
+                    # print(err)
                     pass
 
+        # print('got to bottom')
+        # print(m)
         t = next(tokens)
         tokens.throw(ValueError,
                      'Expecting an Aggregation Block, an Assignment '
@@ -196,7 +203,12 @@ class PVLParser(object):
             except ValueError:
                 try:
                     agg.append(*self.parse_assignment_statement(tokens))
+                except LexerError:
+                    raise
                 except ValueError:
+                    # t = next(tokens)
+                    # print(f'parsing agg block, next token is: {t}')
+                    # tokens.send(t)
                     self.parse_end_aggregation(begin, block_name, tokens)
                     break
 
@@ -374,6 +386,7 @@ class PVLParser(object):
         self._parse_around_equals(tokens)
 
         try:
+            # print(f'parameter name: {parameter_name}')
             Value = self.parse_value(tokens)
         except StopIteration:
             raise ParseError('Ran out of tokens to parse after the equals '

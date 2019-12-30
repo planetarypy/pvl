@@ -67,9 +67,8 @@ class grammar():
 
     comments = (('/*', '*/'),)
 
-    # A note on keywords:  If the Decoder is set to strict, these must
-    # match exactly.  If the Decoder is not set to strict, tokens will
-    # be compared to these keyword strings with the casefold() function.
+    # A note on keywords: they should always be compared with
+    # the str.casefold() function.
     # So 'NULL'.casefold(), 'Null'.casefold(), and 'NuLl".casefold()
     # all compare equals to none_keyword.casefold().
     none_keyword = 'NULL'

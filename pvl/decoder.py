@@ -167,6 +167,16 @@ class PVLDecoder(object):
                 raise ValueError('Expected a Simple Value, but encountered '
                                  f'a spcial character "{sp}" in "{self}"')
 
+        for kw in chain.from_iterable(self.grammar.aggregation_keywords.items()):
+            if kw.casefold() == value.casefold():
+                raise ValueError('Expected a Simple Value, but encountered '
+                                 f'an aggregation keyword: "{value}".')
+
+        for es in self.grammar.end_statements:
+            if es.casefold() == value.casefold():
+                raise ValueError('Expected a Simple Value, but encountered '
+                                 f'an End-Statement: "{value}".')
+
         # This try block is going to look illogical.  But the decode
         # rules for Unquoted Strings spell out the things that they
         # cannot be, so if it *can* be a datetime, then it *can't* be

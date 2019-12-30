@@ -813,123 +813,138 @@ def test_parse_error():
         pvl.load(io.BytesIO(b'foo'))
 
 
-# EV = decoder.EmptyValueAtLine
-#
-#
-# @pytest.mark.parametrize(
-#     'label, expected, expected_errors',
-#     [
-#         (
-#             'broken1.lbl',
-#             [('foo', 'bar'), ('life', EV(2)), ('monty', 'python')],
-#             [2]
-#         ),
-#         (
-#             'broken2.lbl',
-#             [('foo', 'bar'), ('life', EV(2))],
-#             [2]
-#         ),
-#         (
-#             'broken3.lbl',
-#             [('foo', EV(1)), ('life', 42)],
-#             [1]
-#         ),
-#         (
-#             'broken4.lbl',
-#             [('foo', 'bar'), ('life', EV(2)), ('monty', EV(3))],
-#             [2, 3]
-#         ),
-#         (
-#             'broken5.lbl',
-#             [('foo', EV(1)), ('life', EV(2)), ('monty', 'python')],
-#             [1, 2]
-#         ),
-#         (
-#             'broken6.lbl',
-#             [('foo', EV(1)), ('life', EV(1)), ('monty', EV(1))],
-#             [1, 2, 3]
-#         ),
-#         (
-#             'broken7.lbl',
-#             [
-#                 ('foo', 1),
-#                 ('embedded_object', pvl.PVLObject(
-#                     [('foo', 'bar'), ('life', EV(1))]))
-#             ],
-#             [4]
-#         ),
-#         (
-#             'broken8.lbl',
-#             [
-#                 ('foo', 1),
-#                 ('embedded_group', pvl.PVLGroup(
-#                     [('foo', 'bar'), ('life', EV(1))]))
-#             ],
-#             [4]
-#         ),
-#         (
-#             'broken9.lbl',
-#             [('foo', 42), ('bar', EV(1))],
-#             [2]
-#         ),
-#         (
-#             'broken10.lbl',
-#             [('foo', Units(42, 'beards')), ('cool', EV(1))],
-#             [2]
-#         ),
-#         (
-#             'broken11.lbl',
-#             [('foo', EV(1)), ('cool', [Units(1, 'beards')])],
-#             [1]
-#         ),
-#         (
-#             'broken12.lbl',
-#             [
-#                 ('strs', ['a', 'b']),
-#                 ('empty', EV(2)), ('multiline', ['a', 'b'])
-#             ],
-#             [2]
-#
-#         ),
-#         (
-#             'broken13.lbl',
-#             [
-#                 ('same', 'line'),
-#                 ('no', 'problem'),
-#                 ('foo', EV(1)), ('bar', EV(2))
-#             ],
-#             [1, 2]
-#         ),
-#         (
-#             'broken14.lbl',
-#             [('foo', 'bar'), ('weird', EV(3)), ('baz', 'bang')],
-#             [3]
-#         ),
-#         (
-#             'broken15.lbl',
-#             [('foo', 'bar'), ('weird', 'comment'), ('baz', EV(4))],
-#             [4]
-#         ),
-#         (
-#             'broken16.lbl',
-#             [('foo', EV(2)), ('weird', 'comment'), ('baz', 'bang')],
-#             [2]
-#         ),
-#     ])
-# def test_broken_labels(label, expected, expected_errors):
-#     with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
-#         module = pvl.load(stream, strict=False)
-#     expected = pvl.PVLModule(expected)
-#
-#     assert module == expected
-#     assert module.errors == expected_errors
-#     assert not module.valid
-#
-#     with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
-#         with pytest.raises(pvl.decoder.ParseError):
-#             pvl.load(stream, strict=True)
-#
-#
+EV = pvl.decoder.EmptyValueAtLine
+
+
+@pytest.mark.parametrize(
+    'label, expected, expected_errors',
+    [
+        (
+            'broken1.lbl',
+            [('foo', 'bar'), ('life', EV(2)), ('monty', 'python')],
+            [2]
+        ),
+        # # (  # ParseError
+        # #     'broken2.lbl',
+        # #     [('foo', 'bar'), ('life', EV(2))],
+        # #     [2]
+        # # ),
+        # (
+        #     'broken3.lbl',
+        #     [('foo', EV(1)), ('life', 42)],
+        #     [1]
+        # ),
+        # (
+        #     'broken4.lbl',
+        #     [('foo', 'bar'), ('life', EV(2)), ('monty', EV(3))],
+        #     [2, 3]
+        # ),
+        # (
+        #     'broken5.lbl',
+        #     [('foo', EV(1)), ('life', EV(2)), ('monty', 'python')],
+        #     [1, 2]
+        # ),
+        # (
+        #     'broken6.lbl',
+        #     [('foo', EV(1)), ('life', EV(1)), ('monty', EV(1))],
+        #     [1, 2, 3]
+        # ),
+        # (
+        #     'broken7.lbl',
+        #     [
+        #         ('foo', 1),
+        #         ('embedded_object', pvl.PVLObject(
+        #             [('foo', 'bar'), ('life', EV(1))]))
+        #     ],
+        #     [4]
+        # ),
+        # (
+        #     'broken8.lbl',
+        #     [
+        #         ('foo', 1),
+        #         ('embedded_group', pvl.PVLGroup(
+        #             [('foo', 'bar'), ('life', EV(1))]))
+        #     ],
+        #     [4]
+        # ),
+        # (
+        #     'broken9.lbl',
+        #     [('foo', 42), ('bar', EV(1))],
+        #     [2]
+        # ),
+        # (
+        #     'broken10.lbl',
+        #     [('foo', Units(42, 'beards')), ('cool', EV(1))],
+        #     [2]
+        # ),
+        # (
+        #     'broken11.lbl',
+        #     [('foo', EV(1)), ('cool', [Units(1, 'beards')])],
+        #     [1]
+        # ),
+        # (
+        #     'broken12.lbl',
+        #     [
+        #         ('strs', ['a', 'b']),
+        #         ('empty', EV(2)), ('multiline', ['a', 'b'])
+        #     ],
+        #     [2]
+        # ),
+        # (
+        #     'broken13.lbl',
+        #     [
+        #         ('same', 'line'),
+        #         ('no', 'problem'),
+        #         ('foo', EV(1)), ('bar', EV(2))
+        #     ],
+        #     [1, 2]
+        # ),
+        # (
+        #     'broken14.lbl',
+        #     [('foo', 'bar'), ('weird', EV(3)), ('baz', 'bang')],
+        #     [3]
+        # ),
+        # (
+        #     'broken15.lbl',
+        #     [('foo', 'bar'), ('weird', 'comment'), ('baz', EV(4))],
+        #     [4]
+        # ),
+        # (
+        #     'broken16.lbl',
+        #     [('foo', EV(2)), ('weird', 'comment'), ('baz', 'bang')],
+        #     [2]
+        # ),
+    ])
+def test_broken_labels(label, expected, expected_errors):
+    # with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
+    #     module = pvl.load(stream)
+    # expected = pvl.PVLModule(expected)
+
+    # assert module == expected
+    # assert module.errors == expected_errors
+    # assert not module.valid
+
+    with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
+        # with pytest.raises(pvl.decoder.ParseError):
+        with pytest.raises(pvl.lexer.LexerError):
+            pvl.load(stream)
+
+
+@pytest.mark.parametrize(
+    'label, expected, expected_errors',
+    [
+        (
+            'broken2.lbl',
+            [('foo', 'bar'), ('life', EV(2))],
+            [2]
+        ),
+    ])
+def test_broken_labels_parser(label, expected, expected_errors):
+    with open(os.path.join(BROKEN_DIR, label), 'rb') as stream:
+        with pytest.raises(pvl.parser.ParseError):
+            pvl.load(stream)
+
+
 # def test_EmptyValueAtLine():
 #     test_ev = decoder.EmptyValueAtLine(1)
 #     assert test_ev == ''

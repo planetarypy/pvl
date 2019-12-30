@@ -154,14 +154,14 @@ class token(str):
         return False
 
     def is_begin_aggregation(self) -> bool:
-        if self.decoder.strict:
-            for k in self.grammar.aggregation_keywords.keys():
-                if self == k:
-                    return True
-        else:
-            for k in self.grammar.aggregation_keywords.keys():
-                if self.casefold() == k.casefold():
-                    return True
+        # if self.decoder.strict:
+        #     for k in self.grammar.aggregation_keywords.keys():
+        #         if self == k:
+        #             return True
+        # else:
+        for k in self.grammar.aggregation_keywords.keys():
+            if self.casefold() == k.casefold():
+                return True
         return False
 
     def is_unquoted_string(self) -> bool:
@@ -186,26 +186,26 @@ class token(str):
         return False
 
     def is_parameter_name(self) -> bool:
-        if self.decoder.strict:
-            for word in self.grammar.reserved_keywords:
-                if word == self:
-                    return False
-        else:
-            for word in self.grammar.reserved_keywords:
-                if word.casefold() == self.casefold():
-                    return False
+        # if self.decoder.strict:
+        #     for word in self.grammar.reserved_keywords:
+        #         if word == self:
+        #             return False
+        # else:
+        for word in self.grammar.reserved_keywords:
+            if word.casefold() == self.casefold():
+                return False
 
         return self.is_unquoted_string()
 
     def is_end_statement(self) -> bool:
-        if self.decoder.strict:
-            for e in self.grammar.end_statements:
-                if e == self:
-                    return True
-        else:
-            for e in self.grammar.end_statements:
-                if e.casefold() == self.casefold():
-                    return True
+        # if self.decoder.strict:
+        #     for e in self.grammar.end_statements:
+        #         if e == self:
+        #             return True
+        # else:
+        for e in self.grammar.end_statements:
+            if e.casefold() == self.casefold():
+                return True
         return False
 
     def isnumeric(self) -> bool:
