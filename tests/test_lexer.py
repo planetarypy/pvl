@@ -18,6 +18,7 @@
 import unittest
 
 from pvl.grammar import grammar as Grammar
+from pvl.grammar import Omnigrammar
 
 import pvl.lexer as Lexer
 
@@ -186,6 +187,36 @@ class TestLexer(unittest.TestCase):
         tokens = ['# Leading \n', 'then', 'more']
         out = get_tokens(s)
         self.assertEqual(tokens, out)
+
+    def test_omni_comment(self):
+        def get_tokens(s):
+            tokens = list()
+            lex = Lexer.lexer(s, g=Omnigrammar())
+            for t in lex:
+                # print(f'yields: {t}')
+                tokens.append(t)
+            return tokens
+
+        s = """
+        /* comment on line */
+        # here is a line comment
+        /* here is a multi-
+        line comment */
+        foo = bar /* comment at end of line */
+        weird/* in the */=/*middle*/comments
+        baz = bang # end line comment
+        End
+    """
+        out = get_tokens(s)
+        self.assertEqual(['/* comment on line */',
+                          '# here is a line comment\n',
+                          '/* here is a multi-\n        line comment */',
+                          'foo', '=', 'bar',
+                          '/* comment at end of line */',
+                          'weird', '/* in the */', '=', '/*middle*/',
+                          'comments', 'baz', '=', 'bang',
+                          '# end line comment\n',
+                          'End'], out)
 
     def test_quotes(self):
         pairs = (('"This is quoted." Notquoted',

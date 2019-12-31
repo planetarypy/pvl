@@ -160,7 +160,7 @@ class PVLParser(object):
                 try:
                     self.parse_WSC_until(None, tokens)
                     # t = next(tokens)
-                    # print(f'next token: {t}')
+                    # print(f'next token: {t}, {t.pos}')
                     # tokens.send(t)
                     parsed = p(tokens)
                     # print(f'parsed: {parsed}')
@@ -173,14 +173,42 @@ class PVLParser(object):
                     raise
                 except ValueError:
                     pass
+            try:
+                (m, keep_parsing) = self.parse_module_post_hook(m, tokens)
+                if keep_parsing:
+                    parsing = True
+                else:
+                    return m
+            except:
+                pass
 
-        # print('got to bottom')
-        # print(m)
+        # print(f'got to bottom: {m}')
         t = next(tokens)
         tokens.throw(ValueError,
                      'Expecting an Aggregation Block, an Assignment '
                      'Statement, or an End Statement, but found '
                      f'"{t}" ')
+
+    def parse_module_post_hook(self, module, tokens: abc.Generator):
+        '''This function is meant to be overridden by subclasses
+           that may want to perform some extra processing if
+           'normal' parse_module() operations fail to complete.
+           See OmniParser for an example.
+
+           This function shall return a two-tuple, with the first item
+           being the *module* (altered by processing or unaltered), and
+           the second item being a boolean that will signal whether
+           the tokens should continue to be parsed to accumulate more
+           elements into the returned *module*, or whether the
+           *module* is in a good state and should be returned by
+           parse_module().
+
+           If the operations within this function are unsuccessful,
+           it should raise an exception (any exception descended from
+           Exception), which will result in the operation of parse_module()
+           as if it were not overridden.
+        '''
+        raise Exception
 
     def parse_aggregation_block(self, tokens: abc.Generator):
         """Parses the tokens for an Aggregation Block, and returns
@@ -547,16 +575,19 @@ class PVLParser(object):
             value = self.decoder.decode_simple_value(t)
         except ValueError:
             tokens.send(t)
-            try:
-                value = self.parse_set(tokens)
-            except ValueError:
+            for p in (self.parse_set,
+                      self.parse_sequence,
+                      self.parse_value_post_hook):
                 try:
-                    value = self.parse_sequence(tokens)
-                except ValueError as err:
-                    tokens.throw(ValueError,
-                                 'Was expecting a Simple Value, or the '
-                                 'beginning of a Set or Sequence, but '
-                                 f'found: "{t}"')
+                    value = p(tokens)
+                    break
+                except ValueError:
+                    pass
+            else:
+                tokens.throw(ValueError,
+                             'Was expecting a Simple Value, or the '
+                             'beginning of a Set or Sequence, but '
+                             f'found: "{t}"')
 
         # print(f'in parse_value, value is: {value}')
         units = None
@@ -566,6 +597,21 @@ class PVLParser(object):
             return Units(value, units)
         except (ValueError, StopIteration):
             return value
+
+    def parse_value_post_hook(self, tokens):
+        '''This function is meant to be overridden by subclasses
+           that may want to perform some extra processing if
+           'normal' parse_value() operations fail to yield a value.
+           See OmniParser for an example.
+
+           This function shall return an appropriate Python value,
+           similar to what parse_value() would return.
+
+           If the operations within this function are unsuccessful,
+           it should raise a ValueError which will result in the
+           operation of parse_value() as if it were not overridden.
+        '''
+        raise ValueError
 
     def parse_units(self, tokens: abc.Generator) -> str:
         """Parses PVL Units Expression.
@@ -632,89 +678,57 @@ class OmniParser(PVLParser):
 
         return super().parse(nodash)
 
-    def parse_module(self, tokens: abc.Generator):
-        """Parses the tokens for a PVL Module.
-
-           {}
-
-           Also allows for more permissive parsing.  If an
-           Assignment-Statement is blank, it will be handled.
-
-            <PVL-Module-Contents> ::=
-             ( <Assignment-Statement> | <WSC>* | <Aggregation-Block> )*
-             [<End-Statement>]
-
-        """.format(_tokens_docstring)
-        # Be careful to track changes with the parent parse_module()
-        # function!!!
-        m = self.modcls()
-
-        parsing = True
-        while parsing:
-            # print(f'top of while parsing: {m}')
-            parsing = False
-            for p in (self.parse_aggregation_block,
-                      self.parse_assignment_statement,
-                      self.parse_end_statement):
-                try:
-                    self.parse_WSC_until(None, tokens)
-                    parsed = p(tokens)
-                    # print(f'parsed: {parsed}')
-                    if parsed is None:  # because parse_end_statement returned
-                        return m
-                    else:
-                        m.append(*parsed)
-                        parsing = True
-                except LexerError:
-                    raise
-                except ValueError:
-                    pass
-            try:
-                t = next(tokens)
-                if t == '=' and len(m) != 0:
-                    # This means there was an empty assignment at
-                    # the previous equals sign.
-                    # Try and recover:
-                    (last_k, last_v) = m[-1]
-                    # print(last_pair)
-                    last_token = Token(last_v,
-                                       grammar=self.grammar,
-                                       decoder=self.decoder)
-                    if last_token.is_parameter_name():
-                        # Fix the previous entry
-                        m.popitem()
-                        m.append(last_k, self._empty_value(t.pos))
-                        # Now use last_token as the parameter name
-                        # for the next assignment, and we must
-                        # reproduce the last part of parse-assignment:
-                        Value = None
-                        try:
-                            # print(f'parameter name: {last_token}')
-                            self.parse_WSC_until(None, tokens)
-                            Value = self.parse_value(tokens)
-                            self.parse_statement_delimiter(tokens)
-                            m.append(str(last_token), Value)
-                            parsing = True
-                        except StopIteration:
-                            m.append(str(last_token),
-                                     self._empty_value(t.pos + 1))
-                            return m
-                    else:
-                        tokens.send(t)
+    def parse_module_post_hook(self, module, tokens: abc.Generator):
+        '''Allows for more permissive parsing.  If an
+           Assignment-Statement is blank, then the value will
+           have an EmptyValueAtLine.
+        '''
+        # print('in hook')
+        try:
+            t = next(tokens)
+            if t == '=' and len(module) != 0:
+                # This means there was an empty assignment at
+                # the previous equals sign.
+                # Try and recover:
+                (last_k, last_v) = module[-1]
+                last_token = Token(last_v,
+                                   grammar=self.grammar,
+                                   decoder=self.decoder)
+                if last_token.is_parameter_name():
+                    # Fix the previous entry
+                    module.popitem()
+                    module.append(last_k, self._empty_value(t.pos))
+                    # Now use last_token as the parameter name
+                    # for the next assignment, and we must
+                    # reproduce the last part of parse-assignment:
+                    Value = None
+                    try:
+                        # print(f'parameter name: {last_token}')
+                        self.parse_WSC_until(None, tokens)
+                        Value = self.parse_value(tokens)
+                        self.parse_statement_delimiter(tokens)
+                        module.append(str(last_token), Value)
+                    except StopIteration:
+                        module.append(str(last_token),
+                                      self._empty_value(t.pos + 1))
+                        return (module, False)  # return through parse_module()
                 else:
                     tokens.send(t)
-                t = next(tokens)
+            else:
+                # The next token isn't an equals sign or the module is
+                # empty, so we want return the token and signal
+                # parse_module() that it should ignore us.
                 tokens.send(t)
-            except StopIteration:
-                return m
+                raise Exception
 
-        # print('got to bottom')
-        # print(m)
-        t = next(tokens)
-        tokens.throw(ValueError,
-                     'Expecting an Aggregation Block, an Assignment '
-                     'Statement, or an End Statement, but found '
-                     f'"{t}" ')
+            # Peeking at the next token gives us the opportunity to
+            # see if we're at the end of tokens, which we want to handle.
+            t = next(tokens)
+            tokens.send(t)
+            return (module, True)  # keep parsing
+        except StopIteration:
+            # If we're out of tokens, that's okay.
+            return (module, False)  # return through parse_module()
 
     def parse_assignment_statement(self, tokens: abc.Generator) -> tuple:
         """Parses the tokens for an Assignment Statement.
@@ -740,58 +754,28 @@ class OmniParser(PVLParser):
             else:
                 raise
 
-    def parse_value(self, tokens: abc.Generator):
+    def parse_value_post_hook(self, tokens: abc.Generator):
         """Parses PVL Values.
 
-        If the value is a reserved word, then it is returned to the
-        *tokens* and an EmptyValueAtLine is returned as the value.
-
-            <Value> ::= (<Simple-Value> | <Set> | <Sequence>)
-                        [<WSC>* <Units Expression>]
-
-           Returns the decoded <Value> as an appropriate Python object.
+        If the next token is a reserved word or delimiter, then it is
+        returned to the *tokens* and an EmptyValueAtLine is returned
+        as the value.
 
            {}
+
         """.format(_tokens_docstring)
-        # Be careful to track changes with the parent parse_value()
-        # function!!!
-        value = None
 
-        try:
-            t = next(tokens)
-            value = self.decoder.decode_simple_value(t)
-        except ValueError:
+        t = next(tokens)
+        # print(f't: {t}')
+        truecase_reserved = [x.casefold() for x in
+                             self.grammar.reserved_keywords]
+        trucase_delim = [x.casefold() for x in
+                         self.grammar.delimiters]
+        if t.casefold() in (truecase_reserved + trucase_delim):
+            # print(f'kw: {kw}')
+            # if kw.casefold() == t.casefold():
+            # print('match')
             tokens.send(t)
-            try:
-                value = self.parse_set(tokens)
-            except ValueError:
-                try:
-                    value = self.parse_sequence(tokens)
-                except ValueError:
-                    t = next(tokens)
-                    # print(f't: {t}')
-                    truecase_reserved = [x.casefold() for x in
-                                         self.grammar.reserved_keywords]
-                    trucase_delim = [x.casefold() for x in
-                                     self.grammar.delimiters]
-                    if t.casefold() in (truecase_reserved + trucase_delim):
-                        # print(f'kw: {kw}')
-                        # if kw.casefold() == t.casefold():
-                        # print('match')
-                        tokens.send(t)
-                        value = self._empty_value(t.pos)
-                    else:
-                        tokens.throw(ValueError,
-                                     'Was expecting a Simple Value, or the '
-                                     'beginning of a Set or Sequence, but '
-                                     f'found: "{t}"')
-
-        # print(f'in parse_value, value is: {value}')
-        units = None
-        self.parse_WSC_until(None, tokens)
-        # print(f'value: {value!r}')
-        try:
-            units = self.parse_units(tokens)
-            return Units(value, units)
-        except (ValueError, StopIteration):
-            return value
+            return self._empty_value(t.pos)
+        else:
+            raise ValueError

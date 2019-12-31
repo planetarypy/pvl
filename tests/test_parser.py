@@ -18,7 +18,8 @@
 import datetime
 import unittest
 
-from pvl.parser import PVLParser, ParseError
+from pvl.parser import PVLParser, ParseError, OmniParser
+from pvl.decoder import EmptyValueAtLine
 from pvl.lexer import lexer as Lexer
 from pvl.lexer import LexerError
 from pvl._collections import Units, PVLModule, PVLGroup, PVLObject
@@ -252,6 +253,9 @@ class TestParse(unittest.TestCase):
                            number = '123' """)
         self.assertRaises(LexerError, self.p.parse_module, tokens)
 
+        # tokens = Lexer('blob = foo = bar')
+        # self.p.parse_module(tokens)
+
     def test_parse(self):
         groups = (('a = b c = d END', PVLModule(a='b', c='d')),
                   ('a =b GROUP = g f=g END_GROUP END',
@@ -265,3 +269,47 @@ class TestParse(unittest.TestCase):
                 self.assertEqual(g[1], self.p.parse(g[0]))
 
         self.assertRaises(ParseError, self.p.parse, 'blob')
+
+
+class TestOmni(unittest.TestCase):
+
+    def setUp(self):
+        self.p = OmniParser()
+
+    def test_parse_module_post_hook(self):
+        m = PVLModule(a='b')
+        tokens = Lexer('c = d',
+                       g=self.p.grammar, d=self.p.decoder)
+        self.assertRaises(Exception, self.p.parse_module_post_hook, m, tokens)
+
+        self.p.doc = ('a = b = d')
+        m = PVLModule(a='b')
+        tokens = Lexer('= d',
+                       g=self.p.grammar, d=self.p.decoder)
+        mod = PVLModule(a=EmptyValueAtLine(0), b='d')
+        self.assertEqual((mod, False),
+                         self.p.parse_module_post_hook(m, tokens))
+
+        self.p.doc = ('a = b =')
+        m = PVLModule(a='b')
+        tokens = Lexer('=',
+                       g=self.p.grammar, d=self.p.decoder)
+        mod = PVLModule(a=EmptyValueAtLine(0),
+                        b=EmptyValueAtLine(0))
+        self.assertEqual((mod, False),
+                         self.p.parse_module_post_hook(m, tokens))
+
+    def test_comments(self):
+        some_pvl = ("""
+        /* comment on line */
+        # here is a line comment
+        /* here is a multi-
+        line comment */
+        foo = bar /* comment at end of line */
+        weird/* in the */=/*middle*/comments
+        baz = bang # end line comment
+        End
+    """)
+
+        self.assertEqual(PVLModule(foo='bar', weird='comments', baz='bang'),
+                         self.p.parse(some_pvl))

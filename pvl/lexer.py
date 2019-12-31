@@ -283,6 +283,7 @@ def lex_continue(char: str, next_char: str, lexeme: str,
 
 def lexer(s: str, g=Grammar(), d=Decoder()):
     c_info = _prepare_comment_tuples(g.comments)
+    # print(c_info)
 
     lexeme = ''
     preserve = dict(state=Preserve.FALSE, end=None)
@@ -294,14 +295,14 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
         prev_char = _prev_char(s, i)
         next_char = _next_char(s, i)
 
-        # print(repr(f'lexeme at top: {lexeme}, char: {char}, '
+        # print(repr(f'lexeme at top: ->{lexeme}<-, char: {char}, '
         #            f'prev: {prev_char}, next: {next_char}, '
         #            f'{preserve}'))
 
         (lexeme, preserve) = lex_char(char, prev_char, next_char,
                                       lexeme, preserve, g, c_info)
 
-        # print(repr(f'       at bot: {lexeme},          '
+        # print(repr(f'       at bot: ->{lexeme}<-,          '
         #            f'                  '
         #            f'{preserve}'))
 
@@ -341,6 +342,7 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
                  or lexeme.endswith(tuple(p[1] for p in g.comments))
                  or lexeme in g.reserved_characters
                  or tok.is_quoted_string()):
+                # print(f'yielding {tok}')
                 t = yield(tok)
                 while t is not None:
                     yield None
