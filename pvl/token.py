@@ -42,10 +42,10 @@ class token(str):
        to determine some return values.
     '''
 
-    def __new__(cls, content, grammar=None, decoder=None):
+    def __new__(cls, content, grammar=None, decoder=None, pos=0):
         return str.__new__(cls, content)
 
-    def __init__(self, content, grammar=None, decoder=None):
+    def __init__(self, content, grammar=None, decoder=None, pos=0):
 
         if grammar is None:
             self.grammar = Grammar()
@@ -60,6 +60,8 @@ class token(str):
             self.decoder = decoder
         else:
             raise Exception
+
+        self.pos = pos
 
     def __repr__(self):
         return (f'{self.__class__.__name__}(\'{self}\', '

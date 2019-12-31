@@ -34,8 +34,8 @@ GROUP = c
 END_GROUP
 e =false
 END'''
-        # decoded = pvl.PVLModule(a='b', c=pvl.PVLGroup(c='d'), e=False)
-        # self.assertEqual(decoded, pvl.loads(some_pvl))
+        decoded = pvl.PVLModule(a='b', c=pvl.PVLGroup(c='d'), e=False)
+        self.assertEqual(decoded, pvl.loads(some_pvl))
 
         self.assertEqual(pvl.PVLModule(a='b'), pvl.loads('a=b'))
 

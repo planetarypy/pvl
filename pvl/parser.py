@@ -45,9 +45,9 @@ from ._collections import PVLModule, PVLGroup, PVLObject, Units
 from .token import token as Token
 from .grammar import grammar as Grammar
 from .grammar import Omnigrammar
-from .decoder import PVLDecoder, OmniDecoder
+from .decoder import PVLDecoder, OmniDecoder, EmptyValueAtLine
 from .lexer import lexer as Lexer
-from .lexer import LexerError
+from .lexer import LexerError, linecount
 
 
 _tokens_docstring = """*tokens* is expected to be a *generator iterator*
@@ -69,7 +69,10 @@ _tokens_docstring = """*tokens* is expected to be a *generator iterator*
 class ParseError(Exception):
     '''A simple parser exception.
     '''
-    pass
+
+    def __init__(self, msg, token=None):
+        super().__init__(self, msg)
+        self.token = token
 
 
 class PVLParser(object):
@@ -77,6 +80,8 @@ class PVLParser(object):
     def __init__(self, grammar=None, decoder=None, lexer=None,
                  module_class=PVLModule, group_class=PVLGroup,
                  object_class=PVLObject, strict=False):
+
+        self.errors = []
 
         if lexer is None:
             self.lexer = Lexer
@@ -116,7 +121,9 @@ class PVLParser(object):
         '''Converts the string to a PVLModule.
         '''
         tokens = self.lexer(s, g=self.grammar, d=self.decoder)
-        return self.parse_module(tokens)
+        module = self.parse_module(tokens)
+        module.errors = sorted(self.errors)
+        return module
 
     def aggregation_cls(self, begin: str):
         begin_fold = begin.casefold()
@@ -164,8 +171,7 @@ class PVLParser(object):
                         parsing = True
                 except LexerError:
                     raise
-                except ValueError as err:
-                    # print(err)
+                except ValueError:
                     pass
 
         # print('got to bottom')
@@ -203,6 +209,10 @@ class PVLParser(object):
             except ValueError:
                 try:
                     agg.append(*self.parse_assignment_statement(tokens))
+                    # print(f'agg: {agg}')
+                    # t = next(tokens)
+                    # print(f'next token is: {t}')
+                    # tokens.send(t)
                 except LexerError:
                     raise
                 except ValueError:
@@ -391,7 +401,7 @@ class PVLParser(object):
         except StopIteration:
             raise ParseError('Ran out of tokens to parse after the equals '
                              'sign in an Assignment-Statement: '
-                             f'"{parameter_name} =".')
+                             f'"{parameter_name} =".', t)
 
         self.parse_statement_delimiter(tokens)
 
@@ -602,6 +612,12 @@ class PVLParser(object):
 
 class OmniParser(PVLParser):
 
+    def _empty_value(self, pos):
+        eq_pos = self.doc.rfind('=', 0, pos)
+        lc = linecount(self.doc, eq_pos)
+        self.errors.append(lc)
+        return EmptyValueAtLine(lc)
+
     def parse(self, s: str):
         '''Converts the string to a PVLModule.
 
@@ -612,5 +628,170 @@ class OmniParser(PVLParser):
            be removed.
         '''
         nodash = re.sub(r'-[\n\r\f]\s+', '', s)
+        self.doc = nodash
 
         return super().parse(nodash)
+
+    def parse_module(self, tokens: abc.Generator):
+        """Parses the tokens for a PVL Module.
+
+           {}
+
+           Also allows for more permissive parsing.  If an
+           Assignment-Statement is blank, it will be handled.
+
+            <PVL-Module-Contents> ::=
+             ( <Assignment-Statement> | <WSC>* | <Aggregation-Block> )*
+             [<End-Statement>]
+
+        """.format(_tokens_docstring)
+        # Be careful to track changes with the parent parse_module()
+        # function!!!
+        m = self.modcls()
+
+        parsing = True
+        while parsing:
+            # print(f'top of while parsing: {m}')
+            parsing = False
+            for p in (self.parse_aggregation_block,
+                      self.parse_assignment_statement,
+                      self.parse_end_statement):
+                try:
+                    self.parse_WSC_until(None, tokens)
+                    parsed = p(tokens)
+                    # print(f'parsed: {parsed}')
+                    if parsed is None:  # because parse_end_statement returned
+                        return m
+                    else:
+                        m.append(*parsed)
+                        parsing = True
+                except LexerError:
+                    raise
+                except ValueError:
+                    pass
+            try:
+                t = next(tokens)
+                if t == '=' and len(m) != 0:
+                    # This means there was an empty assignment at
+                    # the previous equals sign.
+                    # Try and recover:
+                    (last_k, last_v) = m[-1]
+                    # print(last_pair)
+                    last_token = Token(last_v,
+                                       grammar=self.grammar,
+                                       decoder=self.decoder)
+                    if last_token.is_parameter_name():
+                        # Fix the previous entry
+                        m.popitem()
+                        m.append(last_k, self._empty_value(t.pos))
+                        # Now use last_token as the parameter name
+                        # for the next assignment, and we must
+                        # reproduce the last part of parse-assignment:
+                        Value = None
+                        try:
+                            # print(f'parameter name: {last_token}')
+                            self.parse_WSC_until(None, tokens)
+                            Value = self.parse_value(tokens)
+                            self.parse_statement_delimiter(tokens)
+                            m.append(str(last_token), Value)
+                            parsing = True
+                        except StopIteration:
+                            m.append(str(last_token),
+                                     self._empty_value(t.pos + 1))
+                            return m
+                    else:
+                        tokens.send(t)
+                else:
+                    tokens.send(t)
+                t = next(tokens)
+                tokens.send(t)
+            except StopIteration:
+                return m
+
+        # print('got to bottom')
+        # print(m)
+        t = next(tokens)
+        tokens.throw(ValueError,
+                     'Expecting an Aggregation Block, an Assignment '
+                     'Statement, or an End Statement, but found '
+                     f'"{t}" ')
+
+    def parse_assignment_statement(self, tokens: abc.Generator) -> tuple:
+        """Parses the tokens for an Assignment Statement.
+
+           The returned two-tuple contains the Parameter Name in the
+           first element, and the Value in the second.
+
+           If the value isn't present, an EmptyValueAtLine will be returned
+           in the two-tuple.
+
+           {}
+
+            <Assignment-Statement> ::= <Parameter-Name> <WSC>* '=' <WSC>*
+                                        <Value> [<Statement-Delimiter>]
+
+        """.format(_tokens_docstring)
+        try:
+            return super().parse_assignment_statement(tokens)
+        except ParseError as err:
+            if err.token is not None:
+                after_eq = self.doc.find('=', err.token.pos) + 1
+                return (str(err.token), self._empty_value(after_eq))
+            else:
+                raise
+
+    def parse_value(self, tokens: abc.Generator):
+        """Parses PVL Values.
+
+        If the value is a reserved word, then it is returned to the
+        *tokens* and an EmptyValueAtLine is returned as the value.
+
+            <Value> ::= (<Simple-Value> | <Set> | <Sequence>)
+                        [<WSC>* <Units Expression>]
+
+           Returns the decoded <Value> as an appropriate Python object.
+
+           {}
+        """.format(_tokens_docstring)
+        # Be careful to track changes with the parent parse_value()
+        # function!!!
+        value = None
+
+        try:
+            t = next(tokens)
+            value = self.decoder.decode_simple_value(t)
+        except ValueError:
+            tokens.send(t)
+            try:
+                value = self.parse_set(tokens)
+            except ValueError:
+                try:
+                    value = self.parse_sequence(tokens)
+                except ValueError:
+                    t = next(tokens)
+                    # print(f't: {t}')
+                    truecase_reserved = [x.casefold() for x in
+                                         self.grammar.reserved_keywords]
+                    trucase_delim = [x.casefold() for x in
+                                     self.grammar.delimiters]
+                    if t.casefold() in (truecase_reserved + trucase_delim):
+                        # print(f'kw: {kw}')
+                        # if kw.casefold() == t.casefold():
+                        # print('match')
+                        tokens.send(t)
+                        value = self._empty_value(t.pos)
+                    else:
+                        tokens.throw(ValueError,
+                                     'Was expecting a Simple Value, or the '
+                                     'beginning of a Set or Sequence, but '
+                                     f'found: "{t}"')
+
+        # print(f'in parse_value, value is: {value}')
+        units = None
+        self.parse_WSC_until(None, tokens)
+        # print(f'value: {value!r}')
+        try:
+            units = self.parse_units(tokens)
+            return Units(value, units)
+        except (ValueError, StopIteration):
+            return value

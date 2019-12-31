@@ -51,19 +51,21 @@ class LexerError(ValueError):
        colno: The column corresponding to pos
     """
 
-    def __init__(self, msg, doc, pos):
-        lineno = doc.count('\n', 0, pos) + 1
-        colno = pos - doc.rfind('\n', 0, pos)
+    def __init__(self, msg, doc, pos, lexeme):
+        self.pos = firstpos(lexeme, pos)
+        # lineno = doc.count('\n', 0, self.pos) + 1
+        lineno = linecount(doc, self.pos)
+        colno = pos - doc.rfind('\n', 0, self.pos)
         errmsg = f'{msg}: line {lineno} column {colno} (char {pos})'
         super().__init__(self, errmsg)
         self.msg = msg
         self.doc = doc
-        self.pos = pos
         self.lineno = lineno
         self.colno = colno
+        self.lexeme = lexeme
 
     def __reduce__(self):
-        return self.__class__, (self.msg, self.doc, self.pos)
+        return self.__class__, (self.msg, self.doc, self.pos, self.lexeme)
 
 
 class Preserve(Enum):
@@ -72,6 +74,23 @@ class Preserve(Enum):
     UNIT = auto()
     QUOTE = auto()
     NONDECIMAL = auto()
+
+
+def linecount(doc, end, start=0):
+    return (doc.count('\n', start, end) + 1)
+
+
+def firstpos(sub: str, pos: int):
+    '''On the assumption that *sub* is a substring contained in a longer
+       string, and *pos* is the index in that longer string of the final
+       character in sub, returns the position of the first character of
+       sub in that longer string.
+
+       This is useful in the PVL library when we know the position of the
+       final character of a token, but want the position of the first
+       character.
+    '''
+    return (pos - len(sub) + 1)
 
 
 def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple:
@@ -232,6 +251,13 @@ def lex_char(char: str, prev_char: str, next_char: str,
 
 def lex_continue(char: str, next_char: str, lexeme: str,
                  token: Token, preserve: dict, g: Grammar):
+
+    if next_char is None:
+        return False
+
+    if not g.char_allowed(next_char):
+        return False
+
     if preserve['state'] != Preserve.FALSE:
         return True
 
@@ -256,9 +282,6 @@ def lex_continue(char: str, next_char: str, lexeme: str,
 
 
 def lexer(s: str, g=Grammar(), d=Decoder()):
-    # We're going to assume that beyond the /* */ pair, every
-    # other comment pair is just single characters.  Otherwise
-    # we'll need to generalize the for loop.
     c_info = _prepare_comment_tuples(g.comments)
 
     lexeme = ''
@@ -266,7 +289,7 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
     for i, char in enumerate(s):
         if not g.char_allowed(char):
             raise LexerError(f'The character "{char}" (ord: {ord(char)}) '
-                             ' is not allowed by the grammar.', s, i)
+                             ' is not allowed by the grammar.', s, i, lexeme)
 
         prev_char = _prev_char(s, i)
         next_char = _next_char(s, i)
@@ -284,47 +307,47 @@ def lexer(s: str, g=Grammar(), d=Decoder()):
 
         # Now having dealt with char, decide whether to
         # go on continue accumulating the lexeme, or yield it.
-        if lexeme != '':
-            try:
-                # The ``while t is not None: yield None; t = yield(t)``
-                # construction below allows a user of the lexer to
-                # yield a token, not like what they see, and then use
-                # the generator's send() function to put the token
-                # back into the generator.
-                #
-                # The first yield None in there allows the call to send() on
-                # this generator to return None, and keep the value of t ready
-                # for the next call of next() on the generator.  This is the
-                # magic that allows a user to 'return' a token to the
-                # generator.
-                tok = Token(lexeme, grammar=g, decoder=d)
-                if next_char is None or not g.char_allowed(next_char):
-                    t = yield(tok)
-                    while t is not None:
-                        yield None
-                        t = yield(t)
-                    lexeme = ''
-                else:
-                    # Any lexeme state that we want to just allow
-                    # to run around again and don't want to get
-                    # caught by the clause in the elif, should
-                    # test true here.
-                    if lex_continue(char, next_char, lexeme, tok, preserve, g):
-                        continue
 
-                    elif(next_char in g.whitespace or
-                         next_char in g.reserved_characters or
-                         s.startswith(tuple(p[0] for p in g.comments), i + 1) or
-                         lexeme.endswith(tuple(p[1] for p in g.comments)) or
-                         lexeme in g.reserved_characters or
-                         tok.is_quoted_string()):
-                        t = yield(tok)
-                        while t is not None:
-                            yield None
-                            t = yield(t)
-                        lexeme = ''
-                    else:
-                        continue
+        if lexeme == '':
+            continue
 
-            except ValueError as err:
-                raise LexerError(err, s, i - len(lexeme))
+        try:
+            # The ``while t is not None: yield None; t = yield(t)``
+            # construction below allows a user of the lexer to
+            # yield a token, not like what they see, and then use
+            # the generator's send() function to put the token
+            # back into the generator.
+            #
+            # The first ``yield None`` in there allows the call to
+            # send() on this generator to return None, and keep the
+            # value of *t* ready for the next call of next() on the
+            # generator.  This is the magic that allows a user to
+            # 'return' a token to the generator.
+            tok = Token(lexeme, grammar=g, decoder=d,
+                        pos=firstpos(lexeme, i))
+
+            if lex_continue(char, next_char, lexeme, tok, preserve, g):
+                # Any lexeme state that we want to just allow
+                # to run around again and don't want to get
+                # caught by the clause in the elif, should
+                # test true via lex_continue()
+                continue
+
+            elif(next_char is None
+                 or not g.char_allowed(next_char)
+                 or next_char in g.whitespace
+                 or next_char in g.reserved_characters
+                 or s.startswith(tuple(p[0] for p in g.comments), i + 1)
+                 or lexeme.endswith(tuple(p[1] for p in g.comments))
+                 or lexeme in g.reserved_characters
+                 or tok.is_quoted_string()):
+                t = yield(tok)
+                while t is not None:
+                    yield None
+                    t = yield(t)
+                lexeme = ''
+            else:
+                continue
+
+        except ValueError as err:
+            raise LexerError(err, s, i, lexeme)

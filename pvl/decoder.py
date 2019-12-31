@@ -117,25 +117,14 @@ class PVLDecoder(object):
 
             <Simple-Value> ::= (<Date-Time> | <Numeric> | <String>)
         '''
-        try:  # Quoted String
-            return self.decode_quoted_string(value)
-        except ValueError:
-            pass
-
-        try:  # Non-Decimal
-            return self.decode_non_decimal(value)
-        except ValueError:
-            pass
-
-        try:  # Decimal
-            return self.decode_decimal(value)
-        except ValueError:
-            pass
-
-        try:  # Date/Time
-            return self.decode_datetime(value)
-        except ValueError:
-            pass
+        for d in (self.decode_quoted_string,
+                  self.decode_non_decimal,
+                  self.decode_decimal,
+                  self.decode_datetime):
+            try:
+                return d(value)
+            except ValueError:
+                pass
 
         if value.casefold() == self.grammar.none_keyword.casefold():
             return None
@@ -152,22 +141,16 @@ class PVLDecoder(object):
         '''Takes a Simple Value and attempts to convert it to a plain
            ``str``.
         '''
-        for c in chain.from_iterable(self.grammar.comments):
-            if c in value:
-                raise ValueError('Expected a Simple Value, but encountered a '
-                                 f'comment in "{self}"')
+        for coll in (('a comment', chain.from_iterable(self.grammar.comments)),
+                     ('some whitespace', self.grammar.whitespace),
+                     ('a special character', self.grammar.reserved_characters)):
+            for item in coll[1]:
+                if item in value:
+                    raise ValueError('Expected a Simple Value, but encountered '
+                                     f'{coll[0]} in "{self}": "{item}".')
 
-        for ws in self.grammar.whitespace:
-            if ws in value:
-                raise ValueError('Expected a Simple Value, but encountered '
-                                 f'some whitespace in "{self}"')
-
-        for sp in self.grammar.reserved_characters:
-            if sp in value:
-                raise ValueError('Expected a Simple Value, but encountered '
-                                 f'a spcial character "{sp}" in "{self}"')
-
-        for kw in chain.from_iterable(self.grammar.aggregation_keywords.items()):
+        agg_keywords = self.grammar.aggregation_keywords.items()
+        for kw in chain.from_iterable(agg_keywords):
             if kw.casefold() == value.casefold():
                 raise ValueError('Expected a Simple Value, but encountered '
                                  f'an aggregation keyword: "{value}".')
