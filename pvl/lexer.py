@@ -46,7 +46,7 @@ class LexerError(ValueError):
 
        msg: The unformatted error message
        doc: The PVL document being parsed
-       pos: The start index of doc where parsing failed
+       pos: The start index in doc where parsing failed
        lineno: The line corresponding to pos
        colno: The column corresponding to pos
     """
@@ -55,7 +55,7 @@ class LexerError(ValueError):
         self.pos = firstpos(lexeme, pos)
         # lineno = doc.count('\n', 0, self.pos) + 1
         lineno = linecount(doc, self.pos)
-        colno = pos - doc.rfind('\n', 0, self.pos)
+        colno = self.pos - doc.rfind('\n', 0, self.pos)
         errmsg = f'{msg}: line {lineno} column {colno} (char {pos})'
         super().__init__(self, errmsg)
         self.msg = msg
@@ -282,6 +282,19 @@ def lex_continue(char: str, next_char: str, lexeme: str,
 
 
 def lexer(s: str, g=Grammar(), d=Decoder()):
+    '''This is a generator function that returns pvl.Token objects
+       based on the passed in string, *s*, when the generator's
+       next() is called.
+
+       A call to send(*t*) will 'return' the value *t* to the
+       generator, which will be yielded upon calling next().
+       This allows a user to 'peek' at the next token, but return it
+       if they don't like what they see.
+
+       *g* is expected to be an instance of pvl.grammar, and *d* an
+       instance of pvl.decoder.  The lexer will perform differently,
+       given different values of *g* and *d*.
+    '''
     c_info = _prepare_comment_tuples(g.comments)
     # print(c_info)
 

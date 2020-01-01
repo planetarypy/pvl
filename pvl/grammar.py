@@ -155,32 +155,37 @@ class ODLgrammar(grammar):
     leap_second_Yj_re = None
 
     # ODL allows the radix to be from 2 to 16, but the optional sign
-    # must be after the first octothorpe (#).
+    # must be after the first octothorpe (#).  Why ODL thought this was
+    # an important difference to make from PVL, I have no idea.
     # radix#[sign]non_decimal_integer#
-    _s = r'(?P<sign>[+-]?)'
-    nondecimal_pre_re = re.compile(fr'(?P<radix>[2-9]|1[0-6])#{_s}')
+    nondecimal_pre_re = re.compile(fr'(?P<radix>[2-9]|1[0-6])#{grammar._s}')
     nondecimal_re = re.compile(fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')
 
 
-class ISISgrammar(grammar):
-    '''This defines the ISIS version of PVL.
-
-       Or it will.
-
-       In
-       https://astrodiscuss.usgs.gov/t/what-pvl-specification-does-isis-conform-to/
-    Stuart Sides, ISIS developer, says:
-        The ISIS3 implementation of PVL/ODL (like) does not strictly
-        follow any of the published standards. It was based on PDS3
-        ODL from the 1990s, but has several extensions (your example
-        of continuation lines) adopted from existing and prior data
-        sets from ISIS2, PDS, JAXA, ISRO, …, and extensions used
-        only within ISIS3 files (cub, net). This is one of the
-        reasons using ISIS cube files as an archive format has been
-        strongly discouraged. So to answer your question, there is
-        no published specification for ISIS3 PVL.
-
-    '''
+# So far, the only thing that ISIS seems to be doing differently is to
+# split any text of all kinds with a dash continuation character.  This
+# is currently handled in the OmniParser.parse() function.  There are
+# no true 'grammar' differences.
+#
+# class ISISgrammar(grammar):
+#     '''This defines the ISIS version of PVL.
+#
+#        Or it will.
+#
+#        In
+#        https://astrodiscuss.usgs.gov/t/what-pvl-specification-does-isis-conform-to/
+#     Stuart Sides, ISIS developer, says:
+#         The ISIS3 implementation of PVL/ODL (like) does not strictly
+#         follow any of the published standards. It was based on PDS3
+#         ODL from the 1990s, but has several extensions (your example
+#         of continuation lines) adopted from existing and prior data
+#         sets from ISIS2, PDS, JAXA, ISRO, ..., and extensions used
+#         only within ISIS3 files (cub, net). This is one of the
+#         reasons using ISIS cube files as an archive format has been
+#         strongly discouraged. So to answer your question, there is
+#         no published specification for ISIS3 PVL.
+#
+#     '''
 
 
 class Omnigrammar(grammar):
@@ -196,7 +201,6 @@ class Omnigrammar(grammar):
     # 'inside' the octothorpes, so we need to allow for the wide variety
     # of radix, and the variational placement of the optional sign:
     # [sign]radix#[sign]non_decimal_integer#
-    _s = r'(?P<sign>[+-]?)'
     _ss = r'(?P<second_sign>[+-]?)'
-    nondecimal_pre_re = re.compile(fr'{_s}(?P<radix>[2-9]|1[0-6])#{_ss}')
+    nondecimal_pre_re = re.compile(fr'{grammar._s}(?P<radix>[2-9]|1[0-6])#{_ss}')
     nondecimal_re = re.compile(fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')

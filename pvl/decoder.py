@@ -96,8 +96,7 @@ class EmptyValueAtLine(str):
 
 class PVLDecoder(object):
 
-    def __init__(self, grammar=None, strict=False):
-        self.strict = strict
+    def __init__(self, grammar=None):
         self.errors = []
 
         if grammar is None:
@@ -135,7 +134,7 @@ class PVLDecoder(object):
         if value.casefold() == self.grammar.false_keyword.casefold():
             return False
 
-        return self.decode_unquoted_string(value)  # Unquoted String
+        return self.decode_unquoted_string(value)
 
     def decode_unquoted_string(self, value: str) -> str:
         '''Takes a Simple Value and attempts to convert it to a plain
@@ -261,14 +260,13 @@ class ODLDecoder(PVLDecoder):
     '''A decoder for PDS ODL.
     '''
 
-    def __init__(self, grammar=None, strict=False):
-        self.strict = strict
+    def __init__(self, grammar=None):
         self.errors = []
 
         if grammar is None:
-            super().__init__(grammar=ODLgrammar(), strict=strict)
+            super().__init__(grammar=ODLgrammar())
         else:
-            super().__init__(grammar=grammar, strict=strict)
+            super().__init__(grammar=grammar)
 
     def decode_datetime(self, value: str):
         '''Takes a string and attempts to convert it to the appropriate

@@ -151,7 +151,7 @@ def decode_bytes(f: io.RawIOBase) -> str:
 
 
 def loads(s: str, parser=None, grammar=None, decoder=None, modcls=PVLModule,
-          grpcls=PVLGroup, objcls=PVLObject, strict=False, **kwargs):
+          grpcls=PVLGroup, objcls=PVLObject, **kwargs):
     """Deserialize the string, ``s``, as a pvl module.
 
     :param data: a pvl module as a string
@@ -173,8 +173,7 @@ def loads(s: str, parser=None, grammar=None, decoder=None, modcls=PVLModule,
         parser = OmniParser(grammar=grammar, decoder=decoder,
                             module_class=modcls,
                             group_class=grpcls,
-                            object_class=objcls,
-                            strict=strict)
+                            object_class=objcls)
     elif not isinstance(parser, PVLParser):
         raise TypeError('The parser must be an instance of pvl.PVLParser.')
 

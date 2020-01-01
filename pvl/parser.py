@@ -57,7 +57,7 @@ _tokens_docstring = """*tokens* is expected to be a *generator iterator*
                        first object from *tokens*, if an unexpected object
                        is encountered, it will 'return' the object to
                        *tokens*, and raise a ``ValueError``, so that
-                       ``try``-``except`` bloks can be used, and the
+                       ``try``-``except`` blocks can be used, and the
                        *generator iterator* is left in a good state. However,
                        if a parsing anomaly is discovered deeper in
                        parsing a PVL sequence, then a ``ValueError`` will
@@ -79,7 +79,7 @@ class PVLParser(object):
 
     def __init__(self, grammar=None, decoder=None, lexer=None,
                  module_class=PVLModule, group_class=PVLGroup,
-                 object_class=PVLObject, strict=False):
+                 object_class=PVLObject):
 
         self.errors = []
 
@@ -96,7 +96,7 @@ class PVLParser(object):
             raise TypeError('The grammar must be an instance of pvl.grammar.')
 
         if decoder is None:
-            self.decoder = OmniDecoder(grammar=self.grammar, strict=strict)
+            self.decoder = OmniDecoder(grammar=self.grammar)
         elif isinstance(decoder, PVLDecoder):
             self.decoder = decoder
         else:
@@ -657,6 +657,9 @@ class PVLParser(object):
 
 
 class OmniParser(PVLParser):
+    '''A permissive PVL/ODL/ISIS label parser that attempts to parse
+       all forms of "PVL" that are thrown at it.
+    '''
 
     def _empty_value(self, pos):
         eq_pos = self.doc.rfind('=', 0, pos)
