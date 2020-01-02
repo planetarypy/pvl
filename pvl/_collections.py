@@ -313,11 +313,15 @@ class PVLModule(OrderedMultiDict):
         return not self.errors
 
 
-class PVLGroup(OrderedMultiDict):
+class PVLAggregation(OrderedMultiDict):
     pass
 
 
-class PVLObject(OrderedMultiDict):
+class PVLGroup(PVLAggregation):
+    pass
+
+
+class PVLObject(PVLAggregation):
     pass
 
 

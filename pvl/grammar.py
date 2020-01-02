@@ -74,8 +74,10 @@ class grammar():
     none_keyword = 'NULL'
     true_keyword = 'TRUE'
     false_keyword = 'FALSE'
+    group_pref_keywords = ('BEGIN_GROUP', 'END_GROUP')
     group_keywords = {'GROUP': 'END_GROUP',
                       'BEGIN_GROUP': 'END_GROUP'}
+    object_pref_keywords = ('BEGIN_OBJECT', 'END_OBJECT')
     object_keywords = {'OBJECT': 'END_OBJECT',
                        'BEGIN_OBJECT': 'END_OBJECT'}
     aggregation_keywords = dict()
@@ -129,7 +131,8 @@ class grammar():
 
     def char_allowed(self, char):
         '''Determines whether the given character is allowed in
-           the PVL Character Set.
+           the PVL Character Set.  This defined as most of the
+           ISO 8859-1 'latin-1' character set with some exclusions.
         '''
         if len(char) != 1:
             raise Exception
@@ -150,6 +153,9 @@ class ODLgrammar(grammar):
     '''This defines a PDS3 ODL grammar.
     '''
 
+    group_pref_keywords = ('GROUP', 'END_GROUP')
+    object_pref_keywords = ('OBJECT', 'END_OBJECT')
+
     # ODL does not allow times with a seconds value of 60.
     leap_second_Ymd_re = None
     leap_second_Yj_re = None
@@ -160,6 +166,22 @@ class ODLgrammar(grammar):
     # radix#[sign]non_decimal_integer#
     nondecimal_pre_re = re.compile(fr'(?P<radix>[2-9]|1[0-6])#{grammar._s}')
     nondecimal_re = re.compile(fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')
+
+    def char_allowed(self, char):
+        '''Determines whether the given character is allowed in
+           the ODL Character Set which is limited to ASCII.
+           This is fewer characters than PVL, but appears to
+           allow more control characters to be in quoted
+           strings than PVL does.
+        '''
+        if len(char) != 1:
+            raise Exception
+
+        try:
+            char.encode(encoding='ascii')
+            return True
+        except UnicodeError:
+            return False
 
 
 # So far, the only thing that ISIS seems to be doing differently is to
