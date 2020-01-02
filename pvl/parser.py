@@ -593,8 +593,8 @@ class PVLParser(object):
         units = None
         self.parse_WSC_until(None, tokens)
         try:
-            units = self.parse_units(tokens)
-            return Units(value, units)
+            return self.parse_units(value, tokens)
+            # return Units(value, units)
         except (ValueError, StopIteration):
             return value
 
@@ -613,7 +613,7 @@ class PVLParser(object):
         '''
         raise ValueError
 
-    def parse_units(self, tokens: abc.Generator) -> str:
+    def parse_units(self, value, tokens: abc.Generator) -> str:
         """Parses PVL Units Expression.
 
             <Units-Expression> ::= "<" [<white-space>] <Units-Value>
@@ -625,7 +625,8 @@ class PVLParser(object):
                                 [ [ <units-character> | <white-space> ]*
                                     <units-character> ]
 
-           Returns a <Units-Value> as a ``str``.
+           Returns the *value* and the <Units-Value> as a ``Units()``
+           object.
 
            {}
         """.format(_tokens_docstring)
@@ -653,7 +654,24 @@ class PVLParser(object):
                              'Was expecting a units character, but found a '
                              f'unit delimiter, "{d}" instead.')
 
-        return str(units_value)
+        return Units(value, str(units_value))
+
+
+class ODLParser(PVLParser):
+
+    def parse_units(self, value, tokens: abc.Generator) -> str:
+        """Parses ODL Units Expression.  ODL only allows units
+           on numeric values, any others will result in a ValueError.
+
+           {}
+        """.format(_tokens_docstring)
+
+        if isinstance(value, int) or isinstance(value, float):
+            return super().parse_units(value, tokens)
+
+        else:
+            raise ValueError('ODL Units Expressions can only follow '
+                             'numeric values.')
 
 
 class OmniParser(PVLParser):

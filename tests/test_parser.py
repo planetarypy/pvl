@@ -120,13 +120,14 @@ class TestParse(unittest.TestCase):
         self.assertEqual(f, 'f')
 
     def test_parse_units(self):
-        pairs = (('m', '<m>'), ('m', '< m >'),
-                 ('m /* comment */', '< m /* comment */>'),
-                 ('m\nfoo', '< m\nfoo >'))
+        pairs = ((Units(5, 'm'), '<m>'),
+                 (Units(5, 'm'), '< m >'),
+                 (Units(5, 'm /* comment */'), '< m /* comment */>'),
+                 (Units(5, 'm\nfoo'), '< m\nfoo >'))
         for p in pairs:
             with self.subTest(pairs=p):
                 tokens = Lexer(p[1])
-                self.assertEqual(p[0], self.p.parse_units(tokens))
+                self.assertEqual(p[0], self.p.parse_units(5, tokens))
 
     def test_parse_set(self):
         pairs = ((set(['a', 'b', 'c']), '{a,b,c}'),

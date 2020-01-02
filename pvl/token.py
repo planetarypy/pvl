@@ -172,6 +172,10 @@ class token(str):
         if self.is_numeric() or self.is_datetime():
             return False
 
+        for char in self.grammar.whitespace:
+            if char in self:
+                return False
+
         return True
 
     def is_string(self) -> bool:

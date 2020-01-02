@@ -65,7 +65,7 @@ class TestToken(unittest.TestCase):
                 self.assertFalse(t.is_datetime())
 
     def test_is_parameter_name(self):
-        for s in ('Hello', 'Product Id'):
+        for s in ('Hello', 'ProductId'):
             with self.subTest(string=s):
                 t = Token(s)
                 self.assertTrue(t.is_parameter_name())
@@ -171,7 +171,7 @@ class TestToken(unittest.TestCase):
         self.assertFalse(t.is_delimiter())
 
     def test_is_unquoted_string(self):
-        for s in ('Hello', 'Product Id', 'Group'):
+        for s in ('Hello', 'Product', 'Group'):
             with self.subTest(string=s):
                 t = Token(s)
                 self.assertTrue(t.is_unquoted_string())
@@ -194,7 +194,7 @@ class TestToken(unittest.TestCase):
 
     def test_is_string(self):
         for s in ('"Hello &"', "'Product Id'", '""',
-                  'Hello', 'Product Id', 'Group'):
+                  'Hello', 'Product', 'Group'):
             with self.subTest(string=s):
                 t = Token(s)
                 self.assertTrue(t.is_string())
