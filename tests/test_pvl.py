@@ -4,6 +4,8 @@ import io
 import datetime
 import glob
 import pytest
+import tempfile
+import shutil
 
 import pvl
 from pvl import (
@@ -968,70 +970,110 @@ def test_load_all_bad_sample_labels():
         label = pvl.load(filename)
         assert isinstance(label, Label)
 
+# Below here are tests that deal with exercising both the decoding and
+# encoding, and mostly rely on equivalence of the initially loaded
+# PVLModule, and the PVLModule loaded from the dumped PVLModule.
+#
+# The pre-1.0 pvl ensured that all of the 'PVL' in the PDS_LABELS files
+# was interchangeably readable and writable.  The thing is that the
+# 'PVL' contained in those files doesn't all conform to PDS standards.
+# So now that the library properly distinguishes between the three
+# 'flavors' of PVL: actual PVL, ODL, and the subset of ODL that the
+# PDS accepts, all of the files can be ingested (as demonstrated in
+# the tests above), but some of that PVL cannot be written out by the
+# PDSLabelEncoder (which is the most strict).  Or is altered by the
+# encoder (labels are uppercased in ODL and PDS).
+#
+# So we must divide the PDS_LABELS into those that represent 'PVL'
+# that can be written out by the default PDSLabelEncoder, and those
+# that must be written by the slightly more permissive ODLEncoder,
+# and those that must be written by the PVLEncoder.
+
+
+PDS_COMPLIANT = list()
+ODL_COMPLIANT = list()
+PVL_COMPLIANT = list()
+
+for filename in PDS_LABELS:
+    if('tests/data/pds3/set1.lbl' in filename or  # float in set
+       'tests/data/pds3/set2.lbl' in filename or  # float in set
+       'tests/data/pds3/dates.lbl' in filename):  # tz in dates
+        ODL_COMPLIANT.append(filename)
+    elif('tests/data/pds3/float1.lbl' in filename):  # lowercase in label
+        PVL_COMPLIANT.append(filename)               # FlOAT not FLOAT
+    else:
+        PDS_COMPLIANT.append(filename)
+
 
 def test_dump_stream():
-    for filename in PDS_LABELS:
+    for filename in PDS_COMPLIANT:
         # print(filename)
         label = pvl.load(filename)
         # print(label)
         stream = io.BytesIO()
+        pvl.dump(label, stream)
+        stream.seek(0)
+        assert label == pvl.load(stream)
 
-        if('tests/data/pds3/set1.lbl' in filename or  # float in set
-           'tests/data/pds3/set2.lbl' in filename or  # float in set
-           'tests/data/pds3/dates.lbl' in filename):  # tz in dates
-            # The default PDSLabelEncoder will refuse to
-            # write out floating point values into sets,
-            # or datetimes with non-UTC timezones,
-            # but the ODLEncoder will:
-            pvl.dump(label, stream, cls=pvl.encoder.ODLEncoder)
-            stream.seek(0)
-            assert label == pvl.load(stream)
+    for filename in ODL_COMPLIANT:
+        # print(filename)
+        label = pvl.load(filename)
+        # print(label)
+        stream = io.BytesIO()
+        pvl.dump(label, stream, cls=pvl.encoder.ODLEncoder)
+        stream.seek(0)
+        assert label == pvl.load(stream)
 
-            with pytest.raises(ValueError):
-                pvl.dump(label, stream)
-
-        else:
+        with pytest.raises(ValueError):
             pvl.dump(label, stream)
-            stream.seek(0)
-            # assert label == pvl.load(stream)
-            s = pvl.load(stream)
-            if 'tests/data/pds3/float1.lbl' in filename:
-                # FlOAT not FLOAT, see test below
-                assert label != s
-            else:
-                assert label == s
 
-# def test_dump_to_file():
-#     tmpdir = tempfile.mkdtemp()
-#
-#     try:
-#         for filename in PDS_LABELS:
-#             label = pvl.load(filename)
-#             tmpfile = os.path.join(tmpdir, os.path.basename(filename))
-#             pvl.dump(label, tmpfile)
-#             assert label == pvl.load(tmpfile)
-#     finally:
-#         shutil.rmtree(tmpdir)
+    for filename in PVL_COMPLIANT:
+        # print(filename)
+        label = pvl.load(filename)
+        # print(label)
+        stream = io.BytesIO()
+        pvl.dump(label, stream, cls=pvl.encoder.PVLEncoder)
+        stream.seek(0)
+        assert label == pvl.load(stream)
+
+#                 # FlOAT not FLOAT, see test below
+#                 assert label != s
+#             else:
+#                 assert label == s
 
 
-# def test_default_encoder():
-#     for filename in PDS_LABELS:
-#         label = pvl.load(filename)
-#         assert label == pvl.loads(pvl.dumps(label))
+def test_dump_to_file():
+    tmpdir = tempfile.mkdtemp()
+
+    try:
+        for filename in PDS_COMPLIANT:
+            label = pvl.load(filename)
+            tmpfile = os.path.join(tmpdir, os.path.basename(filename))
+            pvl.dump(label, tmpfile)
+            assert label == pvl.load(tmpfile)
+    finally:
+        shutil.rmtree(tmpdir)
 
 
+def test_default_encoder():
+    for filename in PDS_COMPLIANT:
+        label = pvl.load(filename)
+        assert label == pvl.loads(pvl.dumps(label))
+
+
+# the IsisCubeLabelEncoder class is deprecated
 # def test_cube_encoder():
-#     for filename in PDS_LABELS:
+#     for filename in PDS_COMPLIANT:
 #         label = pvl.load(filename)
 #         encoder = pvl.encoder.IsisCubeLabelEncoder
 #         assert label == pvl.loads(pvl.dumps(label, cls=encoder))
 
 
-# def test_pds_encoder():
-#     for filename in PDS_LABELS:
-#         label = pvl.load(filename)
-#         encoder = pvl.encoder.PDSLabelEncoder
-#         assert label == pvl.loads(pvl.dumps(label, cls=encoder))
+def test_pds_encoder():
+    for filename in PDS_COMPLIANT:
+        label = pvl.load(filename)
+        encoder = pvl.encoder.PDSLabelEncoder
+        assert label == pvl.loads(pvl.dumps(label, cls=encoder))
 
 
 # def test_special_values():
