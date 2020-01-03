@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import unittest
+from unittest.mock import call, create_autospec, mock_open, patch
 
 from pathlib import Path
 
@@ -99,3 +100,95 @@ class TestISIScub(unittest.TestCase):
     def test_load_cub_opened(self):
         with open(self.cub, 'rb') as f:
             self.assertEqual(self.cubpvl, pvl.load(f))
+
+
+class TestDumpS(unittest.TestCase):
+
+    def setUp(self):
+        self.module = pvl.PVLModule(a='b',
+                                    staygroup=pvl.PVLGroup(c='d'),
+                                    obj=pvl.PVLGroup(d='e',
+                                                     f=pvl.PVLGroup(g='h')))
+
+    def test_dumps_PDS(self):
+        s = '''A = b\r
+GROUP = staygroup\r
+  C = d\r
+END_GROUP = staygroup\r
+OBJECT = obj\r
+  D = e\r
+  GROUP = f\r
+    G = h\r
+  END_GROUP = f\r
+END_OBJECT = obj\r
+END\r\n'''
+        self.assertEqual(s, pvl.dumps(self.module))
+
+    def test_dumps_PVL(self):
+        s = '''a = b;
+BEGIN_GROUP = staygroup;
+  c = d;
+END_GROUP = staygroup;
+BEGIN_GROUP = obj;
+  d = e;
+  BEGIN_GROUP = f;
+    g = h;
+  END_GROUP = f;
+END_GROUP = obj;
+END;'''
+
+        self.assertEqual(s, pvl.dumps(self.module, cls=pvl.PVLEncoder))
+
+    def test_dumps_ODL(self):
+
+        s = '''A = b\r
+GROUP = staygroup\r
+  C = d\r
+END_GROUP = staygroup\r
+GROUP = obj\r
+  D = e\r
+  GROUP = f\r
+    G = h\r
+  END_GROUP = f\r
+END_GROUP = obj\r
+END\r\n'''
+
+        self.assertEqual(s, pvl.dumps(self.module, cls=pvl.encoder.ODLEncoder))
+
+
+class TestDump(unittest.TestCase):
+
+    def setUp(self):
+        self.module = pvl.PVLModule(a='b',
+                                    staygroup=pvl.PVLGroup(c='d'),
+                                    obj=pvl.PVLGroup(d='e',
+                                                     f=pvl.PVLGroup(g='h')))
+        self.string = '''A = b\r
+GROUP = staygroup\r
+  C = d\r
+END_GROUP = staygroup\r
+OBJECT = obj\r
+  D = e\r
+  GROUP = f\r
+    G = h\r
+  END_GROUP = f\r
+END_OBJECT = obj\r
+END\r\n'''
+
+    def test_dump_Path(self):
+        mock_path = create_autospec(Path)
+        with patch('pvl.Path', autospec=True, return_value=mock_path):
+            pvl.dump(self.module, Path('dummy'))
+            self.assertEqual([call.write_text(self.string)],
+                             mock_path.method_calls)
+
+    @patch('builtins.open', mock_open())
+    def test_dump_file_object(self):
+        with open('dummy', 'w') as f:
+            pvl.dump(self.module, f)
+            self.assertEqual([call.write(self.string.encode())],
+                             f.method_calls)
+
+    def test_not_dumpable(self):
+        f = 5
+        self.assertRaises(TypeError, pvl.dump, self.module, f)

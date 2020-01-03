@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+import re
 import textwrap
 import warnings
 
@@ -55,7 +56,7 @@ class PVLEncoder(object):
         else:
             return prefix + s
 
-    def encode(self, module) -> str:
+    def encode(self, module: dict) -> str:
         lines = list()
         lines.append(self.encode_module(module, 0))
 
@@ -77,7 +78,7 @@ class PVLEncoder(object):
 
         return self.newline.join(lines)
 
-    def encode_module(self, module, level=0):
+    def encode_module(self, module: dict, level=0):
         lines = list()
 
         # To align things on the equals sign, just need to normalize
@@ -85,16 +86,16 @@ class PVLEncoder(object):
 
         non_agg_key_lengths = list()
         for k, v in module.items():
-            if not isinstance(v, PVLAggregation):
+            if not isinstance(v, dict):
                 non_agg_key_lengths.append(len(k))
         longest_key_len = max(non_agg_key_lengths, default=0)
 
         for k, v in module.items():
-            if isinstance(v, PVLAggregation):
+            if isinstance(v, dict):
                 lines.append(self.encode_aggregation_block(k, v, level))
             else:
-                lines.append(self.encode_assignment(k.ljust(longest_key_len),
-                                                    v, level))
+                lines.append(self.encode_assignment(k, v, level,
+                                                    longest_key_len))
         return self.newline.join(lines)
 
     def encode_aggregation_block(self, key, value, level=0):
@@ -103,10 +104,10 @@ class PVLEncoder(object):
         agg_keywords = None
         if isinstance(value, PVLGroup):
             agg_keywords = self.grammar.group_pref_keywords
-        elif isinstance(value, PVLObject):
+        elif isinstance(value, dict):
             agg_keywords = self.grammar.object_pref_keywords
         else:
-            raise Exception
+            raise ValueError('The value {value} is not dict-like.')
 
         agg_begin = '{} = {}'.format(agg_keywords[0], key)
         if self.end_delimiter:
@@ -126,9 +127,12 @@ class PVLEncoder(object):
 
         return self.newline.join(lines)
 
-    def encode_assignment(self, key, value, level=0) -> str:
+    def encode_assignment(self, key, value, level=0, key_len=None) -> str:
+        if key_len is None:
+            key_len = len(key)
+
         s = ''
-        s += f'{key} = '
+        s += '{} = '.format(key.ljust(key_len))
 
         enc_val = self.encode_value(value)
 
@@ -161,16 +165,16 @@ class PVLEncoder(object):
     def encode_simple_value(self, value):
         if value is None:
             return self.grammar.none_keyword
-        if isinstance(value, set):
+        if isinstance(value, (set, frozenset)):
             return self.encode_set(value)
         elif isinstance(value, list):
             return self.encode_sequence(value)
         elif isinstance(value, datetime.datetime):
-            return self.encode_datetime(value)  #
+            return self.encode_datetime(value)
         elif isinstance(value, datetime.date):
-            return self.encode_date(value)  #
+            return self.encode_date(value)
         elif isinstance(value, datetime.time):
-            return self.encode_time(value)  #
+            return self.encode_time(value)
         elif isinstance(value, bool):
             if value:
                 return self.grammar.true_keyword
@@ -179,7 +183,7 @@ class PVLEncoder(object):
         elif isinstance(value, (int, float)):
             return repr(value)
         else:
-            return self.encode_string(value)  #
+            return self.encode_string(value)
 
     def encode_setseq(self, values):
         return ', '.join([self.encode_value(v) for v in values])
@@ -249,7 +253,7 @@ class ODLEncoder(PVLEncoder):
         super().__init__(grammar, decoder, indent, width, aggregation_end,
                          end_delimiter, newline)
 
-    def encode(self, module) -> str:
+    def encode(self, module: dict) -> str:
         '''ODL requires that there must be a spacing or format
            character after the END statement.
         '''
@@ -314,6 +318,9 @@ class ODLEncoder(PVLEncoder):
            be an underscore.
         '''
         if isinstance(value, str):
+            if len(value) == 0:
+                return False
+
             try:
                 # Ensure we're dealing with ASCII
                 value.encode(encoding='ascii')
@@ -338,22 +345,39 @@ class ODLEncoder(PVLEncoder):
     def needs_quotes(self, s: str) -> bool:
         return not self.is_identifier(s)
 
-    def encode_assignment(self, key, value, level=0) -> str:
+    def is_assignment_statement(self, s) -> bool:
+        '''An ODL Assignment Statement is either an
+           element_identifier or a namespace_identifier
+           and an element_identifier joined with a colon.
+        '''
+        if self.is_identifier(s):
+            return True
+
+        (ns, _, el) = s.partition(':')
+
+        if self.is_identifier(ns) and self.is_identifier(el):
+            return True
+
+        return False
+
+    def encode_assignment(self, key, value, level=0, key_len=None) -> str:
+        if key_len is None:
+            key_len = len(key)
 
         if len(key) > 30:
             raise ValueError('ODL keywords must be 30 characters or less '
                              f'in length, this one is longer: {key}')
 
         ident = ''
-        if((key.startswith('^') and self.is_identifier(key[1:]))
-           or self.is_identifier(key)):
+        if((key.startswith('^') and self.is_assignment_statement(key[1:]))
+           or self.is_assignment_statement(key)):
             ident = key.upper()
         else:
-            raise ValueError('The keyword "{key}" is not a valid ODL '
+            raise ValueError(f'The keyword "{key}" is not a valid ODL '
                              'Identifier.')
 
         s = ''
-        s += f'{ident} = '
+        s += '{} = '.format(ident.ljust(key_len))
         s += self.encode_value(value)
 
         if self.end_delimiter:
@@ -391,8 +415,7 @@ class ODLEncoder(PVLEncoder):
         '''
 
         if not all(map(self.is_scalar, values)):
-            raise ValueError('The PDS only allows integers and symbols '
-                             'in sets: {value}')
+            raise ValueError(f'ODL only allows scalar values in sets: {value}')
 
         return super().encode_set(values)
 
@@ -423,15 +446,24 @@ class ODLEncoder(PVLEncoder):
         if value.tzinfo is None:
             return t + 'Z'
         else:
-            delta = str(value.utcoffset())
-            return t + delta
+            td_str = str(value.utcoffset())
+            (h, m, s) = td_str.split(':')
+            if s != '00':
+                raise ValueError('The datetime value had a timezone offset '
+                                 f'with seconds values ({value}) which is '
+                                 'not allowed in ODL.')
+            if m == '00':
+                return t + '+' + h
+            else:
+                return t + f'+{h}:{m}'
 
     def encode_units(self, value):
 
-        if self.is_identifier(value.strip('*/()-')):
+        # if self.is_identifier(value.strip('*/()-')):
+        if self.is_identifier(re.sub(r'[\*/\(\)-]', '', value)):
 
             if '**' in value:
-                exponents = re.findall(r'\*\*.*?', value)
+                exponents = re.findall(r'\*\*.+?', value)
                 for e in exponents:
                     if re.search(r'\*\*-?\d+', e) is None:
                         raise ValueError('The exponentiation operator (**) in '
@@ -473,7 +505,7 @@ class PDSLabelEncoder(ODLEncoder):
         self.tab_replace = tab_replace
 
     @staticmethod
-    def count_aggs(module, obj_count=0, grp_count=0) -> tuple:
+    def count_aggs(module: dict, obj_count=0, grp_count=0) -> tuple:
         '''Returns the count of OBJECT and GROUP aggregations
            that are contained within the *module* as a two-tuple.
         '''
@@ -482,25 +514,27 @@ class PDSLabelEncoder(ODLEncoder):
         # may contain aggregations.
 
         for k, v in module.items():
-            if isinstance(v, PVLAggregation):
+            if isinstance(v, dict):
                 if isinstance(v, PVLGroup):
                     grp_count += 1
                 elif isinstance(v, PVLObject):
                     obj_count += 1
                 else:
-                    # There currently aren't any other kinds of Aggregations
-                    pass
+                    # We treat other dict-like Python objects as
+                    # PVLObjects for the purposes of this count,
+                    # because that is how they will be encoded.
+                    obj_count += 1
 
         return (obj_count, grp_count)
 
-    def encode(self, module) -> str:
+    def encode(self, module: dict) -> str:
         '''For PDS, if there are any GROUP elements, there must be at
            least one OBJECT element in the label.
         '''
         (obj_count, grp_count) = self.count_aggs(module)
 
-        if grp_count > 0:
-            if obj_count < 1 and self.convert_group_to_object:
+        if grp_count > 0 and obj_count < 1:
+            if self.convert_group_to_object:
                 for k, v in module.items():
                     # First try to convert any GROUPs that would not
                     # be valid PDS GROUPs.
@@ -521,7 +555,7 @@ class PDSLabelEncoder(ODLEncoder):
                                  'OBJECT elements, which is not allowed by '
                                  'the PDS.  You could set '
                                  '*convert_group_to_object* to *True* on the '
-                                 'encoder to try and convert a GROUP'
+                                 'encoder to try and convert a GROUP '
                                  'to an OBJECT.')
 
         s = super().encode(module)
@@ -530,7 +564,7 @@ class PDSLabelEncoder(ODLEncoder):
         else:
             return s
 
-    def is_PDSgroup(self, group) -> bool:
+    def is_PDSgroup(self, group: dict) -> bool:
         '''PDS applies the following restrictions to GROUPS:
 
            1. The GROUP structure may only be used in a data product
@@ -616,7 +650,7 @@ class PDSLabelEncoder(ODLEncoder):
         for v in values:
             if not self.is_symbol(v) and not isinstance(v, int):
                 raise ValueError('The PDS only allows integers and symbols '
-                                 'in sets: {value}')
+                                 f'in sets: {values}')
 
         return super().encode_set(values)
 

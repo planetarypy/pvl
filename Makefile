@@ -38,6 +38,7 @@ rtest:
 					 tests/test_token.py\
 					 tests/test_lexer.py\
 					 tests/test_parser.py\
+					 tests/test_encoder.py\
 					 tests/test_init.py
 
 test-all:

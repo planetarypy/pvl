@@ -49,7 +49,7 @@ Building pvl modules::
 import io
 from pathlib import Path
 
-from .encoder import PVLEncoder
+from .encoder import PVLEncoder, PDSLabelEncoder
 from ._collections import (
     PVLModule,
     PVLGroup,
@@ -180,44 +180,54 @@ def loads(s: str, parser=None, grammar=None, decoder=None, modcls=PVLModule,
     return parser.parse(s)
 
 
-def dump(module, stream, cls=PVLEncoder, **kwargs):
-    """Serialize ``module`` as a pvl module to the provided ``stream``.
+def dump(module, path, **kwargs):
+    """Serialize *module* as a pvl module to the provided *path*.
 
-    :param module: a ```PVLModule``` or ```dict``` like object to serialize
+    If *path* is an os.PathLike, it will attempt to be opened and
+    the serialized module will be written into that file via
+    the pathlib.Path.write_text() function.
 
-    :param stream: a ``.write()``-supporting file-like object to serialize the
-        module to. If ``stream`` is a string it will be treated as a filename
+    If *path* is not an os.PathLike, it will be assumed to be an
+    already-opened file object, and ``.write()`` will be applied
+    on that object to write the serialized module.
 
-    :param cls: the encoder class used to serialize the pvl module. You may use
-        the default ``PVLEncoder`` class or provided encoder formats such as the
-        ```IsisCubeLabelEncoder``` and ```PDSLabelEncoder``` classes. You may
-        also provided a custom sublcass of ```PVLEncoder```
+    :param module: a ``PVLModule`` or ``dict``-like object to serialize
 
-    :param **kwargs: the keyword arguments to pass to the encoder class.
+    :param **kwargs: the keyword arguments to pass to the dumps() function.
     """
-    if isinstance(stream, str):
-        with open(stream, 'wb') as fp:
-            return cls(**kwargs).encode(module, fp)
-    cls(**kwargs).encode(module, stream)
+    try:
+        p = Path(path)
+        return p.write_text(dumps(module, **kwargs))
+
+    except TypeError:
+        # Not an os.PathLike, maybe it is an already-opened file object
+        try:
+            if isinstance(path, io.TextIOBase):
+                return path.write(dumps(module, **kwargs))
+            else:
+                return path.write(dumps(module, **kwargs).encode())
+        except AttributeError:
+            # Not a path, not an already-opened file.
+            raise TypeError('Expected an os.PathLike or an already-opened '
+                            'file object for writing, but got neither.')
 
 
-def dumps(module, cls=PVLEncoder, **kwargs):
-    """Serialize ``module`` as a pvl module formated byte string.
+def dumps(module, cls=PDSLabelEncoder, **kwargs):
+    """Serialize ``module`` as a pvl module formated string.
 
     :param module: a ```PVLModule``` or ```dict``` like object to serialize
 
-    :param cls: the encoder class used to serialize the pvl module. You may use
-        the default ``PVLEncoder`` class or provided encoder formats such as the
-        ```IsisCubeLabelEncoder``` and ```PDSLabelEncoder``` classes. You may
-        also provided a custom sublcass of ```PVLEncoder```
+    :param cls: the encoder class used to serialize the pvl module. You may
+        use the default ``PDSLabelEncoder`` class, provided encoder formats
+        such as the ```PVLEncoder``` and ```ODLEncoder``` classes. You may
+        also provide a custom sublcass of ```PVLEncoder```.
 
     :param **kwargs: the keyword arguments to pass to the encoder class.
 
     :returns: a byte string encoding of the pvl module
     """
-    stream = io.BytesIO()
-    cls(**kwargs).encode(module, stream)
-    return stream.getvalue()
+    encoder = cls(**kwargs)
+    return encoder.encode(module)
 
 
 # Depreciated aliases

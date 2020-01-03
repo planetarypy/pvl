@@ -967,3 +967,156 @@ def test_load_all_bad_sample_labels():
     for filename in BAD_PDS_LABELS:
         label = pvl.load(filename)
         assert isinstance(label, Label)
+
+
+def test_dump_stream():
+    for filename in PDS_LABELS:
+        # print(filename)
+        label = pvl.load(filename)
+        # print(label)
+        stream = io.BytesIO()
+
+        if('tests/data/pds3/set1.lbl' in filename or  # float in set
+           'tests/data/pds3/set2.lbl' in filename or  # float in set
+           'tests/data/pds3/dates.lbl' in filename):  # tz in dates
+            # The default PDSLabelEncoder will refuse to
+            # write out floating point values into sets,
+            # or datetimes with non-UTC timezones,
+            # but the ODLEncoder will:
+            pvl.dump(label, stream, cls=pvl.encoder.ODLEncoder)
+            stream.seek(0)
+            assert label == pvl.load(stream)
+
+            with pytest.raises(ValueError):
+                pvl.dump(label, stream)
+
+        else:
+            pvl.dump(label, stream)
+            stream.seek(0)
+            # assert label == pvl.load(stream)
+            s = pvl.load(stream)
+            if 'tests/data/pds3/float1.lbl' in filename:
+                # FlOAT not FLOAT, see test below
+                assert label != s
+            else:
+                assert label == s
+
+# def test_dump_to_file():
+#     tmpdir = tempfile.mkdtemp()
+#
+#     try:
+#         for filename in PDS_LABELS:
+#             label = pvl.load(filename)
+#             tmpfile = os.path.join(tmpdir, os.path.basename(filename))
+#             pvl.dump(label, tmpfile)
+#             assert label == pvl.load(tmpfile)
+#     finally:
+#         shutil.rmtree(tmpdir)
+
+
+# def test_default_encoder():
+#     for filename in PDS_LABELS:
+#         label = pvl.load(filename)
+#         assert label == pvl.loads(pvl.dumps(label))
+
+
+# def test_cube_encoder():
+#     for filename in PDS_LABELS:
+#         label = pvl.load(filename)
+#         encoder = pvl.encoder.IsisCubeLabelEncoder
+#         assert label == pvl.loads(pvl.dumps(label, cls=encoder))
+
+
+# def test_pds_encoder():
+#     for filename in PDS_LABELS:
+#         label = pvl.load(filename)
+#         encoder = pvl.encoder.PDSLabelEncoder
+#         assert label == pvl.loads(pvl.dumps(label, cls=encoder))
+
+
+# def test_special_values():
+#     module = pvl.PVLModule([
+#         ('bool_true', True),
+#         ('bool_false', False),
+#         ('null', None),
+#     ])
+#     assert module == pvl.loads(pvl.dumps(module))
+#
+#     encoder = pvl.encoder.IsisCubeLabelEncoder
+#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+#
+#     encoder = pvl.encoder.PDSLabelEncoder
+#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+
+
+# def test_special_strings():
+#     module = pvl.PVLModule([
+#         ('single_quote', "'"),
+#         ('double_quote', '"'),
+#         ('mixed_quotes', '"\''),
+#     ])
+#     assert module == pvl.loads(pvl.dumps(module))
+#
+#     encoder = pvl.encoder.IsisCubeLabelEncoder
+#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+#
+#     encoder = pvl.encoder.PDSLabelEncoder
+#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+
+
+# def test_unkown_value():
+#     class UnknownType(object):
+#         pass
+#
+#     with pytest.raises(TypeError):
+#         pvl.dumps({'foo': UnknownType()})
+
+
+# def test_quoated_strings():
+#     module = pvl.PVLModule([
+#         ('int_like', "123"),
+#         ('float_like', '.2'),
+#         ('date', '1987-02-25'),
+#         ('time', '03:04:05'),
+#         ('datetime', '1987-02-25T03:04:05'),
+#         ('keyword', 'END'),
+#         ('restricted_chars', '&<>\'{},[]=!#()%";|'),
+#         ('restricted_seq', '/**/'),
+#     ])
+#     assert module == pvl.loads(pvl.dumps(module))
+#
+#     encoder = pvl.encoder.IsisCubeLabelEncoder
+#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+#
+#     encoder = pvl.encoder.PDSLabelEncoder
+#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+
+
+# def test_dump_to_file_insert_before():
+#     tmpdir = tempfile.mkdtemp()
+#
+#     try:
+#         for filename in PDS_LABELS:
+#             label = pvl.load(filename)
+#             if os.path.basename(filename) != 'empty.lbl':
+#                 label.insert_before('PDS_VERSION_ID', [('new', 'item')])
+#             tmpfile = os.path.join(tmpdir, os.path.basename(filename))
+#             pvl.dump(label, tmpfile)
+#             assert label == pvl.load(tmpfile)
+#     finally:
+#         shutil.rmtree(tmpdir)
+#
+#
+# def test_dump_to_file_insert_after():
+#     tmpdir = tempfile.mkdtemp()
+#
+#     try:
+#         for filename in PDS_LABELS:
+#             label = pvl.load(filename)
+#             if os.path.basename(filename) != 'empty.lbl':
+#                 label.insert_after('PDS_VERSION_ID', [('new', 'item')])
+#             tmpfile = os.path.join(tmpdir, os.path.basename(filename))
+#             pvl.dump(label, tmpfile)
+#             assert label == pvl.load(tmpfile)
+#     finally:
+#         shutil.rmtree(tmpdir)
