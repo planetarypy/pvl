@@ -165,16 +165,13 @@ class PVLEncoder(object):
     def encode_simple_value(self, value):
         if value is None:
             return self.grammar.none_keyword
-        if isinstance(value, (set, frozenset)):
+        elif isinstance(value, (set, frozenset)):
             return self.encode_set(value)
         elif isinstance(value, list):
             return self.encode_sequence(value)
-        elif isinstance(value, datetime.datetime):
-            return self.encode_datetime(value)
-        elif isinstance(value, datetime.date):
-            return self.encode_date(value)
-        elif isinstance(value, datetime.time):
-            return self.encode_time(value)
+        elif isinstance(value, (datetime.datetime, datetime.date,
+                                datetime.time)):
+            return self.encode_datetype(value)
         elif isinstance(value, bool):
             if value:
                 return self.grammar.true_keyword
@@ -182,8 +179,10 @@ class PVLEncoder(object):
                 return self.grammar.false_keyword
         elif isinstance(value, (int, float)):
             return repr(value)
-        else:
+        elif isinstance(value, str):
             return self.encode_string(value)
+        else:
+            raise TypeError(f'{value!r} is not serializable.')
 
     def encode_setseq(self, values):
         return ', '.join([self.encode_value(v) for v in values])
@@ -193,6 +192,16 @@ class PVLEncoder(object):
 
     def encode_set(self, value) -> str:
         return '{' + self.encode_setseq(value) + '}'
+
+    def encode_datetype(self, value) -> str:
+        if isinstance(value, datetime.datetime):
+            return self.encode_datetime(value)
+        elif isinstance(value, datetime.date):
+            return self.encode_date(value)
+        elif isinstance(value, datetime.time):
+            return self.encode_time(value)
+        else:
+            raise TypeError(f'{value!r} is not a datetime type.')
 
     def encode_date(self, value: datetime.date) -> str:
         return f'{value:%Y-%m-%d}'
