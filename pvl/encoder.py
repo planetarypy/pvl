@@ -223,21 +223,26 @@ class PVLEncoder(object):
         return date + 'T' + time
 
     def needs_quotes(self, s: str) -> bool:
+        if any(c in self.grammar.whitespace for c in s):
+            return True
+
+        if s in self.grammar.reserved_keywords:
+            return True
+
         tok = Token(s, grammar=self.grammar, decoder=self.decoder)
         return not tok.is_unquoted_string()
 
     def encode_string(self, value):
         s = str(value)
 
-        if(self.needs_quotes(s)
-           or any(c in self.grammar.whitespace for c in s)):
+        if self.needs_quotes(s):
             for q in self.grammar.quotes:
                 if q not in s:
                     return q + s + q
             else:
                 raise ValueError('All of the quote characters, '
                                  f'{self.grammar.quotes}, were in the '
-                                 f'string ("s"), so it could not be quoted.')
+                                 f'string ("{s}"), so it could not be quoted.')
         else:
             return s
 
