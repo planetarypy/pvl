@@ -14,4 +14,5 @@ Contributors
 * Michael Aye <kmichael.aye@gmail.com>
 * Austin Godber <godber@uberhip.com>
 * Perry Vargas <perrybvargas@gmail.com>
-* Ross Beyer <rbeyer@seti.org>
+* `Benoit Seignovert <https://github.com/seignovert>`_
+* `Ross Beyer <https://github.com/rbeyer>`_

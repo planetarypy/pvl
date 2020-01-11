@@ -356,30 +356,39 @@ def test_hex():
         pvl.loads('hex_number_upper = 16#100AZ#')
 
 
-# I think the original mixed test here is wrong.  The single quote
-# before 'quotes' should terminate the quoted string.  I think the
-# idea here was suppsed to be that the \\ escaped a slash, and then
-# that left you with the following two character sequence: "\'", which
-# was meant to be interpreted as an 'escaped' quote which shouldn't
-# terminate the quoted string, but PVL doesn't 'escape' characters,
-# even though Python does.  So in the string given to the parser,
-# Python escapes the \\ to a single slash (which is in the PVL
-# unrestricted character set), followed by a single quote, which
-# properly terminates the quoted string, and then there's an unparseable
-# "quotes'" after it that should cause an error.
+# I think the original 'mixed' and 'formating' tests here need
+# fixing:
 #
 #        mixed = 'mixed"\\'quotes'
 #
-# Same thing with the original formatting test, kinda:
+#        formating = "\\n\\t\\f\\v\\\\\\n\\t\\f\\v\\\\"
 #
-#         formating = "\\n\\t\\f\\v\\\\\\n\\t\\f\\v\\\\"
+# I think they might have worked when the library was working
+# with bytestrings, but these need to be modified for string
+# parsing.  To be clear, the difference is in how you write things
+# within a Python string and how the Python interpreter deals with
+# what you write in a file like *this*.  There should be no difference
+# in how the library deals with these characters in external files.
 #
-# All of those double backslashes just escape a slash, so the
-# Python string would have backslash, n, backslash, t, backslash, f,
-# backslash v, backslash, backslash, backslash, etc.
-# So this string would not have any format effectors or space
-# characters in it.
-
+# For the mixed test, the single quote before 'quotes' should terminate
+# the quoted string.  I think the idea here was suppsed to be that
+# the \\ escaped a slash, and then that left you with the following
+# two character sequence: "\'", which was meant to be interpreted as
+# an 'escaped' quote which shouldn't terminate the quoted string, but
+# PVL doesn't 'escape' characters, even though Python does.  So in
+# the string given to the parser, Python escapes the \\ to a single
+# slash (which is in the PVL unrestricted character set), followed
+# by a single quote, which properly terminates the quoted string, and
+# then there's an unparseable "quotes'" after it that should cause
+# an error.  The test has been modified.
+#
+# For the formating test, it still works, but it isn't particularly
+# insightful, because all of those double backslashes just escape a
+# slash, so the Python string would have backslash, n, backslash, t,
+# backslash, f, backslash v, backslash, backslash, backslash, etc.
+# Basically just a bunch of backslashes and some letters, and no
+# format effectors or space characters in it.  The formating2 test
+# exercises this a little more.
 
 def test_quotes():
     some_pvl = """
@@ -473,7 +482,7 @@ def test_comments():
     with pytest.raises(pvl.lexer.LexerError):
         pvl.loads(some_pvl, grammar=pvl.grammar.grammar())
 
-    # Fortunately, we use the Omnigrammar as the default.
+    # But the Omnigrammar does:
     label = pvl.loads(some_pvl)
 
     assert len(label) == 3
@@ -699,6 +708,26 @@ def test_sequence():
     assert label['linewrap'][1] == 1.234
     assert label['linewrap'][2] == 1.234
     assert label['linewrap'][3] == 1.234
+
+
+def test_sequence_backslashes():
+    # We need to escape the slashes here within Python:
+    some_pvl = '''SPICE_FILE_NAME = ("sclk\\ROS_160929_STEP.TSC",
+    "lsk\\NAIF0011.TLS", "fk\\ROS_V26.TF", "ik\\ROS_OSIRIS_V13.TI",
+    "spk\\RORB_DV_145_01_______00216.BSP", "ck\\RATT_DV_145_01_01____00216.BC",
+    "pck\\PCK00010.TPC", "spk\\DE405.BSP", "pck\\ROS_CGS_RSOC_V03.TPC",
+    "fk\\ROS_CHURYUMOV_V01.TF", "spk\\CORB_DV_145_01_______00216.BSP",
+    "ck\\CATT_DV_145_01_______00216.BC")'''
+
+    sclk_str = 'sclk\\ROS_160929_STEP.TSC'
+
+    p1 = pvl.loads(some_pvl)
+    p1['SPICE_FILE_NAME'][0] = sclk_str
+
+    # But they read in just fine without
+    backslashes_lbl = os.path.join(PDS_DATA_DIR, "backslashes.lbl")
+    p2 = pvl.load(backslashes_lbl)
+    p2['SPICE_FILE_NAME'][0] = sclk_str
 
 
 def test_units():
@@ -1024,7 +1053,9 @@ def test_load_all_bad_sample_labels():
 # So we must divide the PDS_LABELS into those that represent PVL
 # that can be written out by the default PDSLabelEncoder, and those
 # that must be written by the slightly more permissive ODLEncoder,
-# and those that must be written by the PVLEncoder.
+# and those that must be written by the PVLEncoder, so that when
+# they are read back in by the OmniParser, the Python objects can
+# compare true for these tests to pass.
 
 
 PDS_COMPLIANT = list()
@@ -1137,7 +1168,7 @@ def test_special_strings():
     module = pvl.PVLModule([
         ('single_quote', "'"),
         ('double_quote', '"'),
-        # ('mixed_quotes', '"\''),
+        # ('mixed_quotes', '"\''),  # see above about escaped quotes.
     ])
     assert module == pvl.loads(pvl.dumps(module, cls=pvl.encoder.PVLEncoder))
 
@@ -1166,7 +1197,7 @@ def test_quoated_strings():
         ('time', '03:04:05'),
         ('datetime', '1987-02-25T03:04:05'),
         ('keyword', 'END'),
-        # both kinds of quotes:
+        # both kinds of quotes aren't allowed:
         # ('restricted_chars', '&<>\'{},[]=!#()%";|'),
         ('restricted_chars', '&<>{},[]=!#()%";|'),
         ('restricted_seq', '/**/'),

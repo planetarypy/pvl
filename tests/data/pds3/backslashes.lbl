@@ -1,0 +1,7 @@
+PDS_VERSION_ID = PDS3
+SPICE_FILE_NAME               = ("sclk\ROS_160929_STEP.TSC", 
+    "lsk\NAIF0011.TLS", "fk\ROS_V26.TF", "ik\ROS_OSIRIS_V13.TI", 
+    "spk\RORB_DV_145_01_______00216.BSP", "ck\RATT_DV_145_01_01____00216.BC", 
+    "pck\PCK00010.TPC", "spk\DE405.BSP", "pck\ROS_CGS_RSOC_V03.TPC", 
+    "fk\ROS_CHURYUMOV_V01.TF", "spk\CORB_DV_145_01_______00216.BSP", 
+    "ck\CATT_DV_145_01_______00216.BC")
