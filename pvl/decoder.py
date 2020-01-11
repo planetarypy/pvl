@@ -335,8 +335,12 @@ class ODLDecoder(PVLDecoder):
         ws = ''.join(self.grammar.whitespace)
         nodash = re.sub(fr'-[{fe}][{ws}]*', '', s)
 
-        # Collapse split lines
-        return re.sub(fr'[{sp}]*[{fe}]+[{sp}]*', ' ', nodash)
+        # Originally thought that only format effectors surrounded
+        # by whitespace was to be collapsed
+        # foo = re.sub(fr'[{sp}]*[{fe}]+[{sp}]*', ' ', nodash)
+
+        # But really it collapses all whitespace and strips lead and trail.
+        return re.sub(fr'[{ws}]+', ' ', nodash.strip(ws))
 
 
 class OmniDecoder(ODLDecoder):

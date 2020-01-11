@@ -659,6 +659,25 @@ class PVLParser(object):
 
 class ODLParser(PVLParser):
 
+    def parse_set(self, tokens: abc.Generator) -> set:
+        """Parses a PVL Set.
+
+            <Set> ::= "{{" <WSC>*
+                       [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
+                      "}}"
+
+           Returns the decoded <Set> as a Python ``set``.
+
+           The ODL specification only allows scalar_values in Sets,
+           since ODL Sets cannot contain other ODL Sets, an ODL Set
+           can be represented as a Python ``set`` (unlike PVL Sets,
+           which must be represented as a Python ``frozenset``).
+
+           {}
+        """.format(_tokens_docstring)
+        return set(self._parse_set_seq(self.grammar.set_delimiters,
+                                       tokens))
+
     def parse_units(self, value, tokens: abc.Generator) -> str:
         """Parses ODL Units Expression.  ODL only allows units
            on numeric values, any others will result in a ValueError.
@@ -694,7 +713,7 @@ class OmniParser(PVLParser):
            all whitespace characters that begin the next line will
            be removed.
         '''
-        nodash = re.sub(r'-[\n\r\f]\s+', '', s)
+        nodash = re.sub(r'-[\n\r\f]\s*', '', s)
         self.doc = nodash
 
         return super().parse(nodash)

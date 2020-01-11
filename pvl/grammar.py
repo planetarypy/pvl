@@ -139,9 +139,11 @@ class grammar():
 
         o = ord(char)
 
+        # The vertical tab, ord('\t') = 11, is mistakenly
+        # shaded on page B-3 of the PVL specification.
         if(o > 255 or
            (o >= 0 and o <= 8) or
-           o == 11 or
+           # o == 11 or
            (o >= 14 and o <= 31) or
            (o >= 127 and o <= 159)):
             return False

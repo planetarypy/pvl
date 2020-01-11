@@ -38,7 +38,15 @@ def test_assignment():
 
     label = pvl.loads('foo=bar-\n')
     assert isinstance(label, Label)
-    assert label['foo'] == 'bar-'
+    assert label['foo'] == 'bar'
+
+    label = pvl.loads('foo=bro-\nken')
+    assert isinstance(label, Label)
+    assert label['foo'] == 'broken'
+
+    label = pvl.loads('foo=bro-\n ken')
+    assert isinstance(label, Label)
+    assert label['foo'] == 'broken'
 
 
 def test_spacing():
@@ -348,35 +356,52 @@ def test_hex():
         pvl.loads('hex_number_upper = 16#100AZ#')
 
 
-# I think the mixed test here is wrong.  The single quote before 'quotes'
-# should terminate the quoted string.  I think the idea here was suppsed to
-# be that the \\ escaped a slash, and then that left you with the following
-# two character sequence: "\'", which was meant to be interpreted as an
-# 'escaped' quote which shouldn't terminate the quoted string, but
-# PVL doesn't 'escape' characters, even though Python does.  So
-# to PVL, its a slash (which is in the PVL unrestricted character set),
-# followed by a single quote, which properly terminates the quoted string,
-# and then there's an unparseable "quotes'" after it that should cause an
-# error.
+# I think the original mixed test here is wrong.  The single quote
+# before 'quotes' should terminate the quoted string.  I think the
+# idea here was suppsed to be that the \\ escaped a slash, and then
+# that left you with the following two character sequence: "\'", which
+# was meant to be interpreted as an 'escaped' quote which shouldn't
+# terminate the quoted string, but PVL doesn't 'escape' characters,
+# even though Python does.  So in the string given to the parser,
+# Python escapes the \\ to a single slash (which is in the PVL
+# unrestricted character set), followed by a single quote, which
+# properly terminates the quoted string, and then there's an unparseable
+# "quotes'" after it that should cause an error.
+#
 #        mixed = 'mixed"\\'quotes'
+#
+# Same thing with the original formatting test, kinda:
+#
+#         formating = "\\n\\t\\f\\v\\\\\\n\\t\\f\\v\\\\"
+#
+# All of those double backslashes just escape a slash, so the
+# Python string would have backslash, n, backslash, t, backslash, f,
+# backslash v, backslash, backslash, backslash, etc.
+# So this string would not have any format effectors or space
+# characters in it.
+
 
 def test_quotes():
-    label = pvl.loads("""
+    some_pvl = """
         foo = 'bar'
         empty = ''
         space = '  test  '
         double = "double'quotes"
         single = 'single"quotes'
+        mixed = 'mixed"\\quotes'
         number = '123'
         date = '1918-05-11'
         multiline = 'this is a
                      multi-line string'
         continuation = "The planet Jupi-
                         ter is very big"
-        """)
-#         formating = "\\n\\t\\f\\v\\\\\\n\\t\\f\\v\\\\"
-#         End
-#         """)
+        formating = "\\n\\t\\f\\v\\\\\\n\\t\\f\\v\\\\"
+        formating2 = "\n\t\f\v\\\n\t\f\v\\"
+        End
+        """
+
+    label = pvl.loads(some_pvl)
+    pvl_label = pvl.loads(some_pvl, decoder=pvl.decoder.PVLDecoder())
 
     assert isinstance(label['foo'], str)
     assert label['foo'] == 'bar'
@@ -385,10 +410,10 @@ def test_quotes():
     assert label['empty'] == ''
 
     assert isinstance(label['space'], str)
-    # This test is incorrect, since the whitespace is quoted, it should
-    # not be collapsed.
-    # assert label['space'] == 'test'
-    assert label['space'] == '  test  '
+    # ODLDecoder and OmniDecoder:
+    assert label['space'] == 'test'
+    # PVLDecoder:
+    assert pvl_label['space'] == '  test  '
 
     assert isinstance(label['double'], str)
     assert label['double'] == "double'quotes"
@@ -396,8 +421,8 @@ def test_quotes():
     assert isinstance(label['single'], str)
     assert label['single'] == 'single"quotes'
 
-    # assert isinstance(label['single'], str)
-    # assert label['mixed'] == 'mixed"\'quotes'
+    assert isinstance(label['mixed'], str)
+    assert label['mixed'] == 'mixed"\\quotes'
 
     assert isinstance(label['number'], str)
     assert label['number'] == '123'
@@ -413,9 +438,10 @@ def test_quotes():
     assert isinstance(label['continuation'], str)
     assert label['continuation'] == 'The planet Jupiter is very big'
 
-    # Come back to this one
-    # assert isinstance(label['formating'], str)
-    # assert label['formating'] == '\n\t\f\v\\\n\t\f\v\\'
+    assert isinstance(label['formating'], str)
+    assert label['formating'] == '\\n\\t\\f\\v\\\\\\n\\t\\f\\v\\\\'
+    assert label['formating2'] == '\\ \\'
+    assert pvl_label['formating2'] == '\n\t\f\v\\\n\t\f\v\\'
 
     # The quote after the equals here starts a quoted string, but
     # it doesn't complete, and therefore there's no assignment to foo.
@@ -628,6 +654,9 @@ def test_sequence():
         multiline = (a,
                      b,
                      c)
+        linewrap = (1.234,1.2-
+                    34,1.234-
+                    ,1.234)
         End
     """)
 
@@ -663,6 +692,13 @@ def test_sequence():
     assert label['multiline'][0] == 'a'
     assert label['multiline'][1] == 'b'
     assert label['multiline'][2] == 'c'
+
+    assert isinstance(label['linewrap'], list)
+    assert len(label['linewrap']) == 4
+    assert label['linewrap'][0] == 1.234
+    assert label['linewrap'][1] == 1.234
+    assert label['linewrap'][2] == 1.234
+    assert label['linewrap'][3] == 1.234
 
 
 def test_units():
@@ -925,7 +961,8 @@ def test_broken_labels(label, expected, expected_errors):
     # always compare equal.
     assert module == expected
 
-    # But this should compare the 'line numbers' of the EmptyValueAtLines
+    # But this should compare the 'line numbers' of the EmptyValueAtLine
+    # objects.
     assert module.errors == expected_errors
     assert not module.valid
 
@@ -984,7 +1021,7 @@ def test_load_all_bad_sample_labels():
 # PDSLabelEncoder (which is the most strict).  Or is altered by the
 # encoder (labels are uppercased in ODL and PDS).
 #
-# So we must divide the PDS_LABELS into those that represent 'PVL'
+# So we must divide the PDS_LABELS into those that represent PVL
 # that can be written out by the default PDSLabelEncoder, and those
 # that must be written by the slightly more permissive ODLEncoder,
 # and those that must be written by the PVLEncoder.
@@ -1036,11 +1073,6 @@ def test_dump_stream():
         stream.seek(0)
         assert label == pvl.load(stream)
 
-#                 # FlOAT not FLOAT, see test below
-#                 assert label != s
-#             else:
-#                 assert label == s
-
 
 def test_dump_to_file():
     tmpdir = tempfile.mkdtemp()
@@ -1076,89 +1108,105 @@ def test_pds_encoder():
         assert label == pvl.loads(pvl.dumps(label, cls=encoder))
 
 
-# def test_special_values():
-#     module = pvl.PVLModule([
-#         ('bool_true', True),
-#         ('bool_false', False),
-#         ('null', None),
-#     ])
-#     assert module == pvl.loads(pvl.dumps(module))
-#
-#     encoder = pvl.encoder.IsisCubeLabelEncoder
-#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
-#
-#     encoder = pvl.encoder.PDSLabelEncoder
-#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+def test_special_values():
+    module = pvl.PVLModule([
+        ('bool_true', True),
+        ('bool_false', False),
+        ('null', None),
+    ])
+    assert module == pvl.loads(pvl.dumps(module, cls=pvl.encoder.PVLEncoder))
+
+    # IsisCubeLabelEncoder class is deprecated
+    # encoder = pvl.encoder.IsisCubeLabelEncoder
+    # assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+
+    # This is now the default:
+    # encoder = pvl.encoder.PDSLabelEncoder
+
+    # But to compare with PVL written by the PDSLabelEncoder, the
+    # labels must be uppercase:
+    pds_module = pvl.PVLModule([
+        ('BOOL_TRUE', True),
+        ('BOOL_FALSE', False),
+        ('NULL', None),
+    ])
+    assert pds_module == pvl.loads(pvl.dumps(module))
 
 
-# def test_special_strings():
-#     module = pvl.PVLModule([
-#         ('single_quote', "'"),
-#         ('double_quote', '"'),
-#         ('mixed_quotes', '"\''),
-#     ])
-#     assert module == pvl.loads(pvl.dumps(module))
-#
-#     encoder = pvl.encoder.IsisCubeLabelEncoder
-#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
-#
-#     encoder = pvl.encoder.PDSLabelEncoder
-#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+def test_special_strings():
+    module = pvl.PVLModule([
+        ('single_quote', "'"),
+        ('double_quote', '"'),
+        # ('mixed_quotes', '"\''),
+    ])
+    assert module == pvl.loads(pvl.dumps(module, cls=pvl.encoder.PVLEncoder))
+
+    # IsisCubeLabelEncoder class is deprecated
+    # encoder = pvl.encoder.IsisCubeLabelEncoder
+    # assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+
+    # This just duplicates the above test
+    # encoder = pvl.encoder.PDSLabelEncoder
+    # assert module == pvl.loads(pvl.dumps(module, cls=encoder))
 
 
-# def test_unkown_value():
-#     class UnknownType(object):
-#         pass
-#
-#     with pytest.raises(TypeError):
-#         pvl.dumps({'foo': UnknownType()})
+def test_unkown_value():
+    class UnknownType(object):
+        pass
+
+    with pytest.raises(TypeError):
+        print(pvl.dumps({'foo': UnknownType()}))
 
 
-# def test_quoated_strings():
-#     module = pvl.PVLModule([
-#         ('int_like', "123"),
-#         ('float_like', '.2'),
-#         ('date', '1987-02-25'),
-#         ('time', '03:04:05'),
-#         ('datetime', '1987-02-25T03:04:05'),
-#         ('keyword', 'END'),
-#         ('restricted_chars', '&<>\'{},[]=!#()%";|'),
-#         ('restricted_seq', '/**/'),
-#     ])
-#     assert module == pvl.loads(pvl.dumps(module))
-#
-#     encoder = pvl.encoder.IsisCubeLabelEncoder
-#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
-#
-#     encoder = pvl.encoder.PDSLabelEncoder
-#     assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+def test_quoated_strings():
+    module = pvl.PVLModule([
+        ('int_like', "123"),
+        ('float_like', '.2'),
+        ('date', '1987-02-25'),
+        ('time', '03:04:05'),
+        ('datetime', '1987-02-25T03:04:05'),
+        ('keyword', 'END'),
+        # both kinds of quotes:
+        # ('restricted_chars', '&<>\'{},[]=!#()%";|'),
+        ('restricted_chars', '&<>{},[]=!#()%";|'),
+        ('restricted_seq', '/**/'),
+    ])
+    assert module == pvl.loads(pvl.dumps(module, cls=pvl.encoder.PVLEncoder))
+
+    # IsisCubeLabelEncoder class is deprecated
+    # encoder = pvl.encoder.IsisCubeLabelEncoder
+    # assert module == pvl.loads(pvl.dumps(module, cls=encoder))
+
+    # This just duplicates the above test.
+    # encoder = pvl.encoder.PDSLabelEncoder
+    # assert module == pvl.loads(pvl.dumps(module, cls=encoder))
 
 
-# def test_dump_to_file_insert_before():
-#     tmpdir = tempfile.mkdtemp()
-#
-#     try:
-#         for filename in PDS_LABELS:
-#             label = pvl.load(filename)
-#             if os.path.basename(filename) != 'empty.lbl':
-#                 label.insert_before('PDS_VERSION_ID', [('new', 'item')])
-#             tmpfile = os.path.join(tmpdir, os.path.basename(filename))
-#             pvl.dump(label, tmpfile)
-#             assert label == pvl.load(tmpfile)
-#     finally:
-#         shutil.rmtree(tmpdir)
-#
-#
-# def test_dump_to_file_insert_after():
-#     tmpdir = tempfile.mkdtemp()
-#
-#     try:
-#         for filename in PDS_LABELS:
-#             label = pvl.load(filename)
-#             if os.path.basename(filename) != 'empty.lbl':
-#                 label.insert_after('PDS_VERSION_ID', [('new', 'item')])
-#             tmpfile = os.path.join(tmpdir, os.path.basename(filename))
-#             pvl.dump(label, tmpfile)
-#             assert label == pvl.load(tmpfile)
-#     finally:
-#         shutil.rmtree(tmpdir)
+def test_dump_to_file_insert_before():
+    tmpdir = tempfile.mkdtemp()
+
+    try:
+        for filename in PDS_COMPLIANT:
+            label = pvl.load(filename)
+            if os.path.basename(filename) != 'empty.lbl':
+                label.insert_before('PDS_VERSION_ID', [('new', 'item')])
+            tmpfile = os.path.join(tmpdir, os.path.basename(filename))
+            pvl.dump(label, tmpfile, cls=pvl.encoder.PVLEncoder)
+            assert label == pvl.load(tmpfile)
+    finally:
+        shutil.rmtree(tmpdir)
+
+
+def test_dump_to_file_insert_after():
+    tmpdir = tempfile.mkdtemp()
+
+    try:
+        for filename in PDS_COMPLIANT:
+            label = pvl.load(filename)
+            if os.path.basename(filename) != 'empty.lbl':
+                label.insert_after('PDS_VERSION_ID', [('new', 'item')])
+            tmpfile = os.path.join(tmpdir, os.path.basename(filename))
+            pvl.dump(label, tmpfile, cls=pvl.encoder.PVLEncoder)
+            assert label == pvl.load(tmpfile)
+    finally:
+        shutil.rmtree(tmpdir)
