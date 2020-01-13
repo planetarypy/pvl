@@ -40,7 +40,15 @@ import pvl
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode',
+              'sphinx.ext.intersphinx',
+              'sphinxcontrib.apidoc']
+
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
+
+apidoc_module_dir = '../pvl'
+apidoc_output_dir = '.'
+apidoc_excluded_paths = ['tests']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -56,7 +64,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pvl'
-copyright = u'2015, PlanetaryPy'
+copyright = u'2015, 2017, 2019-2020, pvl Developers'
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout

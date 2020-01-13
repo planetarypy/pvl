@@ -1,29 +1,36 @@
-==============
-Encoding Label
-==============
+====================
+Writing out PVL text
+====================
 
-This documentation explains how you can use ``pvl.dump`` and ``pvl.dumps`` so 
-you can change, add, and/or write out the label to another file. This 
-documentation assumes that you know what :doc:`pvl.load and pvl.loads <parsing>`
-are and how to use them. Read the documentation on :doc:`pvl.load and pvl.loads 
-<parsing>` if you do not. The examples use an IsisCube image label format,
-however this module can write/alter any PVL compliant label.
+This documentation explains how you can use :func:`pvl.dump` and 
+:func:`pvl.dumps` so you can change, add, and/or write out the label to 
+another file. This documentation assumes that you've read about how to
+`parse PVL text <parsing.rst>`_ and know how :func:`pvl.load` and
+:func:`pvl.loads` work.
+
+The examples primarily use an ISIS Cube image label format, which
+typically doesn't conform to PDS 3 standards, so pay attention to
+the differences between the PVL text that is loaded, versus the PDS
+3-compliant PVL text that is dumped.
+
+However, this library can write/alter any PVL compliant label.
 
 
 .. contents:: `Table of Contents`
   :local:
 
----------
-pvl.dump
----------
+--------------------------
+Writing PVL Text to a File
+--------------------------
 
-This module allows you to modify an existing image label and then write the
-new label to the file or to a new file.
+The :func:`pvl.dump` function allows you to write out a :class:`dict`-like
+Python object (typically a :class:`pvl.PVLModule` object) to a file as PVL
+text.
 
 Simple Use
 +++++++++++
 
-How to use module::
+Read a label from a file, and then write it out to another::
 
  >>> import pvl
  >>> img = 'path/to/image.ext'
@@ -33,13 +40,8 @@ How to use module::
  # Add Information
  >>> label['New_Key'] = 'New_Value'
  # Write out new label to file
- >>> with open(img,'w') as stream:
-         pvl.dump(label,stream)
+ >>> pvl.dump(label, 'path/to/new.pvl')
 
-Parameters
-++++++++++
-
-Must include a label that is a dictionary and a file to write the label to.
 
 Changing A Key
 +++++++++++++++
@@ -94,24 +96,25 @@ If you do not want to overwrite the existing file and make a detached label::
  >>> label['IsisCube']['Core']['Format'] = 'Changed_Value'
  # Creating new file with same name but with .lbl extension
  >>> new_name = img.replace('.img','.lbl')
- >>> print new_name
+ >>> print(new_name)
  pattern.lbl
- >>> with open(new_name, 'w') as stream:
-         pvl.dump(label,new_name)
+ >>> pvl.dump(label, new_name)
  >>> new_label = pvl.load(new_name)
  >>> print new_label['IsisCube']['Core']['Format']
  Changed_Value
 
----------
-pvl.dumps
----------
+----------------------------
+Writing PVL Text to a String
+----------------------------
 
-This module takes a label dictionary and converts the dictionary to a string.
+The :func:`pvl.dumps` function allows you to convert a :class:`dict`-like
+Python object (typically a :class:`pvl.PVLModule` object) to a Python 
+:class:`str` object which contains the PVL text.
 
 Simple Use
 +++++++++++
 
-How to use module::
+How to use::
 
  >>> import pvl
  >>> img = 'path/to/image.ext'
@@ -122,24 +125,21 @@ How to use module::
  >>> label['New_Key'] = 'New_Value'
  # Convert to a string
  >>> label_string = pvl.dumps(label)
- >>> print label_String
- Existing_Key = Different_Value
- New_Key = New_Value
-
-Parameters
-++++++++++
-
-Must include a label as a dictionary.
+ >>> print(label_string)
+ EXISTING_KEY = Different_Value
+ NEW_KEY = New_Value
 
 Example
 ++++++++
+
+::
 
  >>> import pvl
  >>> img = 'pattern.cub'
  >>> label = pvl.load(img)
  >>> label['New_Key'] = 'New_Value'
  >>> label_string = pvl.dumps(label)
- >>> print label_string
+ >>> print(label_string)
  Object = IsisCube
   Object = Core
     StartByte = 65537

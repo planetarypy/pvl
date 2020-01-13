@@ -18,8 +18,7 @@
 import datetime
 import unittest
 
-from pvl.parser import PVLParser, ParseError, OmniParser
-from pvl.decoder import EmptyValueAtLine
+from pvl.parser import PVLParser, ParseError, OmniParser, EmptyValueAtLine
 from pvl.lexer import lexer as Lexer
 from pvl.lexer import LexerError
 from pvl._collections import Units, PVLModule, PVLGroup, PVLObject
@@ -104,18 +103,18 @@ class TestParse(unittest.TestCase):
         for s in strings:
             with self.subTest(string=s):
                 tokens = Lexer(s)
-                self.assertIsNone(self.p._parse_around_equals(tokens))
+                self.assertIsNone(self.p.parse_around_equals(tokens))
         bad_strings = ('f', ' f ')
         for s in bad_strings:
             with self.subTest(string=s):
                 tokens = Lexer(s)
                 self.assertRaises(ValueError,
-                                  self.p._parse_around_equals, tokens)
+                                  self.p.parse_around_equals, tokens)
         tokens = Lexer('')
-        self.assertRaises(ParseError, self.p._parse_around_equals, tokens)
+        self.assertRaises(ParseError, self.p.parse_around_equals, tokens)
 
         tokens = Lexer(' = f')
-        self.p._parse_around_equals(tokens)
+        self.p.parse_around_equals(tokens)
         f = next(tokens)
         self.assertEqual(f, 'f')
 

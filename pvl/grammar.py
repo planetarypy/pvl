@@ -1,53 +1,31 @@
 # -*- coding: utf-8 -*-
-"""Describes the language aspects of PVL."""
+"""Describes the language aspects of PVL dialects."""
 
-# Copyright 2019, Ross A. Beyer (rbeyer@seti.org)
+# Copyright 2019-2020, ``pvl`` library authors.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-# 1. Redistributions of source code must retain the above copyright
-# notice, this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# 3. Neither the name of the copyright holder nor the names of its
-# contributors may be used to endorse or promote products derived
-# from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# Reuse is permitted under the terms of the license.
+# The AUTHORS file and the LICENSE file are at the
+# top level of this library.
 
 import re
 
 
-class grammar():
-    '''Describes a particular PVL grammar for use by the lexer and parser.
+class PVLGrammar():
+    """Describes a PVL grammar for use by the lexer and parser.
 
-       :var whitespace: Tuple of characters to be recognized as PVL
-       White Space (used to separate syntactic elements and promote
-       readability, but the amount or presence of White Space may
-       not be used to provide different meanings).
+    The reference for this grammar is the CCSDS-641.0-B-2 'Blue Book'.
 
-       :var reserved_characters: Tuple of characters that may not
-       occur in Parameter Names, Unquoted Strings, or Block Names.
+    :param whitespace: Tuple of characters to be recognized as PVL
+        White Space (used to separate syntactic elements and promote
+        readability, but the amount or presence of White Space may
+        not be used to provide different meanings).
 
-       :var comments: Tuple of two-tuples with each two-tuple containing
-       a pair of character sequences that enclose a comment.
-    '''
+    :param reserved_characters: Tuple of characters that may not
+        occur in Parameter Names, Unquoted Strings, or Block Names.
+
+    :param comments: Tuple of two-tuples with each two-tuple containing
+        a pair of character sequences that enclose a comment.
+    """
 
     spacing_characters = (' ', '\t')
     format_effectors = ('\n', '\r', '\v', '\f')
@@ -99,6 +77,8 @@ class grammar():
     binary_re = re.compile(fr'{_s}(?P<radix>2)#(?P<non_decimal>[01]+)#')
     octal_re = re.compile(fr'{_s}(?P<radix>8)#(?P<non_decimal>[0-7]+)#')
     hex_re = re.compile(fr'{_s}(?P<radix>16)#(?P<non_decimal>[0-9|A-F|a-f]+)#')
+    nondecimal_re = re.compile(
+        fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')
 
     _d_formats = ('%Y-%m-%d', '%Y-%j')
     _t_formats = ('%H:%M', '%H:%M:%S', '%H:%M:%S.%f')
@@ -130,10 +110,11 @@ class grammar():
     leap_second_Yj_re = re.compile(fr'({_Yj_frag}T)?{_time_frag}')
 
     def char_allowed(self, char):
-        '''Determines whether the given character is allowed in
-           the PVL Character Set.  This defined as most of the
-           ISO 8859-1 'latin-1' character set with some exclusions.
-        '''
+        """Returns true if *char* is allowed in the PVL Character Set.
+
+        This is defined as most of the ISO 8859-1 'latin-1' character
+        set with some exclusions.
+        """
         if len(char) != 1:
             raise Exception
 
@@ -151,9 +132,13 @@ class grammar():
             return True
 
 
-class ODLgrammar(grammar):
-    '''This defines a PDS3 ODL grammar.
-    '''
+class ODLGrammar(PVLGrammar):
+    """This defines a PDS3 ODL grammar.
+
+    The reference for this grammar is the PDS3 Standards Reference
+    (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+    Language Specification and Usage.
+    """
 
     group_pref_keywords = ('GROUP', 'END_GROUP')
     object_pref_keywords = ('OBJECT', 'END_OBJECT')
@@ -166,16 +151,18 @@ class ODLgrammar(grammar):
     # must be after the first octothorpe (#).  Why ODL thought this was
     # an important difference to make from PVL, I have no idea.
     # radix#[sign]non_decimal_integer#
-    nondecimal_pre_re = re.compile(fr'(?P<radix>[2-9]|1[0-6])#{grammar._s}')
-    nondecimal_re = re.compile(fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')
+    nondecimal_pre_re = re.compile(
+        fr'(?P<radix>[2-9]|1[0-6])#{PVLGrammar._s}')
+    nondecimal_re = re.compile(
+        fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')
 
     def char_allowed(self, char):
-        '''Determines whether the given character is allowed in
-           the ODL Character Set which is limited to ASCII.
-           This is fewer characters than PVL, but appears to
-           allow more control characters to be in quoted
-           strings than PVL does.
-        '''
+        """Returns true if *char* is allowed in the ODL Character Set.
+
+        The ODL Character Set is limited to ASCII.  This is fewer
+        characters than PVL, but appears to allow more control
+        characters to be in quoted strings than PVL does.
+        """
         if len(char) != 1:
             raise Exception
 
@@ -186,35 +173,40 @@ class ODLgrammar(grammar):
             return False
 
 
-# So far, the only thing that ISIS seems to be doing differently is to
+# The only thing that ISIS seems to be doing differently is to
 # split any text of all kinds with a dash continuation character.  This
 # is currently handled in the OmniParser.parse() function.  There are
 # no true 'grammar' differences.
 #
+# At
+# https://astrodiscuss.usgs.gov/t/what-pvl-specification-does-isis-conform-to/
+#
+# Stuart Sides, ISIS developer, says:
+#     The ISIS3 implementation of PVL/ODL (like) does not strictly
+#     follow any of the published standards. It was based on PDS3
+#     ODL from the 1990s, but has several extensions (your example
+#     of continuation lines) adopted from existing and prior data
+#     sets from ISIS2, PDS, JAXA, ISRO, ..., and extensions used
+#     only within ISIS3 files (cub, net). This is one of the
+#     reasons using ISIS cube files as an archive format has been
+#     strongly discouraged. So to answer your question, there is
+#     no published specification for ISIS3 PVL.
+#
+#
 # class ISISgrammar(grammar):
-#     '''This defines the ISIS version of PVL.
-#
-#        Or it will.
-#
-#        In
-#        https://astrodiscuss.usgs.gov/t/what-pvl-specification-does-isis-conform-to/
-#     Stuart Sides, ISIS developer, says:
-#         The ISIS3 implementation of PVL/ODL (like) does not strictly
-#         follow any of the published standards. It was based on PDS3
-#         ODL from the 1990s, but has several extensions (your example
-#         of continuation lines) adopted from existing and prior data
-#         sets from ISIS2, PDS, JAXA, ISRO, ..., and extensions used
-#         only within ISIS3 files (cub, net). This is one of the
-#         reasons using ISIS cube files as an archive format has been
-#         strongly discouraged. So to answer your question, there is
-#         no published specification for ISIS3 PVL.
-#
-#     '''
+#     """This might definte the ISIS version of PVL."""
 
 
-class Omnigrammar(grammar):
-    '''The most permissive grammar.
-    '''
+class OmniGrammar(PVLGrammar):
+    """A broadly permissive grammar.
+
+    This grammar does not follow a specification, but is meant to allow
+    the broadest possible ingestion of PVL-like text that is found.
+
+    This grammar should not be used to write out Python objects to PVL,
+    instead please use one of the grammars that follows a published
+    specification, like the PVLGrammar or the ODLGrammar.
+    """
 
     # Interestingly, a single-line comment that starts with the
     # octothorpe (#) is neither part of PVL nor ODL, but people use
@@ -226,5 +218,5 @@ class Omnigrammar(grammar):
     # of radix, and the variational placement of the optional sign:
     # [sign]radix#[sign]non_decimal_integer#
     _ss = r'(?P<second_sign>[+-]?)'
-    nondecimal_pre_re = re.compile(fr'{grammar._s}(?P<radix>[2-9]|1[0-6])#{_ss}')
+    nondecimal_pre_re = re.compile(fr'{PVLGrammar._s}(?P<radix>[2-9]|1[0-6])#{_ss}')
     nondecimal_re = re.compile(fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')

@@ -18,13 +18,13 @@
 import re
 import unittest
 
-from pvl.grammar import grammar as Grammar
+from pvl.grammar import PVLGrammar
 
 
 class TestLeapSeconds(unittest.TestCase):
 
     def setUp(self):
-        self.g = Grammar()
+        self.g = PVLGrammar()
 
     def test_H_frag(self):
         for s in ('00', '05', '10', '19', '23'):

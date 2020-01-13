@@ -1,36 +1,41 @@
 # -*- coding: utf-8 -*-
-'''Parameter Value Language decoder.
+"""Parameter Value Language decoder.
 
-   The definition of PVL used in this module is from the Consultive
-   Committee for Space Data Systems, and their Parameter Value
-   Language Specification (CCSD0006 and CCSD0008), CCSDS 6441.0-B-2,
-   referred to as the Blue Book with a date of June 2000.
+The definition of PVL used in this module is based on the Consultive
+Committee for Space Data Systems, and their Parameter Value
+Language Specification (CCSD0006 and CCSD0008), CCSDS 6441.0-B-2,
+referred to as the Blue Book with a date of June 2000.
 
-   The decoder deals with converting strings given to it (typically
-   by the parser) to the appropriate Python type.
-'''
+A decoder deals with converting strings given to it (typically
+by the parser) to the appropriate Python type.
+"""
+# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+#
+# Reuse is permitted under the terms of the license.
+# The AUTHORS file and the LICENSE file are at the
+# top level of this library.
+
 import re
 from datetime import datetime
 from itertools import repeat, chain
 from time import strptime
 from warnings import warn
 
-from .grammar import grammar as Grammar
-from .grammar import ODLgrammar
+from .grammar import PVLGrammar, ODLGrammar
 
 
 def for_try_except(exception, function, *iterable):
-    '''Return the result of the first successful application of *function*
-       to an element of *iterable*.  If the *function* raises an Exception
-       of type *exception*, it will continue to the next item of *iterable*.
-       If there are no successful applications an Exception of type
-       *exception* will be raised.
+    """Return the result of the first successful application of *function*
+    to an element of *iterable*.  If the *function* raises an Exception
+    of type *exception*, it will continue to the next item of *iterable*.
+    If there are no successful applications an Exception of type
+    *exception* will be raised.
 
-       If additional *iterable* arguments are passed, *function* must
-       take that many arguments and is applied to the items from
-       all iterables in parallel (like ``map()``). With multiple iterables,
-       the iterator stops when the shortest iterable is exhausted.
-    '''
+    If additional *iterable* arguments are passed, *function* must
+    take that many arguments and is applied to the items from
+    all iterables in parallel (like ``map()``). With multiple iterables,
+    the iterator stops when the shortest iterable is exhausted.
+    """
     for tup in zip(*iterable):
         try:
             return function(*tup)
@@ -40,82 +45,34 @@ def for_try_except(exception, function, *iterable):
     raise exception
 
 
-class EmptyValueAtLine(str):
-    """Empty string to be used as a placeholder for a parameter without a value
-
-    When a label is contains a parameter without a value, it is considered a
-    broken label. To rectify the broken parameter-value pair, the parameter is
-    set to have a value of EmptyValueAtLine. The empty value is an empty
-    string and can be treated as such. It also contains and requires as an
-    argument the line number of the error.
-
-    Parameters
-    ----------
-    lineno : int
-        The line number of the broken parameter-value pair
-
-    Attributes
-    ----------
-    lineno : int
-        The line number of the broken parameter-value pai
-
-    Examples
-    --------
-    >>> from pvl.decoder import EmptyValueAtLine
-    >>> EV1 = EmptyValueAtLine(1)
-    >>> EV1
-    EmptyValueAtLine(1 does not have a value. Treat as an empty string)
-    >>> EV1.lineno
-    1
-    >>> print(EV1)
-
-    >>> EV1 + 'foo'
-    'foo'
-    >>> # Can be turned into an integer and float as 0:
-    >>> int(EV1)
-    0
-    >>> float(EV1)
-    0.0
-    """
-
-    def __new__(cls, lineno, *args, **kwargs):
-        self = super(EmptyValueAtLine, cls).__new__(cls, '')
-        self.lineno = lineno
-        return self
-
-    def __int__(self):
-        return 0
-
-    def __float__(self):
-        return 0.0
-
-    def __repr__(self):
-        return ('{}({} does not '.format(type(self).__name__, self.lineno) +
-                'have a value. Treat as an empty string)')
-
-
 class PVLDecoder(object):
+    """A decoder based on the rules in the CCSDS-641.0-B-2 'Blue Book'
+    which defines the PVL language.
+
+    *grammar* must be a pvl.grammar object, and defaults to
+    pvl.grammar.PVLGrammar()
+    """
 
     def __init__(self, grammar=None):
         self.errors = []
 
         if grammar is None:
-            self.grammar = Grammar()
-        elif isinstance(grammar, Grammar):
+            self.grammar = PVLGrammar()
+        elif isinstance(grammar, PVLGrammar):
             self.grammar = grammar
         else:
             raise Exception
 
     def decode(self, value: str):
-        '''With no hints about what ``value`` might be, try everything.'''
+        """Returns a Python object based on *value*."""
         return decode_simple_value(value)
 
     def decode_simple_value(self, value: str):
-        '''Takes a Simple Value and attempts to convert it to the appropriate
-           Python type.
+        """Returns a Python object based on *value*, assuming
+        that *value* can be decoded as a PVL Simple Value::
 
-            <Simple-Value> ::= (<Date-Time> | <Numeric> | <String>)
-        '''
+         <Simple-Value> ::= (<Date-Time> | <Numeric> | <String>)
+        """
         for d in (self.decode_quoted_string,
                   self.decode_non_decimal,
                   self.decode_decimal,
@@ -137,9 +94,10 @@ class PVLDecoder(object):
         return self.decode_unquoted_string(value)
 
     def decode_unquoted_string(self, value: str) -> str:
-        '''Takes a Simple Value and attempts to convert it to a plain
-           ``str``.
-        '''
+        """Returns a Python ``str`` if *value* can be decoded
+        as an unquoted string, based on this decoder's grammar.
+        Raises a ValueError otherwise.
+        """
         for coll in (('a comment', chain.from_iterable(self.grammar.comments)),
                      ('some whitespace', self.grammar.whitespace),
                      ('a special character', self.grammar.reserved_characters)):
@@ -173,9 +131,10 @@ class PVLDecoder(object):
         return str(value)
 
     def decode_quoted_string(self, value: str) -> str:
-        '''Removes the allowed PVL quote characters from either
-           end of the input str and returns the resulting str.
-        '''
+        """Returns a Python ``str`` if *value* begins and ends
+        with matching quote characters based on this decoder's
+        grammar.  Raises ValueError otherwise.
+        """
         for q in self.grammar.quotes:
             if(value.startswith(q) and
                value.endswith(q) and
@@ -185,6 +144,9 @@ class PVLDecoder(object):
 
     @staticmethod
     def decode_decimal(value: str):
+        """Returns a Python ``int`` or ``float`` as appropriate
+        based on *value*.  Raises a ValueError otherwise.
+        """
         # Returns int or float
         try:
             return int(value, base=10)
@@ -192,6 +154,11 @@ class PVLDecoder(object):
             return float(value)
 
     def decode_non_decimal(self, value: str) -> int:
+        """Returns a Python ``int`` as decoded from *value*
+        on the assumption that *value* conforms to a
+        non-decimal integer value as defined by this decoder's
+        grammar, raises ValueError otherwise.
+        """
         # Non-Decimal (Binary, Hex, and Octal)
         for nd_re in (self.grammar.binary_re,
                       self.grammar.octal_re,
@@ -203,33 +170,33 @@ class PVLDecoder(object):
         raise ValueError
 
     def decode_datetime(self, value: str):
-        '''Takes a string and attempts to convert it to the appropriate
-           Python ``datetime`` ``time``, ``date``, or ``datetime``
-           type based on the PVL standard, or in one case, a ``str``.
+        """Takes a string and attempts to convert it to the appropriate
+        Python ``datetime`` ``time``, ``date``, or ``datetime``
+        type based on this decoder's grammar, or in one case, a ``str``.
 
-           The PVL standard allows for the seconds value to range
-           from zero to 60, so that the 60 can accomodate leap
-           seconds.  However, the Python ``datetime`` classes don't
-           support second values for more than 59 seconds.
+        The PVL standard allows for the seconds value to range
+        from zero to 60, so that the 60 can accomodate leap
+        seconds.  However, the Python ``datetime`` classes don't
+        support second values for more than 59 seconds.
 
-           If a time with 60 seconds is encountered, it will not be
-           returned as a datetime object, but simply as a string.
+        If a time with 60 seconds is encountered, it will not be
+        returned as a datetime object, but simply as a string.
 
-           The user can then then try and use the ``time`` module
-           to parse this string into a ``time.struct_time``.  We
-           chose not to do this with pvl because ``time.struct_time``
-           is a full *datetime* like object, even if it parsed
-           only a *time* like object, the year, month, and day
-           values in the ``time.struct_time`` would default, which
-           could be misleading.
+        The user can then then try and use the ``time`` module
+        to parse this string into a ``time.struct_time``.  We
+        chose not to do this with pvl because ``time.struct_time``
+        is a full *datetime* like object, even if it parsed
+        only a *time* like object, the year, month, and day
+        values in the ``time.struct_time`` would default, which
+        could be misleading.
 
-           Alternately, the pvl.grammar.grammar class contains
-           two regexes: ``leap_second_Ymd_re`` and ``leap_second_Yj_re``
-           which could be used along with the ``re.match`` object's
-           ``groupdict()`` function to extract the string representations
-           of the various numerical values, cast them to the appropriate
-           numerical types, and do something useful with them.
-        '''
+        Alternately, the pvl.grammar.PVLGrammar class contains
+        two regexes: ``leap_second_Ymd_re`` and ``leap_second_Yj_re``
+        which could be used along with the ``re.match`` object's
+        ``groupdict()`` function to extract the string representations
+        of the various numerical values, cast them to the appropriate
+        numerical types, and do something useful with them.
+        """
         try:
             return for_try_except(ValueError, datetime.strptime,
                                   repeat(value),
@@ -257,22 +224,29 @@ class PVLDecoder(object):
 
 
 class ODLDecoder(PVLDecoder):
-    '''A decoder for PDS ODL.
-    '''
+    """A decoder based on the rules in the PDS3 Standards Reference
+    (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+    Language Specification and Usage.
+
+    Extends PVLDecoder, and if *grammar* is not specified, it will
+    default to an ODLGrammar() object.
+    """
 
     def __init__(self, grammar=None):
         self.errors = []
 
         if grammar is None:
-            super().__init__(grammar=ODLgrammar())
+            super().__init__(grammar=ODLGrammar())
         else:
             super().__init__(grammar=grammar)
 
     def decode_datetime(self, value: str):
-        '''Takes a string and attempts to convert it to the appropriate
-           Python datetime time, date, or datetime by using the 3rd party
-           dateutil library (if present) to parse ISO 8601 datetime strings.
-        '''
+        """Returns an appropriate Python datetime time, date, or datetime
+        object by using the 3rd party dateutil library (if present)
+        to parse an ISO 8601 datetime string in *value*.  If it cannot,
+        or the dateutil library is not present, it will raise a
+        ValueError.
+        """
 
         try:
             return super().decode_datetime(value)
@@ -311,7 +285,9 @@ class ODLDecoder(PVLDecoder):
             raise ValueError
 
     def decode_non_decimal(self, value: str) -> int:
-        # Non-Decimal with a variety or radix values.
+        """Extends parent function by allowing the wider variety of
+        radix values that ODL permits over PVL.
+        """
         match = self.grammar.nondecimal_re.fullmatch(value)
         if match is not None:
             d = match.groupdict('')
@@ -319,14 +295,13 @@ class ODLDecoder(PVLDecoder):
         raise ValueError
 
     def decode_quoted_string(self, value: str) -> str:
-        '''Removes the allowed PVL quote characters from either
-           end of the input str and returns the resulting str.
-           The ODL specification allows for a dash (-) line continuation
-           character that results in the dash, the line end, and any
-           leading whitespace on the next line to be removed.  It also
-           allows for a sequence of format effectors surrounded by
-           spacing characters to be collapsed to a single space.
-        '''
+        """Extends parent function because the
+        ODL specification allows for a dash (-) line continuation
+        character that results in the dash, the line end, and any
+        leading whitespace on the next line to be removed.  It also
+        allows for a sequence of format effectors surrounded by
+        spacing characters to be collapsed to a single space.
+        """
         s = super().decode_quoted_string(value)
 
         # Deal with dash (-) continuation:
@@ -344,11 +319,18 @@ class ODLDecoder(PVLDecoder):
 
 
 class OmniDecoder(ODLDecoder):
-    '''The most permissive decoder.
-    '''
-    # Based on the ODLDecoder with some extras:
+    """A permissive decoder that attempts to parse all forms of
+    "PVL" that are thrown at it.
+
+    Extends ODLDecoder.
+    """
 
     def decode_non_decimal(self, value: str) -> int:
+        """Extends parent function by allowing a plus or
+        minus sign to be in two different positions
+        in a non-decimal number, since PVL has one
+        specification, and ODL has another.
+        """
         # Non-Decimal with a variety of radix values and sign
         # positions.
         match = self.grammar.nondecimal_re.fullmatch(value)

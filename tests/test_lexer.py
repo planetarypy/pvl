@@ -17,8 +17,7 @@
 
 import unittest
 
-from pvl.grammar import grammar as Grammar
-from pvl.grammar import Omnigrammar
+from pvl.grammar import PVLGrammar, OmniGrammar
 
 import pvl.lexer as Lexer
 
@@ -165,7 +164,7 @@ class TestLexer(unittest.TestCase):
     def test_custom_comment(self):
         def get_tokens(s):
             tokens = list()
-            g = Grammar()
+            g = PVLGrammar()
             g.comments = (('/*', '*/'), ('#', '\n'))
             lex = Lexer.lexer(s, g=g)
             for t in lex:
@@ -191,7 +190,7 @@ class TestLexer(unittest.TestCase):
     def test_omni_comment(self):
         def get_tokens(s):
             tokens = list()
-            lex = Lexer.lexer(s, g=Omnigrammar())
+            lex = Lexer.lexer(s, g=OmniGrammar())
             for t in lex:
                 # print(f'yields: {t}')
                 tokens.append(t)
@@ -256,7 +255,7 @@ class TestLexer(unittest.TestCase):
         self.assertEqual("Two", next(tokens))
 
     def test_lex_char(self):
-        g = Grammar()
+        g = PVLGrammar()
         p = dict(state=Lexer.Preserve.FALSE, end='end')
         self.assertEqual(('a', p),
                          Lexer.lex_char('a', 'b', 'c',

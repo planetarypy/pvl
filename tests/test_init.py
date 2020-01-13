@@ -137,7 +137,8 @@ BEGIN_GROUP = obj;
 END_GROUP = obj;
 END;'''
 
-        self.assertEqual(s, pvl.dumps(self.module, cls=pvl.PVLEncoder))
+        self.assertEqual(s, pvl.dumps(self.module,
+                                      encoder=pvl.encoder.PVLEncoder()))
 
     def test_dumps_ODL(self):
 
@@ -153,7 +154,8 @@ GROUP = obj\r
 END_GROUP = obj\r
 END\r\n'''
 
-        self.assertEqual(s, pvl.dumps(self.module, cls=pvl.encoder.ODLEncoder))
+        self.assertEqual(s, pvl.dumps(self.module,
+                                      encoder=pvl.encoder.ODLEncoder()))
 
 
 class TestDump(unittest.TestCase):

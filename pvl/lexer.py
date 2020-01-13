@@ -1,54 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Provides a lexer for PVL."""
+"""Provides lexer functions for PVL."""
 
-# Copyright 2019, Ross A. Beyer (rbeyer@seti.org)
+# Copyright 2019-2020, ``pvl`` library authors.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-# 1. Redistributions of source code must retain the above copyright
-# notice, this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# 3. Neither the name of the copyright holder nor the names of its
-# contributors may be used to endorse or promote products derived
-# from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# Reuse is permitted under the terms of the license.
+# The AUTHORS file and the LICENSE file are at the
+# top level of this library.
+
 
 import re
 from enum import Enum, auto
 from datetime import datetime
 
-from .grammar import grammar as Grammar
-from .token import token as Token
-from .decoder import PVLDecoder as Decoder
+from .grammar import PVLGrammar
+from .token import Token
+from .decoder import PVLDecoder
 
 
 class LexerError(ValueError):
     """Subclass of ValueError with the following additional properties:
 
-       msg: The unformatted error message
-       doc: The PVL document being parsed
-       pos: The start index in doc where parsing failed
-       lineno: The line corresponding to pos
-       colno: The column corresponding to pos
+    msg: The unformatted error message
+    doc: The PVL document being parsed
+    pos: The start index in doc where parsing failed
+    lineno: The line corresponding to pos
+    colno: The column corresponding to pos
     """
 
     def __init__(self, msg, doc, pos, lexeme):
@@ -76,24 +53,42 @@ class Preserve(Enum):
     NONDECIMAL = auto()
 
 
-def linecount(doc, end, start=0):
+def linecount(doc: str, end: int, start: int = 0):
+    """Returns the number of lines (by counting the
+    number of newline characters \\n, with the first line
+    being line number one) in the string *doc* between the
+    positions *start* and *end*.
+    """
     return (doc.count('\n', start, end) + 1)
 
 
 def firstpos(sub: str, pos: int):
-    '''On the assumption that *sub* is a substring contained in a longer
-       string, and *pos* is the index in that longer string of the final
-       character in sub, returns the position of the first character of
-       sub in that longer string.
+    """On the assumption that *sub* is a substring contained in a longer
+    string, and *pos* is the index in that longer string of the final
+    character in sub, returns the position of the first character of
+    sub in that longer string.
 
-       This is useful in the PVL library when we know the position of the
-       final character of a token, but want the position of the first
-       character.
-    '''
+    This is useful in the PVL library when we know the position of the
+    final character of a token, but want the position of the first
+    character.
+    """
     return (pos - len(sub) + 1)
 
 
-def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple:
+def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple((str, dict)):
+    """Returns a modified *lexeme* string and a modified *preserve*
+    dict in a two-tuple.  The modified *lexeme* will always be
+    the concatenation of *lexeme* and *char*.
+
+    This is a lexer() helper function that is responsible for
+    changing the state of the *preserve* dict, if needed.
+
+    If the value for 'end' in *preserve* is the same as *char*,
+    then the modified *preserve* will have its 'state' value
+    set to ``Preserve.FALSE`` and its 'end' value set to None,
+    otherwise second item in the returned tuple will be *preserve*
+    unchanged.
+    """
     # print(f'in preserve: char "{char}", lexeme "{lexeme}, p {preserve}"')
     if char == preserve['end']:
         return (lexeme + char, dict(state=Preserve.FALSE, end=None))
@@ -102,10 +97,26 @@ def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple:
 
 
 def lex_singlechar_comments(char: str, lexeme: str, preserve: dict,
-                            comments: dict) -> tuple:
-    '''Returns a tuple with new current states of ``lexeme``
-       and ``preserve``.
-    '''
+                            comments: dict) -> tuple((str, dict)):
+    """Returns a modified *lexeme* string and a modified *preserve*
+    dict in a two-tuple.
+
+    This is a lexer() helper function for determining how to modify
+    *lexeme* and *preserve* based on the single character in *char*
+    which may or may not be a comment character.
+
+    If the *preserve* 'state' value is Preserve.COMMENT then
+    the value of lex_preserve() is returned.
+
+    If *char* is among the keys of the *comments* dict, then the
+    returned *lexeme* will be the concatenation of *lexeme* and
+    *char*.  returned *preserve* dict will have its 'state' value
+    set to Preserve.COMMENT and its 'end' value set to the value
+    of *comments[char]*.
+
+    Otherwise return *lexeme* and *preserve* unchanged in the
+    two-tuple.
+    """
     if preserve['state'] == Preserve.COMMENT:
         return lex_preserve(char, lexeme, preserve)
     elif char in comments:
@@ -117,11 +128,25 @@ def lex_singlechar_comments(char: str, lexeme: str, preserve: dict,
 
 def lex_multichar_comments(char: str, prev_char: str, next_char: str,
                            lexeme: str, preserve: dict,
-                           comments=Grammar().comments) -> tuple:
-    '''Returns a tuple with new current states of ``lexeme``,
-       and ``preserve``.
-    '''
+                           comments: tuple(tuple((str, str))) =
+                           PVLGrammar().comments) -> tuple((str, dict)):
+    """Returns a modified *lexeme* string and a modified *preserve*
+    dict in a two-tuple.
 
+    This is a lexer() helper function for determining how to
+    modify *lexeme* and *preserve* based on the single character
+    in *char* which may or may not be part of a multi-character
+    comment character group.
+
+    This function has an internal list of allowed pairs of
+    multi-character comments that it can deal with, if the
+    *comments* tuple contains any two-tuples that cannot be
+    handled, a NotImplementedError will be raised.
+
+    This function will determine whether to append *char* to
+    *lexeme* or not, and will set the value of the 'state' and
+    'end' values of *preserve* appropriately.
+    """
     # print(f'lex_multichar got these comments: {comments}')
     if len(comments) == 0:
         raise ValueError('The variable provided to comments is empty.')
@@ -153,7 +178,19 @@ def lex_multichar_comments(char: str, prev_char: str, next_char: str,
 
 def lex_comment(char: str, prev_char: str, next_char: str,
                 lexeme: str, preserve: dict,
-                comments: tuple, c_info: dict) -> tuple:
+                comments: tuple(tuple((str, str))),
+                c_info: dict) -> tuple((str, dict)):
+    """Returns a modified *lexeme* string and a modified *preserve*
+    dict in a two-tuple.
+
+    This is a lexer() helper function for determining how to
+    modify *lexeme* and *preserve* based on the single character
+    in *char* which may or may not be a comment character.
+
+    This function just makes the decision about whether to call
+    lex_multichar_comments() or lex_singlechar_comments(), and
+    then returns what they return.
+    """
 
     if char in c_info['multi_chars']:
         return lex_multichar_comments(char, prev_char, next_char,
@@ -165,6 +202,9 @@ def lex_comment(char: str, prev_char: str, next_char: str,
 
 
 def _prev_char(s: str, idx: int):
+    """Returns the character from *s* at the position before *idx*
+    or None, if *idx* is zero.
+    """
     if idx <= 0:
         return None
     else:
@@ -172,13 +212,22 @@ def _prev_char(s: str, idx: int):
 
 
 def _next_char(s: str, idx: int):
+    """Returns the character from *s* at the position after *idx*
+    or None, if *idx* is the last position in *s*.
+    """
     try:
         return s[idx + 1]
     except IndexError:
         return None
 
 
-def _prepare_comment_tuples(comments: tuple) -> tuple:
+def _prepare_comment_tuples(comments: tuple(tuple((str, str)))) -> dict:
+    """Returns a dict of information based on the contents
+    of *comments*.
+
+    This is a lexer() helper function to prepare information
+    for lexer().
+    """
     # I initially tried to avoid this function, if you
     # don't pre-compute this stuff, you end up re-computing
     # it every time you pass into the lex_comment() function,
@@ -205,7 +254,16 @@ def _prepare_comment_tuples(comments: tuple) -> tuple:
 
 def lex_char(char: str, prev_char: str, next_char: str,
              lexeme: str, preserve: dict,
-             g: Grammar, c_info: dict) -> tuple:
+             g: PVLGrammar, c_info: dict) -> tuple((str, dict)):
+    """Returns a modified *lexeme* string and a modified *preserve*
+    dict in a two-tuple.
+
+    This is the main lexer() helper function for determining how
+    to modify (or not) *lexeme* and *preserve* based on the
+    single character in *char* and the other values passed into
+    this function.
+    """
+
     # When we are 'in' a comment or a units expression,
     # we want those to consume everything, regardless.
     # So we must handle the 'preserve' states first,
@@ -250,7 +308,12 @@ def lex_char(char: str, prev_char: str, next_char: str,
 
 
 def lex_continue(char: str, next_char: str, lexeme: str,
-                 token: Token, preserve: dict, g: Grammar):
+                 token: Token, preserve: dict, g: PVLGrammar) -> bool:
+    """Return True if accumulation of *lexeme* should continue based
+    on the values passed into this function, false otherwise.
+
+    This is a lexer() helper function.
+    """
 
     if next_char is None:
         return False
@@ -281,20 +344,20 @@ def lex_continue(char: str, next_char: str, lexeme: str,
     return False
 
 
-def lexer(s: str, g=Grammar(), d=Decoder()):
-    '''This is a generator function that returns pvl.Token objects
-       based on the passed in string, *s*, when the generator's
-       next() is called.
+def lexer(s: str, g=PVLGrammar(), d=PVLDecoder()):
+    """This is a generator function that returns pvl.Token objects
+    based on the passed in string, *s*, when the generator's
+    next() is called.
 
-       A call to send(*t*) will 'return' the value *t* to the
-       generator, which will be yielded upon calling next().
-       This allows a user to 'peek' at the next token, but return it
-       if they don't like what they see.
+    A call to send(*t*) will 'return' the value *t* to the
+    generator, which will be yielded upon calling next().
+    This allows a user to 'peek' at the next token, but return it
+    if they don't like what they see.
 
-       *g* is expected to be an instance of pvl.grammar, and *d* an
-       instance of pvl.decoder.  The lexer will perform differently,
-       given different values of *g* and *d*.
-    '''
+    *g* is expected to be an instance of pvl.grammar, and *d* an
+    instance of pvl.decoder.  The lexer will perform differently,
+    given different values of *g* and *d*.
+    """
     c_info = _prepare_comment_tuples(g.comments)
     # print(c_info)
 

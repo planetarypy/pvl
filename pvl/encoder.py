@@ -1,25 +1,69 @@
 # -*- coding: utf-8 -*-
+"""Parameter Value Langage encoder.
+
+An encoder deals with converting Python objects into
+string values that conform to a PVL specification.
+"""
+
+# Copyright 2015, 2019-2020, ``pvl`` library authors.
+#
+# Reuse is permitted under the terms of the license.
+# The AUTHORS file and the LICENSE file are at the
+# top level of this library.
+
 import datetime
 import re
 import textwrap
 import warnings
 
+from collections import abc
+
 from ._collections import PVLAggregation, PVLObject, PVLGroup, Units
-from .grammar import grammar as Grammar
-from .grammar import ODLgrammar
-from .token import token as Token
+from .grammar import PVLGrammar, ODLGrammar
+from .token import Token
 from .decoder import PVLDecoder, ODLDecoder
 
 
 class PVLEncoder(object):
+    """An encoder based on the rules in the CCSDS-641.0-B-2 'Blue Book'
+    which defines the PVL language.
+
+    *grammar* must be a pvl.grammar object, and defaults to
+    pvl.grammar.PVLGrammar().
+
+    *decoder* most be a pvl.decoder object, and defaults to
+    pvl.decoder.PVLDecoder().
+
+    *indent* specifies the number of spaces that will be used to
+    indent each level of the PVL document, when Groups or Objects
+    are encountered, defaults to 2.
+
+    *width* specifies the number of characters in width that each
+    line should have, defaults to 80.
+
+    *aggregation_end* when True the encoder will print the value
+    of the aggregation's Block Name in the End Aggregation Statement
+    (e.g. END_GROUP = foo), and when false, it won't (e.g. END_GROUP).
+    Defaults to True.
+
+
+    *end_delimiter* when True the encoder will print the grammar's
+    delimiter (e.g. ';' for PVL) after each statement, when False
+    it won't.  Defaults to True.
+
+    *newline* is the string that will be placed at the end of each
+    'line' of output (and counts against *width*), defaults to '\\n'.
+    """
 
     def __init__(self, grammar=None, decoder=None,
-                 indent=2, width=80, aggregation_end=True,
-                 end_delimiter=True, newline='\n'):
+                 indent: int = 2, width: int = 80,
+                 aggregation_end: bool = True,
+                 end_delimiter: bool = True,
+                 newline: str ='\n'):
 
         if grammar is None:
-            self.grammar = Grammar()
-        elif isinstance(grammar, Grammar):
+            self.grammar = PVLGrammar()
+        elif isinstance(grammar, PVLGrammar):
             self.grammar = grammar
         else:
             raise Exception
@@ -37,7 +81,14 @@ class PVLEncoder(object):
         self.aggregation_end = aggregation_end
         self.newline = newline
 
-    def format(self, s: str, level=0) -> str:
+    def format(self, s: str, level: int = 0) -> str:
+        """Returns a string derived from *s*, which
+        has leading space characters equal to
+        *level* times the number of spaces specified
+        by this encoder's indent property.
+
+        It uses the textwrap library to wrap long lines.
+        """
 
         prefix = level * (self.indent * ' ')
 
@@ -57,6 +108,10 @@ class PVLEncoder(object):
             return prefix + s
 
     def encode(self, module: dict) -> str:
+        """Returns a ``str`` formatted as a PVL document based
+        on the dict-like *module* object
+        according to the rules of this encoder.
+        """
         lines = list()
         lines.append(self.encode_module(module, 0))
 
@@ -78,7 +133,12 @@ class PVLEncoder(object):
 
         return self.newline.join(lines)
 
-    def encode_module(self, module: dict, level=0):
+    def encode_module(self, module: dict, level: int = 0) -> str:
+        """Returns a ``str`` formatted as a PVL module based
+        on the dict-like *module* object according to the
+        rules of this encoder, with an indentation level
+        of *level*.
+        """
         lines = list()
 
         # To align things on the equals sign, just need to normalize
@@ -98,7 +158,14 @@ class PVLEncoder(object):
                                                     longest_key_len))
         return self.newline.join(lines)
 
-    def encode_aggregation_block(self, key, value, level=0):
+    def encode_aggregation_block(self, key: str, value: dict,
+                                 level: int = 0) -> str:
+        """Returns a ``str`` formatted as a PVL Aggregation Block with
+        *key* as its name, and its contents based on the
+        dict-like *value* object according to the
+        rules of this encoder, with an indentation level
+        of *level*.
+        """
         lines = list()
 
         agg_keywords = None
@@ -127,7 +194,16 @@ class PVLEncoder(object):
 
         return self.newline.join(lines)
 
-    def encode_assignment(self, key, value, level=0, key_len=None) -> str:
+    def encode_assignment(self, key: str, value, level: int = 0,
+                          key_len: int = None) -> str:
+        """Returns a ``str`` formatted as a PVL Assignment Statement
+        with *key* as its Parameter Name, and its value based
+        on *value* object according to the rules of this encoder,
+        with an indentation level of *level*.  It also allows for
+        an optional *key_len* which indicates the width in characters
+        that the Assignment Statement should be set to, defaults to
+        the width of *key*.
+        """
         if key_len is None:
             key_len = len(key)
 
@@ -154,7 +230,10 @@ class PVLEncoder(object):
 
             return self.format(s, level)
 
-    def encode_value(self, value):
+    def encode_value(self, value) -> str:
+        """Returns a ``str`` formatted as a PVL Value based
+        on the *value* object according to the rules of this encoder.
+        """
         if isinstance(value, Units):
             val = self.encode_simple_value(value.value)
             units = self.encode_units(value.units)
@@ -162,7 +241,10 @@ class PVLEncoder(object):
         else:
             return self.encode_simple_value(value)
 
-    def encode_simple_value(self, value):
+    def encode_simple_value(self, value) -> str:
+        """Returns a ``str`` formatted as a PVL Simple Value based
+        on the *value* object according to the rules of this encoder.
+        """
         if value is None:
             return self.grammar.none_keyword
         elif isinstance(value, (set, frozenset)):
@@ -184,16 +266,30 @@ class PVLEncoder(object):
         else:
             raise TypeError(f'{value!r} is not serializable.')
 
-    def encode_setseq(self, values):
+    def encode_setseq(self, values: abc.Collection) -> str:
+        """This function provides shared functionality for
+        encode_sequence() and encode_set().
+        """
         return ', '.join([self.encode_value(v) for v in values])
 
-    def encode_sequence(self, value) -> str:
+    def encode_sequence(self, value: abc.Sequence) -> str:
+        """Returns a ``str`` formatted as a PVL Sequence based
+        on the *value* object according to the rules of this encoder.
+        """
         return '(' + self.encode_setseq(value) + ')'
 
-    def encode_set(self, value) -> str:
+    def encode_set(self, value: abc.Set) -> str:
+        """Returns a ``str`` formatted as a PVL Set based
+        on the *value* object according to the rules of this encoder.
+        """
         return '{' + self.encode_setseq(value) + '}'
 
     def encode_datetype(self, value) -> str:
+        """Returns a ``str`` formatted as a PVL Date/Time based
+        on the *value* object according to the rules of this encoder.
+        If *value* is not a datetime date, time, or datetime object,
+        it will raise TypeError.
+        """
         if isinstance(value, datetime.datetime):
             return self.encode_datetime(value)
         elif isinstance(value, datetime.date):
@@ -203,11 +299,18 @@ class PVLEncoder(object):
         else:
             raise TypeError(f'{value!r} is not a datetime type.')
 
-    def encode_date(self, value: datetime.date) -> str:
+    @staticmethod
+    def encode_date(value: datetime.date) -> str:
+        """Returns a ``str`` formatted as a PVL Date based
+        on the *value* object according to the rules of this encoder.
+        """
         return f'{value:%Y-%m-%d}'
 
     @staticmethod
     def encode_time(value: datetime.time) -> str:
+        """Returns a ``str`` formatted as a PVL Time based
+        on the *value* object according to the rules of this encoder.
+        """
         s = f'{value:%H:%M}'
 
         if value.microsecond:
@@ -218,11 +321,17 @@ class PVLEncoder(object):
         return s
 
     def encode_datetime(self, value: datetime.datetime) -> str:
+        """Returns a ``str`` formatted as a PVL Date/Time based
+        on the *value* object according to the rules of this encoder.
+        """
         date = self.encode_date(value)
         time = self.encode_time(value)
         return date + 'T' + time
 
     def needs_quotes(self, s: str) -> bool:
+        """Returns true if *s* must be quoted according to this
+        encoder's grammar, false otherwise.
+        """
         if any(c in self.grammar.whitespace for c in s):
             return True
 
@@ -232,7 +341,10 @@ class PVLEncoder(object):
         tok = Token(s, grammar=self.grammar, decoder=self.decoder)
         return not tok.is_unquoted_string()
 
-    def encode_string(self, value):
+    def encode_string(self, value) -> str:
+        """Returns a ``str`` formatted as a PVL String based
+        on the *value* object according to the rules of this encoder.
+        """
         s = str(value)
 
         if self.needs_quotes(s):
@@ -246,20 +358,43 @@ class PVLEncoder(object):
         else:
             return s
 
-    def encode_units(self, value):
+    def encode_units(self, value: str) -> str:
+        """Returns a ``str`` formatted as a PVL Units Value based
+        on the *value* object according to the rules of this encoder.
+        """
         return (self.grammar.units_delimiters[0] +
                 value +
                 self.grammar.units_delimiters[1])
 
 
 class ODLEncoder(PVLEncoder):
+    """An encoder based on the rules in the PDS3 Standards Reference
+    (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+    Language Specification and Usage for ODL only.  This is
+    almost certainly not what you want.  There are very rarely
+    cases where you'd want to use ODL that you wouldn't also want
+    to use the PDS Label restrictions, so you probably really want
+    the PDSLabelEncoder class, not this one.  Move along.
+
+    It extends PVLEncoder.
+
+    *grammar* must be a pvl.grammar object, and defaults to
+    pvl.grammar.ODLGrammar().
+
+    *decoder* most be a pvl.decoder object, and defaults to
+    pvl.decoder.ODLDecoder().
+
+    *end_delimiter* defaults to False.
+
+    *newline* defaults to '\\r\\n'.
+    """
 
     def __init__(self, grammar=None, decoder=None,
                  indent=2, width=80, aggregation_end=True,
                  end_delimiter=False, newline='\r\n'):
 
         if grammar is None:
-            grammar = ODLgrammar()
+            grammar = ODLGrammar()
 
         if decoder is None:
             decoder = ODLDecoder(grammar)
@@ -268,27 +403,30 @@ class ODLEncoder(PVLEncoder):
                          end_delimiter, newline)
 
     def encode(self, module: dict) -> str:
-        '''ODL requires that there must be a spacing or format
-           character after the END statement.
-        '''
+        """Extends parent function, but ODL requires that there must be
+        a spacing or format character after the END statement and this
+        adds the encoder's ``newline`` sequence.
+        """
         s = super().encode(module)
         return s + self.newline
 
     @staticmethod
     def is_scalar(value) -> bool:
-        '''Returns a boolean indicating whether the *value* object
-           qualifies as an ODL 'scalar_value'.
+        """Returns a boolean indicating whether the *value* object
+        qualifies as an ODL 'scalar_value'.
 
-           ODL defines a 'scalar-value' as a numeric_value, a
-           date_time_string, a text_string_value, or a symbol_value.
+        ODL defines a 'scalar-value' as a numeric_value, a
+        date_time_string, a text_string_value, or a symbol_value.
 
-           For Python, these correspond to the following:
-               numeric_value: int, float,
-                              and Units() whose value is int or float
-               date_time_string: datetime objects
-               text_string_value: str
-               symbol_value: str
-        '''
+        For Python, these correspond to the following:
+
+        * numeric_value: int, float, and Units() whose value
+          is int or float
+        * date_time_string: datetime objects
+        * text_string_value: str
+        * symbol_value: str
+
+        """
         if isinstance(value, Units):
             if isinstance(value.value, (int, float)):
                 return True
@@ -299,18 +437,18 @@ class ODLEncoder(PVLEncoder):
         return False
 
     def is_symbol(self, value) -> bool:
-        '''Tests whether *value* is an ODL Symbol String.
+        """Returns true if *value* is an ODL Symbol String, false otherwise.
 
-           An ODL Symbol String is enclosed by single quotes
-           and may not contain any of the following characters:
+        An ODL Symbol String is enclosed by single quotes
+        and may not contain any of the following characters:
 
-           1. The apostrophe, which is reserved as the symbol string delimiter.
-           2. ODL Format Effectors
-           3. Control characters
+        1. The apostrophe, which is reserved as the symbol string delimiter.
+        2. ODL Format Effectors
+        3. Control characters
 
-           This means that an ODL Symbol String is a subset of the PVL
-           quoted string, and will be represented in Python as a ``str``.
-        '''
+        This means that an ODL Symbol String is a subset of the PVL
+        quoted string, and will be represented in Python as a ``str``.
+        """
         if isinstance(value, str):
             if "'" in value:  # Item 1
                 return False
@@ -325,12 +463,12 @@ class ODLEncoder(PVLEncoder):
             return False
 
     def is_identifier(self, value):
-        '''Tests whether *value* is an ODL Identifier.
+        """Returns true if *value* is an ODL Identifier, false otherwise.
 
-           An ODL Identifier is compsed of letters, digits, and underscores.
-           The first character must be a letter, and the last must not
-           be an underscore.
-        '''
+        An ODL Identifier is compsed of letters, digits, and underscores.
+        The first character must be a letter, and the last must not
+        be an underscore.
+        """
         if isinstance(value, str):
             if len(value) == 0:
                 return False
@@ -357,13 +495,19 @@ class ODLEncoder(PVLEncoder):
         return False
 
     def needs_quotes(self, s: str) -> bool:
+        """Return true if *s* is an ODL Identifier, false otherwise.
+
+        Overrides parent function.
+        """
         return not self.is_identifier(s)
 
     def is_assignment_statement(self, s) -> bool:
-        '''An ODL Assignment Statement is either an
-           element_identifier or a namespace_identifier
-           and an element_identifier joined with a colon.
-        '''
+        """Returns true if *s* is an ODL Assignment Statement, false otherwise.
+
+        An ODL Assignment Statement is either an
+        element_identifier or a namespace_identifier
+        joined to an element_identifier with a colon.
+        """
         if self.is_identifier(s):
             return True
 
@@ -375,6 +519,11 @@ class ODLEncoder(PVLEncoder):
         return False
 
     def encode_assignment(self, key, value, level=0, key_len=None) -> str:
+        """Overrides parent function by restricting the length of
+        keywords and enforcing that they be ODL Identifiers
+        and uppercasing their characters.
+        """
+
         if key_len is None:
             key_len = len(key)
 
@@ -400,9 +549,9 @@ class ODLEncoder(PVLEncoder):
         return self.format(s, level)
 
     def encode_sequence(self, value) -> str:
-        '''ODL only allows one- and two-dimensional sequences
-           of ODL scalar_values.
-        '''
+        """Extends parent function, as ODL only allows one- and
+        two-dimensional sequences of ODL scalar_values.
+        """
         if len(value) == 0:
             raise ValueError('ODL does not allow empty Sequences.')
 
@@ -425,8 +574,9 @@ class ODLEncoder(PVLEncoder):
         return super().encode_sequence(value)
 
     def encode_set(self, values) -> str:
-        '''ODL only allows sets to contain scalar values.
-        '''
+        """Extends parent function, ODL only allows sets to contain
+        scalar values.
+        """
 
         if not all(map(self.is_scalar, values)):
             raise ValueError(f'ODL only allows scalar values in sets: {value}')
@@ -434,6 +584,9 @@ class ODLEncoder(PVLEncoder):
         return super().encode_set(values)
 
     def encode_value(self, value):
+        """Extends parent function by only allowing Units Expressions for
+        numeric values.
+        """
         if(isinstance(value, Units) and
            not isinstance(value.value, (int, float))):
             raise ValueError('Unit expressions are only allowed '
@@ -442,6 +595,9 @@ class ODLEncoder(PVLEncoder):
         return super().encode_value(value)
 
     def encode_string(self, value):
+        """Extends parent function by appropriately quoting Symbol
+        Strings.
+        """
         if self.is_identifier(value):
             return value
         elif self.is_symbol(value):
@@ -450,10 +606,10 @@ class ODLEncoder(PVLEncoder):
             return super().encode_string(value)
 
     def encode_time(self, value: datetime.time) -> str:
-        '''ODL allows a time zone offset from UTC to be included,
-           and otherwise recommends that times be suffixed with a 'Z'
-           to clearly indicate that they are in UTC.
-        '''
+        """Extends parent function since ODL allows a time zone offset
+        from UTC to be included, and otherwise recommends that times
+        be suffixed with a 'Z' to clearly indicate that they are in UTC.
+        """
 
         t = super().encode_time(value)
 
@@ -471,7 +627,10 @@ class ODLEncoder(PVLEncoder):
             else:
                 return t + f'+{h}:{m}'
 
-    def encode_units(self, value):
+    def encode_units(self, value) -> str:
+        """Overrides parent function since ODL limits what characters
+        and operators can be present in Units Expressions.
+        """
 
         # if self.is_identifier(value.strip('*/()-')):
         if self.is_identifier(re.sub(r'[\*/\(\)-]', '', value)):
@@ -493,24 +652,36 @@ class ODLEncoder(PVLEncoder):
 
 
 class PDSLabelEncoder(ODLEncoder):
+    """An encoder based on the rules in the PDS3 Standards Reference
+    (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+    Language Specification and Usage and writes out labels that
+    conform to the PDS 3 standards.
+
+    It extends ODLEncoder.
+
+    You are not allowed to chose *end_delimiter* or *newline*
+    as the parent class allows, because to be PDS-compliant,
+    those are fixed choices.
+
+    In PVL and ODL, the OBJECT and GROUP aggregations are
+    interchangable, but the PDS applies restrictions to what can
+    appear in a GROUP.  If *convert_group_to_object* is True,
+    and a GROUP does not conform to the PDS definition of a GROUP,
+    then it will be written out as an OBJECT.  If it is False,
+    then an exception will be thrown if incompatible GROUPs are
+    encountered.
+
+    *tab_replace* should indicate the number of space characters
+    to replace horizontal tab characters with (since tabs aren't
+    allowed in PDS labels).  If this is set to zero, tabs will not
+    be replaced with spaces.  Defaults to 4.
+    """
 
     def __init__(self, grammar=None, decoder=None,
                  indent=2, width=80,
                  aggregation_end=True,
                  convert_group_to_object=True,
                  tab_replace=4):
-        '''In PVL and ODL, the OBJECT and GROUP aggregations are
-           interchangable, but the PDS applies restrictions to what can
-           appear in a GROUP.  If *convert_group_to_object* is True,
-           and a GROUP does not conform to the PDS definition of a GROUP,
-           then it will be written out as an OBJECT.  If it is False,
-           then an exception will be thrown if incompatible GROUPs are
-           encountered.
-
-           *tab_replace* should indicate the number of space characters
-           to replace horizontal tab characters with.  If this is set
-           to zero, tabs will not be replaced with spaces.
-        '''
 
         super().__init__(grammar, decoder, indent, width, aggregation_end,
                          end_delimiter=False, newline='\r\n')
@@ -519,10 +690,12 @@ class PDSLabelEncoder(ODLEncoder):
         self.tab_replace = tab_replace
 
     @staticmethod
-    def count_aggs(module: dict, obj_count=0, grp_count=0) -> tuple:
-        '''Returns the count of OBJECT and GROUP aggregations
-           that are contained within the *module* as a two-tuple.
-        '''
+    def count_aggs(module: dict, obj_count: int = 0,
+                   grp_count: int = 0) -> tuple((int, int)):
+        """Returns the count of OBJECT and GROUP aggregations
+        that are contained within the *module* as a two-tuple
+        in that order.
+        """
         # This currently just counts the values in the passed
         # in module, it does not 'recurse' if those aggregations also
         # may contain aggregations.
@@ -542,9 +715,12 @@ class PDSLabelEncoder(ODLEncoder):
         return (obj_count, grp_count)
 
     def encode(self, module: dict) -> str:
-        '''For PDS, if there are any GROUP elements, there must be at
-           least one OBJECT element in the label.
-        '''
+        """Extends the parent function, by adding a restriction.
+        For PDS, if there are any GROUP elements, there must be at
+        least one OBJECT element in the label.  Behavior here
+        depends on the value of this encoder's convert_group_to_object
+        property.
+        """
         (obj_count, grp_count) = self.count_aggs(module)
 
         if grp_count > 0 and obj_count < 1:
@@ -579,37 +755,40 @@ class PDSLabelEncoder(ODLEncoder):
             return s
 
     def is_PDSgroup(self, group: dict) -> bool:
-        '''PDS applies the following restrictions to GROUPS:
+        """Returns true if the dict-like *group* qualifies as a PDS Group,
+        false otherwise.
 
-           1. The GROUP structure may only be used in a data product
-              label which also contains one or more data OBJECT definitions.
-           2. The GROUP statement must contain only attribute assignment
-              statements, include pointers, or related information pointers
-              (i.e., no data location pointers). If there are multiple
-              values, a single statement must be used with either sequence
-              or set syntax; no attribute assignment statement or pointer
-              may be repeated.
-           3. GROUP statements may not be nested.
-           4. GROUP statements may not contain OBJECT definitions.
-           5. Only PSDD elements may appear within a GROUP statement.
-              *PSDD is not defined anywhere in the PDS document, so don't
-              know how to test for it.*
-           6. The keyword contents associated with a specific GROUP
-              identifier must be identical across all labels of a single data
-              set (with the exception of the “PARAMETERS” GROUP, as
-              explained).
+        PDS applies the following restrictions to GROUPS:
 
-           Use of the GROUP structure must be coordinated with the
-           responsible PDS discipline Node.
+        1. The GROUP structure may only be used in a data product
+           label which also contains one or more data OBJECT definitions.
+        2. The GROUP statement must contain only attribute assignment
+           statements, include pointers, or related information pointers
+           (i.e., no data location pointers). If there are multiple
+           values, a single statement must be used with either sequence
+           or set syntax; no attribute assignment statement or pointer
+           may be repeated.
+        3. GROUP statements may not be nested.
+        4. GROUP statements may not contain OBJECT definitions.
+        5. Only PSDD elements may appear within a GROUP statement.
+           *PSDD is not defined anywhere in the PDS document, so don't
+           know how to test for it.*
+        6. The keyword contents associated with a specific GROUP
+           identifier must be identical across all labels of a single data
+           set (with the exception of the “PARAMETERS” GROUP, as
+           explained).
 
-           Items 1 & 6 and the final sentence above, can't really be tested
-           by examining a single group, but must be dealt with in a larger
-           context.  The ODLEncoder.encode_module() handles #1, at least.
-           You're on your own for the other two issues.
+        Use of the GROUP structure must be coordinated with the
+        responsible PDS discipline Node.
 
-           Item 5: *PSDD* is not defined anywhere in the ODL PDS document,
-           so don't know how to test for it.
-        '''
+        Items 1 & 6 and the final sentence above, can't really be tested
+        by examining a single group, but must be dealt with in a larger
+        context.  The ODLEncoder.encode_module() handles #1, at least.
+        You're on your own for the other two issues.
+
+        Item 5: *PSDD* is not defined anywhere in the ODL PDS document,
+        so don't know how to test for it.
+        """
         (obj_count, grp_count) = self.count_aggs(group)
 
         # Items 3 and 4:
@@ -632,13 +811,14 @@ class PDSLabelEncoder(ODLEncoder):
         return True
 
     def encode_aggregation_block(self, key, value, level=0):
-        '''PDS has restrictions on what may be in a GROUP.
+        """Extends parent function because PDS has restrictions on
+        what may be in a GROUP.
 
-           If the encoder's *convert_group_to_object* parameter is True,
-           and a GROUP does not conform to the PDS definition of a GROUP,
-           then it will be written out as an OBJECT.  If it is False,
-           then an exception will be thrown.
-        '''
+        If the encoder's *convert_group_to_object* parameter is True,
+        and a GROUP does not conform to the PDS definition of a GROUP,
+        then it will be written out as an OBJECT.  If it is False,
+        then an exception will be thrown.
+        """
 
         # print('value at top:')
         # print(value)
@@ -659,8 +839,9 @@ class PDSLabelEncoder(ODLEncoder):
         return super().encode_aggregation_block(key, value, level)
 
     def encode_set(self, values) -> str:
-        '''PDS only allows symbol values and integers within sets.
-        '''
+        """Extends parent function because PDS only allows symbol values
+        and integers within sets.
+        """
         for v in values:
             if not self.is_symbol(v) and not isinstance(v, int):
                 raise ValueError('The PDS only allows integers and symbols '
@@ -669,12 +850,14 @@ class PDSLabelEncoder(ODLEncoder):
         return super().encode_set(values)
 
     def encode_time(self, value: datetime.time) -> str:
-        '''Not in the section on times, but at the end of the PDS
-           ODL document, in section 12.7.3, para 14, it indicates that
-           alternate time zones may not be used in a PDS label, only
-           UTC.
-        '''
+        """Extends the PVLEncoder's encode_time() function because
+        even though ODL allows for timezones, PDS does not.
 
+        Not in the section on times, but at the end of the PDS
+        ODL document, in section 12.7.3, para 14, it indicates that
+        alternate time zones may not be used in a PDS label, only
+        UTC.
+        """
         t = PVLEncoder.encode_time(value)
 
         if value.tzinfo is None or value.tzinfo.utcoffset(None) == 0:

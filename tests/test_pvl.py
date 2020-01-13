@@ -8,12 +8,10 @@ import tempfile
 import shutil
 
 import pvl
-from pvl import (
-    Label,
-    LabelGroup,
-    LabelObject,
-    Units
-)
+from pvl import (PVLModule as Label,
+                 PVLObject as LabelObject,
+                 PVLGroup as LabelGroup)
+from pvl import Units
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data/')
@@ -480,9 +478,9 @@ def test_comments():
 
     # Strict PVL doesn't allow #-comments
     with pytest.raises(pvl.lexer.LexerError):
-        pvl.loads(some_pvl, grammar=pvl.grammar.grammar())
+        pvl.loads(some_pvl, grammar=pvl.grammar.PVLGrammar())
 
-    # But the Omnigrammar does:
+    # But the OmniGrammar does:
     label = pvl.loads(some_pvl)
 
     assert len(label) == 3
@@ -877,7 +875,7 @@ def test_parse_error():
         pvl.load(io.BytesIO(b'foo'))
 
 
-EV = pvl.decoder.EmptyValueAtLine
+EV = pvl.parser.EmptyValueAtLine
 
 
 @pytest.mark.parametrize(
@@ -1018,7 +1016,7 @@ def test_broken_labels_ParseError():
 
 
 def test_EmptyValueAtLine():
-    test_ev = pvl.decoder.EmptyValueAtLine(1)
+    test_ev = pvl.parser.EmptyValueAtLine(1)
     assert test_ev == ''
     assert 'foo' + test_ev == 'foo'
     assert isinstance(test_ev, str)
@@ -1088,7 +1086,7 @@ def test_dump_stream():
         label = pvl.load(filename)
         # print(label)
         stream = io.BytesIO()
-        pvl.dump(label, stream, cls=pvl.encoder.ODLEncoder)
+        pvl.dump(label, stream, encoder=pvl.encoder.ODLEncoder())
         stream.seek(0)
         assert label == pvl.load(stream)
 
@@ -1100,7 +1098,7 @@ def test_dump_stream():
         label = pvl.load(filename)
         # print(label)
         stream = io.BytesIO()
-        pvl.dump(label, stream, cls=pvl.encoder.PVLEncoder)
+        pvl.dump(label, stream, encoder=pvl.encoder.PVLEncoder())
         stream.seek(0)
         assert label == pvl.load(stream)
 
@@ -1135,8 +1133,8 @@ def test_default_encoder():
 def test_pds_encoder():
     for filename in PDS_COMPLIANT:
         label = pvl.load(filename)
-        encoder = pvl.encoder.PDSLabelEncoder
-        assert label == pvl.loads(pvl.dumps(label, cls=encoder))
+        encoder = pvl.encoder.PDSLabelEncoder()
+        assert label == pvl.loads(pvl.dumps(label, encoder=encoder))
 
 
 def test_special_values():
@@ -1145,7 +1143,8 @@ def test_special_values():
         ('bool_false', False),
         ('null', None),
     ])
-    assert module == pvl.loads(pvl.dumps(module, cls=pvl.encoder.PVLEncoder))
+    assert module == pvl.loads(pvl.dumps(module,
+                                         encoder=pvl.encoder.PVLEncoder()))
 
     # IsisCubeLabelEncoder class is deprecated
     # encoder = pvl.encoder.IsisCubeLabelEncoder
@@ -1170,7 +1169,8 @@ def test_special_strings():
         ('double_quote', '"'),
         # ('mixed_quotes', '"\''),  # see above about escaped quotes.
     ])
-    assert module == pvl.loads(pvl.dumps(module, cls=pvl.encoder.PVLEncoder))
+    assert module == pvl.loads(pvl.dumps(module,
+                                         encoder=pvl.encoder.PVLEncoder()))
 
     # IsisCubeLabelEncoder class is deprecated
     # encoder = pvl.encoder.IsisCubeLabelEncoder
@@ -1202,7 +1202,8 @@ def test_quoated_strings():
         ('restricted_chars', '&<>{},[]=!#()%";|'),
         ('restricted_seq', '/**/'),
     ])
-    assert module == pvl.loads(pvl.dumps(module, cls=pvl.encoder.PVLEncoder))
+    assert module == pvl.loads(pvl.dumps(module,
+                                         encoder=pvl.encoder.PVLEncoder()))
 
     # IsisCubeLabelEncoder class is deprecated
     # encoder = pvl.encoder.IsisCubeLabelEncoder
@@ -1222,7 +1223,7 @@ def test_dump_to_file_insert_before():
             if os.path.basename(filename) != 'empty.lbl':
                 label.insert_before('PDS_VERSION_ID', [('new', 'item')])
             tmpfile = os.path.join(tmpdir, os.path.basename(filename))
-            pvl.dump(label, tmpfile, cls=pvl.encoder.PVLEncoder)
+            pvl.dump(label, tmpfile, encoder=pvl.encoder.PVLEncoder())
             assert label == pvl.load(tmpfile)
     finally:
         shutil.rmtree(tmpdir)
@@ -1237,7 +1238,7 @@ def test_dump_to_file_insert_after():
             if os.path.basename(filename) != 'empty.lbl':
                 label.insert_after('PDS_VERSION_ID', [('new', 'item')])
             tmpfile = os.path.join(tmpdir, os.path.basename(filename))
-            pvl.dump(label, tmpfile, cls=pvl.encoder.PVLEncoder)
+            pvl.dump(label, tmpfile, encoder=pvl.encoder.PVLEncoder())
             assert label == pvl.load(tmpfile)
     finally:
         shutil.rmtree(tmpdir)

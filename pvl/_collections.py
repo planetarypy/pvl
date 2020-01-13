@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+#
+# Reuse is permitted under the terms of the license.
+# The AUTHORS file and the LICENSE file are at the
+# top level of this library.
+
 import pprint
 from collections import namedtuple
 from collections.abc import Mapping, MutableMapping
@@ -89,12 +95,14 @@ class ValuesView(MappingView):
 class OrderedMultiDict(dict, MutableMapping):
     """A ``dict`` like container.
 
-    This container preserves the original ordering as well as allows multiple
-    values for the same key. It provides a similar similar semantics to a
-    ``list`` of ``tuples`` but with ``dict`` style access.
+    This container preserves the original ordering as well as
+    allows multiple values for the same key. It provides similar
+    semantics to a ``list`` of ``tuples`` but with ``dict`` style
+    access.
 
-    Using ``__setitem__`` syntax overwrites all fields with the same key and
-    ``__getitem__`` will return the first value with the key.
+    Using ``__setitem__`` syntax overwrites all fields with the
+    same key and ``__getitem__`` will return the first value with
+    the key.
     """
 
     def __init__(self, *args, **kwargs):
@@ -189,8 +197,9 @@ class OrderedMultiDict(dict, MutableMapping):
             pass
 
     def append(self, key, value):
-        """Adds a (name, value) pair, doesn't overwrite the value if it already
-        exists."""
+        """Adds a (name, value) pair, doesn't overwrite the value if
+        it already exists.
+        """
         self.__items.append((key, value))
 
         try:
@@ -219,8 +228,9 @@ class OrderedMultiDict(dict, MutableMapping):
             self.append(key, value)
 
     def getlist(self, key):
-        """Returns a list of all the values for the named field. Returns an
-        empty list if the key doesn't exist."""
+        """Returns a list of all the values for the named field.
+        Returns an empty list if the key doesn't exist.
+        """
         try:
             return list(dict_getitem(self, key))
         except KeyError:
@@ -244,7 +254,7 @@ class OrderedMultiDict(dict, MutableMapping):
         return type(self)(self)
 
     def __insert_wrapper(func):
-        """Make sure the arguments given to the insert methods are correct"""
+        """Make sure the arguments given to the insert methods are correct."""
 
         def check_func(self, key, new_item, instance=0):
             if key not in self.keys():
@@ -257,7 +267,7 @@ class OrderedMultiDict(dict, MutableMapping):
         return check_func
 
     def _get_index_for_insert(self, key, instance):
-        """Get the index of the key to insert before or after"""
+        """Get the index of the key to insert before or after."""
         if instance == 0:
             # Index method will return the first occurence of the key
             index = self.keys().index(key)
@@ -279,7 +289,7 @@ class OrderedMultiDict(dict, MutableMapping):
         return index
 
     def _insert_item(self, key, new_item, instance, is_after):
-        """Insert a new item before or after another item"""
+        """Insert a new item before or after another item."""
         index = self._get_index_for_insert(key, instance)
         index = index + 1 if is_after else index
         self.__items = self.__items[:index] + new_item + self.__items[index:]

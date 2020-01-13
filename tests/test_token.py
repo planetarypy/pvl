@@ -17,8 +17,8 @@
 
 import unittest
 
-from pvl.grammar import grammar as Grammar
-from pvl.token import token as Token
+from pvl.grammar import PVLGrammar
+from pvl.token import Token
 
 
 class TestToken(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestToken(unittest.TestCase):
     def test_init(self):
         s = 'token'
         self.assertEqual(s, Token(s))
-        self.assertEqual(s, Token(s, grammar=Grammar()))
+        self.assertEqual(s, Token(s, grammar=PVLGrammar()))
 
     def test_is_comment(self):
         c = Token('/* comment */')

@@ -1,39 +1,46 @@
 # -*- coding: utf-8 -*-
-'''Parameter Value Language parser.
+"""Parameter Value Language parser.
 
-   The definition of PVL used in this module is from the Consultive
-   Committee for Space Data Systems, and their Parameter Value
-   Language Specification (CCSD0006 and CCSD0008), CCSDS 6441.0-B-2,
-   referred to as the Blue Book with a date of June 2000.
+The definition of PVL used in this module is based on the Consultive
+Committee for Space Data Systems, and their Parameter Value
+Language Specification (CCSD0006 and CCSD0008), CCSDS 6441.0-B-2,
+referred to as the Blue Book with a date of June 2000.
 
-   Some of the documention in this module represents the structure
-   diagrams from the Blue Book for parsing PVL in a Backus–Naur
-   form.
+Some of the documention in this module represents the structure
+diagrams from the Blue Book for parsing PVL in a Backus–Naur
+form.
 
-   So Figure 1-1 from the Blue Book would be represented as :
+So Figure 1-1 from the Blue Book would be represented as :
 
-    <Item-A> ::= ( [ <Item-B>+ | <Item-C> ] <Item-D> )*
+ <Item-A> ::= ( [ <Item-B>+ | <Item-C> ] <Item-D> )*
 
-   Finally, the Blue Book defines <WSC> as a possibly empty collection
-   of white space characters or comments:
+Finally, the Blue Book defines <WSC> as a possibly empty collection
+of white space characters or comments:
 
-    <WSC> ::= ( <white-space-character> | <comment> )*
+ <WSC> ::= ( <white-space-character> | <comment> )*
 
-   However, to help remember that <WSC> could be empty, we will typically
-   always show it as <WSC>*.
+However, to help remember that <WSC> could be empty, we will typically
+always show it as <WSC>*.
 
-   Likewise the <Statement-Delimiter> is defined as:
+Likewise the <Statement-Delimiter> is defined as:
 
-    <Statement-Delimiter> ::= <WSC>* [ ';' | <EOF> ]
+ <Statement-Delimiter> ::= <WSC>* [ ';' | <EOF> ]
 
-   However, since all elements are optional, we will typically
-   show it as [<Statement-Delimiter>].
+However, since all elements are optional, we will typically
+show it as [<Statement-Delimiter>].
 
-   The parser deals with managing the tokens that come out of the lexer.
-   Once the parser gets to a state where it has something that needs to
-   be converted to a Python object and returned, it uses the decoder to
-   make that conversion.
-'''
+The parser deals with managing the tokens that come out of the lexer.
+Once the parser gets to a state where it has something that needs to
+be converted to a Python object and returned, it uses the decoder to
+make that conversion.
+"""
+
+# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+#
+# Reuse is permitted under the terms of the license.
+# The AUTHORS file and the LICENSE file are at the
+# top level of this library.
+
 import collections.abc as abc
 import re
 
@@ -42,55 +49,125 @@ from itertools import cycle
 from warnings import warn
 
 from ._collections import PVLModule, PVLGroup, PVLObject, Units
-from .token import token as Token
-from .grammar import grammar as Grammar
-from .grammar import Omnigrammar
-from .decoder import PVLDecoder, OmniDecoder, EmptyValueAtLine
+from .token import Token
+from .grammar import PVLGrammar, OmniGrammar
+from .decoder import PVLDecoder, OmniDecoder
 from .lexer import lexer as Lexer
 from .lexer import LexerError, linecount
 
 
 _tokens_docstring = """*tokens* is expected to be a *generator iterator*
-                       which provides ``pvl.token`` objects.  It should
-                       allow for a generated object to be 'returned' via
-                       the generator's send() function.  When parsing the
-                       first object from *tokens*, if an unexpected object
-                       is encountered, it will 'return' the object to
-                       *tokens*, and raise a ``ValueError``, so that
-                       ``try``-``except`` blocks can be used, and the
-                       *generator iterator* is left in a good state. However,
-                       if a parsing anomaly is discovered deeper in
-                       parsing a PVL sequence, then a ``ValueError`` will
-                       be thrown into the *tokens* generator
-                       iterator (via .throw()).
+                    which provides ``pvl.token.Token`` objects.  It should
+                    allow for a generated object to be 'returned' via
+                    the generator's send() function.  When parsing the
+                    first object from *tokens*, if an unexpected object
+                    is encountered, it will 'return' the object to
+                    *tokens*, and raise a ``ValueError``, so that
+                    ``try``-``except`` blocks can be used, and the
+                    *generator iterator* is left in a good state. However,
+                    if a parsing anomaly is discovered deeper in
+                    parsing a PVL sequence, then a ``ValueError`` will
+                    be thrown into the *tokens* generator
+                    iterator (via .throw()).
                     """
 
 
 class ParseError(Exception):
-    '''A simple parser exception.
-    '''
+    """A simple parser exception."""
 
     def __init__(self, msg, token=None):
         super().__init__(self, msg)
         self.token = token
 
 
-class PVLParser(object):
+class EmptyValueAtLine(str):
+    """Empty string to be used as a placeholder for a parameter without
+    a value.
 
-    def __init__(self, grammar=None, decoder=None, lexer=None,
+    When a label contains a parameter without a value, it is normally
+    considered a broken label in PVL. To allow parsing to continue,
+    we can rectify the broken parameter-value pair by setting the
+    value to have a value of EmptyValueAtLine, which is an empty
+    string (and can be treated as such) with some additional properties.
+
+    The argument *lineno* should be the line number of the error from
+    the original document, which will be available as a property.
+
+    Examples::
+      >>> from pvl.parser import EmptyValueAtLine
+      >>> EV1 = EmptyValueAtLine(1)
+      >>> EV1
+      EmptyValueAtLine(1 does not have a value. Treat as an empty string)
+      >>> EV1.lineno
+      1
+      >>> print(EV1)
+
+      >>> EV1 + 'foo'
+      'foo'
+      >>> # Can be turned into an integer and float as 0:
+      >>> int(EV1)
+      0
+      >>> float(EV1)
+      0.0
+    """
+
+    def __new__(cls, lineno, *args, **kwargs):
+        self = super(EmptyValueAtLine, cls).__new__(cls, '')
+        self.lineno = lineno
+        return self
+
+    def __int__(self):
+        return 0
+
+    def __float__(self):
+        return 0.0
+
+    def __repr__(self):
+        return ('{}({} does not '.format(type(self).__name__, self.lineno) +
+                'have a value. Treat as an empty string)')
+
+
+class PVLParser(object):
+    """A parser based on the rules in the CCSDS-641.0-B-2 'Blue Book'
+    which defines the PVL language.
+
+    *grammar* must be a pvl.grammar object, and defaults to
+    pvl.grammar.OmniGrammar().
+
+    *decoder* most be a pvl.decoder object, and defaults to
+    pvl.decoder.OmniDecoder().
+
+    *lexer_fn* must be a lexer function that takes a ``str``,
+    a grammar, and a decoder, as pvl.lexer.lexer() does, which
+    is the default if none is given.
+
+    *module_class* must be a subclass of PVLModule, and is the type
+    of object that will be returned from this parser's parse() function.
+
+    *group_class* must be a subclass of PVLGroup, and is the type that
+    will be used to hold PVL elements when a PVL Group is encountered
+    during parsing, and must be able to be added to via a .append()
+    function which should take a two-tuple of name and value.
+
+    *object_class* must be a subclass of PVLObject, and is the type that
+    will be used to hold PVL elements when a PVL Object is encountered
+    during parsing, otherwise similar to *group_class*.
+    """
+
+    def __init__(self, grammar=None, decoder=None, lexer_fn=None,
                  module_class=PVLModule, group_class=PVLGroup,
                  object_class=PVLObject):
 
         self.errors = []
 
-        if lexer is None:
+        if lexer_fn is None:
             self.lexer = Lexer
         else:
-            self.lexer = lexer
+            self.lexer = lexer_fn
 
         if grammar is None:
-            self.grammar = Omnigrammar()
-        elif isinstance(grammar, Grammar):
+            self.grammar = OmniGrammar()
+        elif isinstance(grammar, PVLGrammar):
             self.grammar = grammar
         else:
             raise TypeError('The grammar must be an instance of pvl.grammar.')
@@ -118,14 +195,19 @@ class PVLParser(object):
             raise TypeError('The object_class must be a subclass of PVLObject.')
 
     def parse(self, s: str):
-        '''Converts the string to a PVLModule.
-        '''
+        """Converts the string, *s* to a PVLModule."""
         tokens = self.lexer(s, g=self.grammar, d=self.decoder)
         module = self.parse_module(tokens)
         module.errors = sorted(self.errors)
         return module
 
     def aggregation_cls(self, begin: str):
+        """Returns an initiated object of the group_class or object_class
+        as specified on this parser's creation, according to the value
+        of *begin*.  If *begin* does not match the Group or Object
+        keywords for this parser's grammar, then it will raise a
+        ValueError.
+        """
         begin_fold = begin.casefold()
         for gk in self.grammar.group_keywords.keys():
             if begin_fold == gk.casefold():
@@ -141,11 +223,11 @@ class PVLParser(object):
     def parse_module(self, tokens: abc.Generator):
         """Parses the tokens for a PVL Module.
 
-           {}
+        {}
 
-            <PVL-Module-Contents> ::=
-             ( <Assignment-Statement> | <WSC>* | <Aggregation-Block> )*
-             [<End-Statement>]
+         <PVL-Module-Contents> ::=
+          ( <Assignment-Statement> | <WSC>* | <Aggregation-Block> )*
+          [<End-Statement>]
 
         """.format(_tokens_docstring)
         m = self.modcls()
@@ -190,40 +272,40 @@ class PVLParser(object):
                      f'"{t}" ')
 
     def parse_module_post_hook(self, module, tokens: abc.Generator):
-        '''This function is meant to be overridden by subclasses
-           that may want to perform some extra processing if
-           'normal' parse_module() operations fail to complete.
-           See OmniParser for an example.
+        """This function is meant to be overridden by subclasses
+        that may want to perform some extra processing if
+        'normal' parse_module() operations fail to complete.
+        See OmniParser for an example.
 
-           This function shall return a two-tuple, with the first item
-           being the *module* (altered by processing or unaltered), and
-           the second item being a boolean that will signal whether
-           the tokens should continue to be parsed to accumulate more
-           elements into the returned *module*, or whether the
-           *module* is in a good state and should be returned by
-           parse_module().
+        This function shall return a two-tuple, with the first item
+        being the *module* (altered by processing or unaltered), and
+        the second item being a boolean that will signal whether
+        the tokens should continue to be parsed to accumulate more
+        elements into the returned *module*, or whether the
+        *module* is in a good state and should be returned by
+        parse_module().
 
-           If the operations within this function are unsuccessful,
-           it should raise an exception (any exception descended from
-           Exception), which will result in the operation of parse_module()
-           as if it were not overridden.
-        '''
+        If the operations within this function are unsuccessful,
+        it should raise an exception (any exception descended from
+        Exception), which will result in the operation of parse_module()
+        as if it were not overridden.
+        """
         raise Exception
 
     def parse_aggregation_block(self, tokens: abc.Generator):
         """Parses the tokens for an Aggregation Block, and returns
-           the modcls object that is the result of the parsing and
-           decoding.
+        the modcls object that is the result of the parsing and
+        decoding.
 
-           {}
+        {}
 
-            <Aggregation-Block> ::= <Begin-Aggegation-Statement>
-                (<WSC>* (Assignment-Statement | Aggregation-Block) <WSC>*)+
-                <End-Aggregation-Statement>
+         <Aggregation-Block> ::= <Begin-Aggegation-Statement>
+             (<WSC>* (Assignment-Statement | Aggregation-Block) <WSC>*)+
+             <End-Aggregation-Statement>
 
-           The Begin-Aggregation-Statement Name must match the Block-Name
-           in the paired End-Aggregation-Statement if a Block-Name is
-           present in the End-Aggregation-Statement.
+        The Begin-Aggregation-Statement Name must match the Block-Name
+        in the paired End-Aggregation-Statement if a Block-Name is
+        present in the End-Aggregation-Statement.
         """.format(_tokens_docstring)
 
         (begin, block_name) = self.parse_begin_aggregation_statement(tokens)
@@ -252,18 +334,18 @@ class PVLParser(object):
 
         return (block_name, agg)
 
-    def _parse_around_equals(self, tokens: abc.Generator) -> None:
+    def parse_around_equals(self, tokens: abc.Generator) -> None:
         """Parses white space and comments on either side
-           of an equals sign.
+        of an equals sign.
 
-           *tokens* is expected to be a *generator iterator* which
-           provides ``pvl.token`` objects.
+        *tokens* is expected to be a *generator iterator* which
+        provides ``pvl.token`` objects.
 
-           This is shared functionality for Begin Aggregation Statements
-           and Assignment Statements.  It basically covers parsing
-           anything that has a syntax diagram like this:
+        This is shared functionality for Begin Aggregation Statements
+        and Assignment Statements.  It basically covers parsing
+        anything that has a syntax diagram like this:
 
-             <WSC>* '=' <WSC>*
+          <WSC>* '=' <WSC>*
 
         """
 
@@ -280,15 +362,15 @@ class PVLParser(object):
 
     def parse_begin_aggregation_statement(self, tokens: abc.Generator) -> tuple:
         """Parses the tokens for a Begin Aggregation Statement, and returns
-           the name Block Name as a ``str``.
+        the name Block Name as a ``str``.
 
-           {}
+        {}
 
-           <Begin-Aggregation-Statement-block> ::=
-                <Begin-Aggegation-Statement> <WSC>* '=' <WSC>*
-                <Block-Name> [<Statement-Delimiter>]
+        <Begin-Aggregation-Statement-block> ::=
+             <Begin-Aggegation-Statement> <WSC>* '=' <WSC>*
+             <Block-Name> [<Statement-Delimiter>]
 
-           Where <Block-Name> ::= <Parameter-Name>
+        Where <Block-Name> ::= <Parameter-Name>
 
         """.format(_tokens_docstring)
         try:
@@ -302,7 +384,7 @@ class PVLParser(object):
                              'a Begin-Aggegation-Statement.')
 
         try:
-            self._parse_around_equals(tokens)
+            self.parse_around_equals(tokens)
         except ValueError:
             tokens.throw(ValueError,
                          f'Expecting an equals sign after "{begin}" ')
@@ -321,13 +403,13 @@ class PVLParser(object):
                               tokens: abc.Generator) -> None:
         """Parses the tokens for an End Aggregation Statement.
 
-           {}
+        {}
 
-           <End-Aggregation-Statement-block> ::=
-                <End-Aggegation-Statement> [<WSC>* '=' <WSC>*
-                <Block-Name>] [<Statement-Delimiter>]
+        <End-Aggregation-Statement-block> ::=
+             <End-Aggegation-Statement> [<WSC>* '=' <WSC>*
+             <Block-Name>] [<Statement-Delimiter>]
 
-           Where <Block-Name> ::= <Parameter-Name>
+        Where <Block-Name> ::= <Parameter-Name>
 
         """.format(_tokens_docstring)
         end_agg = next(tokens)
@@ -346,7 +428,7 @@ class PVLParser(object):
                              f'"{begin_agg}" but found: {end_agg}')
 
         try:
-            self._parse_around_equals(tokens)
+            self.parse_around_equals(tokens)
         except (ParseError, ValueError):  # No equals statement, which is fine.
             self.parse_statement_delimiter(tokens)
             return None
@@ -366,9 +448,9 @@ class PVLParser(object):
     def parse_end_statement(self, tokens: abc.Generator) -> None:
         """Parses the tokens for an End Statement.
 
-           {}
+        {}
 
-           <End-Statement> ::= "END" ( <WSC>* | [<Statement-Delimiter>] )
+        <End-Statement> ::= "END" ( <WSC>* | [<Statement-Delimiter>] )
 
         """.format(_tokens_docstring)
 
@@ -398,13 +480,13 @@ class PVLParser(object):
     def parse_assignment_statement(self, tokens: abc.Generator) -> tuple:
         """Parses the tokens for an Assignment Statement.
 
-           The returned two-tuple contains the Parameter Name in the
-           first element, and the Value in the second.
+        The returned two-tuple contains the Parameter Name in the
+        first element, and the Value in the second.
 
-           {}
+        {}
 
-            <Assignment-Statement> ::= <Parameter-Name> <WSC>* '=' <WSC>*
-                                        <Value> [<Statement-Delimiter>]
+         <Assignment-Statement> ::= <Parameter-Name> <WSC>* '=' <WSC>*
+                                     <Value> [<Statement-Delimiter>]
 
         """.format(_tokens_docstring)
         parameter_name = None
@@ -421,7 +503,7 @@ class PVLParser(object):
                              'an Assignment-Statement.')
 
         Value = None
-        self._parse_around_equals(tokens)
+        self.parse_around_equals(tokens)
 
         try:
             # print(f'parameter name: {parameter_name}')
@@ -437,13 +519,13 @@ class PVLParser(object):
 
     def parse_WSC_until(self, token: str, tokens: abc.Generator) -> bool:
         """Consumes objects from *tokens*, if the object's *.is_WSC()*
-           function returns *True*, it will continue until *token* is
-           encountered and will return *True*.  If it encounters an object
-           that does not meet these conditions, it will 'return' that
-           object to *tokens* and will return *False*.
+        function returns *True*, it will continue until *token* is
+        encountered and will return *True*.  If it encounters an object
+        that does not meet these conditions, it will 'return' that
+        object to *tokens* and will return *False*.
 
-           *tokens* is expected to be a *generator iterator* which
-           provides ``pvl.token`` objects.
+        *tokens* is expected to be a *generator iterator* which
+        provides ``pvl.token`` objects.
         """
         for t in tokens:
             if t == token:
@@ -456,14 +538,14 @@ class PVLParser(object):
                 return False
 
     def _parse_set_seq(self, delimiters, tokens: abc.Generator) -> list:
-        '''The internal parsing of PVL Sets and Sequences are very
-           similar, and this function provides that shared logic.
+        """The internal parsing of PVL Sets and Sequences are very
+        similar, and this function provides that shared logic.
 
-           *delimiters* are a two-tuple containing the start and end
-           characters for the PVL Set or Sequence.
+        *delimiters* are a two-tuple containing the start and end
+        characters for the PVL Set or Sequence.
 
-           {}
-        '''.format(_tokens_docstring)
+        {}
+        """.format(_tokens_docstring)
         t = next(tokens)
         if t != delimiters[0]:
             tokens.send(t)
@@ -496,22 +578,22 @@ class PVLParser(object):
     def parse_set(self, tokens: abc.Generator) -> set:
         """Parses a PVL Set.
 
-            <Set> ::= "{{" <WSC>*
-                       [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
-                      "}}"
+         <Set> ::= "{{" <WSC>*
+                    [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
+                   "}}"
 
-           Returns the decoded <Set> as a Python ``frozenset``.  The PVL
-           specification doesn't seem to indicate that a PVL Set
-           has distinct values (like a Python ``set``), only that the
-           ordering of the values is unimportant.  For now, we will
-           implement PVL Sets as Python ``frozenset`` objects.
+        Returns the decoded <Set> as a Python ``frozenset``.  The PVL
+        specification doesn't seem to indicate that a PVL Set
+        has distinct values (like a Python ``set``), only that the
+        ordering of the values is unimportant.  For now, we will
+        implement PVL Sets as Python ``frozenset`` objects.
 
-           They are returned as ``frozenset`` objects because PVL Sets
-           can contain as their elements other PVL Sets, but since Python
-           ``set``s are non-hashable, they cannot be members of a set,
-           however, ``frozenset``s can.
+        They are returned as ``frozenset`` objects because PVL Sets
+        can contain as their elements other PVL Sets, but since Python
+        ``set``s are non-hashable, they cannot be members of a set,
+        however, ``frozenset``s can.
 
-           {}
+        {}
         """.format(_tokens_docstring)
         return frozenset(self._parse_set_seq(self.grammar.set_delimiters,
                                              tokens))
@@ -519,13 +601,13 @@ class PVLParser(object):
     def parse_sequence(self, tokens: abc.Generator) -> list:
         """Parses a PVL Sequence.
 
-            <Set> ::= "(" <WSC>*
-                       [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
-                      ")"
+         <Set> ::= "(" <WSC>*
+                    [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
+                   ")"
 
-           Returns the decoded <Sequence> as a Python ``list``.
+        Returns the decoded <Sequence> as a Python ``list``.
 
-           {}
+        {}
         """.format(_tokens_docstring)
 
         return self._parse_set_seq(self.grammar.sequence_delimiters, tokens)
@@ -533,20 +615,20 @@ class PVLParser(object):
     def parse_statement_delimiter(self, tokens: abc.Generator) -> bool:
         """Parses the tokens for a Statement Delimiter.
 
-           *tokens* is expected to be a *generator iterator* which
-           provides ``pvl.token`` objects.
+        *tokens* is expected to be a *generator iterator* which
+        provides ``pvl.token`` objects.
 
-            <Statement-Delimiter> ::= <WSC>*
-                        (<white-space-character> | <comment> | ';' | <EOF>)
+         <Statement-Delimiter> ::= <WSC>*
+                     (<white-space-character> | <comment> | ';' | <EOF>)
 
-           Although the above structure comes from Figure 2-4
-           of the Blue Book, the <white-space-character> and <comment>
-           elements are redundant with the presence of [WSC]*
-           so it can be simplified to:
+        Although the above structure comes from Figure 2-4
+        of the Blue Book, the <white-space-character> and <comment>
+        elements are redundant with the presence of [WSC]*
+        so it can be simplified to:
 
-            <Statement-Delimiter> ::= <WSC>* [ ';' | <EOF> ]
+         <Statement-Delimiter> ::= <WSC>* [ ';' | <EOF> ]
 
-           Typically written [<Statement-Delimiter>].
+        Typically written [<Statement-Delimiter>].
         """
         for t in tokens:
             if t.is_WSC():
@@ -561,12 +643,12 @@ class PVLParser(object):
     def parse_value(self, tokens: abc.Generator):
         """Parses PVL Values.
 
-            <Value> ::= (<Simple-Value> | <Set> | <Sequence>)
-                        [<WSC>* <Units Expression>]
+         <Value> ::= (<Simple-Value> | <Set> | <Sequence>)
+                     [<WSC>* <Units Expression>]
 
-           Returns the decoded <Value> as an appropriate Python object.
+        Returns the decoded <Value> as an appropriate Python object.
 
-           {}
+        {}
         """.format(_tokens_docstring)
         value = None
 
@@ -599,36 +681,36 @@ class PVLParser(object):
             return value
 
     def parse_value_post_hook(self, tokens):
-        '''This function is meant to be overridden by subclasses
-           that may want to perform some extra processing if
-           'normal' parse_value() operations fail to yield a value.
-           See OmniParser for an example.
+        """This function is meant to be overridden by subclasses
+        that may want to perform some extra processing if
+        'normal' parse_value() operations fail to yield a value.
+        See OmniParser for an example.
 
-           This function shall return an appropriate Python value,
-           similar to what parse_value() would return.
+        This function shall return an appropriate Python value,
+        similar to what parse_value() would return.
 
-           If the operations within this function are unsuccessful,
-           it should raise a ValueError which will result in the
-           operation of parse_value() as if it were not overridden.
-        '''
+        If the operations within this function are unsuccessful,
+        it should raise a ValueError which will result in the
+        operation of parse_value() as if it were not overridden.
+        """
         raise ValueError
 
     def parse_units(self, value, tokens: abc.Generator) -> str:
         """Parses PVL Units Expression.
 
-            <Units-Expression> ::= "<" [<white-space>] <Units-Value>
-                                       [<white-space>] ">"
+         <Units-Expression> ::= "<" [<white-space>] <Units-Value>
+                                    [<white-space>] ">"
 
-           and
+        and
 
-            <Units-Value> ::= <units-character>
-                                [ [ <units-character> | <white-space> ]*
-                                    <units-character> ]
+         <Units-Value> ::= <units-character>
+                             [ [ <units-character> | <white-space> ]*
+                                 <units-character> ]
 
-           Returns the *value* and the <Units-Value> as a ``Units()``
-           object.
+        Returns the *value* and the <Units-Value> as a ``Units()``
+        object.
 
-           {}
+        {}
         """.format(_tokens_docstring)
         t = next(tokens)
 
@@ -658,32 +740,29 @@ class PVLParser(object):
 
 
 class ODLParser(PVLParser):
+    """A parser based on the rules in the PDS3 Standards Reference
+       (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+       Language Specification and Usage.
+
+       It extends PVLParser.
+    """
 
     def parse_set(self, tokens: abc.Generator) -> set:
-        """Parses a PVL Set.
+        """Overrides the parent function to return
+        the decoded <Set> as a Python ``set``.
 
-            <Set> ::= "{{" <WSC>*
-                       [ <Value> <WSC>* ( "," <WSC>* <Value> <WSC>* )* ]
-                      "}}"
-
-           Returns the decoded <Set> as a Python ``set``.
-
-           The ODL specification only allows scalar_values in Sets,
-           since ODL Sets cannot contain other ODL Sets, an ODL Set
-           can be represented as a Python ``set`` (unlike PVL Sets,
-           which must be represented as a Python ``frozenset``).
-
-           {}
-        """.format(_tokens_docstring)
+        The ODL specification only allows scalar_values in Sets,
+        since ODL Sets cannot contain other ODL Sets, an ODL Set
+        can be represented as a Python ``set`` (unlike PVL Sets,
+        which must be represented as a Python ``frozenset`` objects).
+        """
         return set(self._parse_set_seq(self.grammar.set_delimiters,
                                        tokens))
 
     def parse_units(self, value, tokens: abc.Generator) -> str:
-        """Parses ODL Units Expression.  ODL only allows units
-           on numeric values, any others will result in a ValueError.
-
-           {}
-        """.format(_tokens_docstring)
+        """Extends the parent function, since ODL only allows units
+        on numeric values, any others will result in a ValueError.
+        """
 
         if isinstance(value, int) or isinstance(value, float):
             return super().parse_units(value, tokens)
@@ -694,9 +773,9 @@ class ODLParser(PVLParser):
 
 
 class OmniParser(PVLParser):
-    '''A permissive PVL/ODL/ISIS label parser that attempts to parse
-       all forms of "PVL" that are thrown at it.
-    '''
+    """A permissive PVL/ODL/ISIS label parser that attempts to parse
+    all forms of "PVL" that are thrown at it.
+    """
 
     def _empty_value(self, pos):
         eq_pos = self.doc.rfind('=', 0, pos)
@@ -705,31 +784,35 @@ class OmniParser(PVLParser):
         return EmptyValueAtLine(lc)
 
     def parse(self, s: str):
-        '''Converts the string to a PVLModule.
+        """Extends the parent function.
 
-           If *any* line ends with a dash (-) followed by a carriage
-           return, form-feed, or newline, plus one or more whitespace
-           characters on the following line, then those characters, and
-           all whitespace characters that begin the next line will
-           be removed.
-        '''
+        If *any* line ends with a dash (-) followed by a carriage
+        return, form-feed, or newline, plus one or more whitespace
+        characters on the following line, then those characters, and
+        all whitespace characters that begin the next line will
+        be removed.
+        """
         nodash = re.sub(r'-[\n\r\f]\s*', '', s)
         self.doc = nodash
 
         return super().parse(nodash)
 
     def parse_module_post_hook(self, module, tokens: abc.Generator):
-        '''Allows for more permissive parsing.  If an
-           Assignment-Statement is blank, then the value will
-           have an EmptyValueAtLine.
-        '''
+        """Overrides the parent function to allow for more
+        permissive parsing.  If an Assignment-Statement
+        is blank, then the value will be assigned an
+        EmptyValueAtLine object.
+        """
+        # It enables this by checking to see if the next thing is an
+        # '=' which means there was an empty assigment at the previous
+        # equals sign, and then unwinding the stack to give the
+        # previous assignment the EmptyValueAtLine() object and trying
+        # to continue parsing.
+
         # print('in hook')
         try:
             t = next(tokens)
             if t == '=' and len(module) != 0:
-                # This means there was an empty assignment at
-                # the previous equals sign.
-                # Try and recover:
                 (last_k, last_v) = module[-1]
                 last_token = Token(last_v,
                                    grammar=self.grammar,
@@ -771,20 +854,11 @@ class OmniParser(PVLParser):
             return (module, False)  # return through parse_module()
 
     def parse_assignment_statement(self, tokens: abc.Generator) -> tuple:
-        """Parses the tokens for an Assignment Statement.
-
-           The returned two-tuple contains the Parameter Name in the
-           first element, and the Value in the second.
-
-           If the value isn't present, an EmptyValueAtLine will be returned
-           in the two-tuple.
-
-           {}
-
-            <Assignment-Statement> ::= <Parameter-Name> <WSC>* '=' <WSC>*
-                                        <Value> [<Statement-Delimiter>]
-
-        """.format(_tokens_docstring)
+        """Extends the parent function to allow for more
+        permissive parsing.  If an Assignment-Statement
+        is blank, then the value will be assigned an
+        EmptyValueAtLine object.
+        """
         try:
             return super().parse_assignment_statement(tokens)
         except ParseError as err:
@@ -795,15 +869,13 @@ class OmniParser(PVLParser):
                 raise
 
     def parse_value_post_hook(self, tokens: abc.Generator):
-        """Parses PVL Values.
+        """Overrides the parent function to allow for more
+        permissive parsing.
 
-        If the next token is a reserved word or delimiter, then it is
-        returned to the *tokens* and an EmptyValueAtLine is returned
-        as the value.
-
-           {}
-
-        """.format(_tokens_docstring)
+        If the next token is a reserved word or delimiter,
+        then it is returned to the *tokens* and an
+        EmptyValueAtLine object is returned as the value.
+        """
 
         t = next(tokens)
         # print(f't: {t}')
