@@ -807,6 +807,14 @@ def test_cube_label():
     assert label['IsisCube']['Core']['Pixels']['Multiplier'] == 1.0
 
 
+def test_cube_label_r():
+    with open(os.path.join(DATA_DIR, 'pattern.cub'), 'r') as fp:
+        label = pvl.load(fp)
+
+    assert isinstance(label['Label'], dict)
+    assert label['Label']['Bytes'] == 65536
+
+
 def test_pds3_sample_image():
     infile = os.path.join(PDS_DATA_DIR, "simple_image_1.lbl")
     label = pvl.load(infile)

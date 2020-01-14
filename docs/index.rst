@@ -13,6 +13,7 @@ Welcome to pvl's documentation!
    readme
    parsing
    encoding
+   standards
    modules
    contributing
    authors

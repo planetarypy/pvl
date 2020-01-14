@@ -44,7 +44,7 @@ lint:
 	flake8 pvl tests
 
 test:
-	python -m pytest
+	python -m pytest --doctest-modules --doctest-glob='*.rst'
 
 test-all:
 	tox

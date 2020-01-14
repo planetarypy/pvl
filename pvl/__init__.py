@@ -63,7 +63,7 @@ def load(path, **kwargs):
             # we can't decode.  We don't want to just run the .read_bytes()
             # method of Path, because this could be a giant file.
             with open(p, mode='rb') as f:
-                s = decode_bytes(f)
+                s = decode_by_char(f)
                 return loads(s, **kwargs)
 
     except TypeError:
@@ -76,7 +76,7 @@ def load(path, **kwargs):
                 # All of the bytes weren't decodeable, maybe the initial
                 # sequence is (as above)?
                 path.seek(position)  # Reset after the previous .read():
-                s = decode_bytes(path)
+                s = decode_by_char(path)
                 return loads(s, **kwargs)
         else:
             # Not a path, not an already-opened file.
@@ -84,22 +84,27 @@ def load(path, **kwargs):
                             'file object, but did not get either.')
 
 
-def decode_bytes(f: io.RawIOBase) -> str:
-    """Returns a ``str`` decoded from the bytes in *f*.
+def decode_by_char(f: io.RawIOBase) -> str:
+    """Returns a ``str`` decoded from the characters in *f*.
 
     :param f: is expected to be a file object which has been
-        opened in binary mode.
+        opened in binary mode ('rb') or just read mode ('r').
 
-    The *f* stream will have one byte at a time read from it,
-    and will attempt to decode each byte to a string and accumulate
+    The *f* stream will have one character or byte at a time read from it,
+    and will attempt to decode each to a string and accumulate
     those individual strings together.  Once the end of the file is found
-    or a byte can no longer be decoded, the accumulated string will
+    or an element can no longer be decoded, the accumulated string will
     be returned.
     """
     s = ''
     try:
-        for byte in iter(lambda: f.read(1), b''):
-            s += byte.decode()
+        for elem in iter(lambda: f.read(1), b''):
+            if isinstance(elem, str):
+                # f was opened in read mode ('r')
+                s += elem
+            else:
+                # f was opened in binary mode ('rb')
+                s += elem.decode()
     except UnicodeError:
         # Expecting this to mean that we got to the end of decodable
         # bytes, so we're all done, and pass through to return s.
@@ -143,11 +148,13 @@ def dump(module, path, **kwargs):
 
     If *path* is an :class:`os.PathLike`, it will attempt to be opened
     and the serialized module will be written into that file via
-    the :func:`pathlib.Path.write_text()` function.
+    the :func:`pathlib.Path.write_text()` function, and will return
+    what that function returns.
 
     If *path* is not an :class:`os.PathLike`, it will be assumed to be an
     already-opened file object, and ``.write()`` will be applied
-    on that object to write the serialized module.
+    on that object to write the serialized module, and will return
+    what that function returns.
     """
     try:
         p = Path(path)

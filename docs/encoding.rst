@@ -3,8 +3,9 @@ Writing out PVL text
 ====================
 
 This documentation explains how you can use :func:`pvl.dump` and 
-:func:`pvl.dumps` so you can change, add, and/or write out the label to 
-another file. This documentation assumes that you've read about how to
+:func:`pvl.dumps` so you can change, add, and/or write out a Python
+:class:`dict`-like object as PVL text either to a :class:`str` or
+a file.  This documentation assumes that you've read about how to
 `parse PVL text <parsing.rst>`_ and know how :func:`pvl.load` and
 :func:`pvl.loads` work.
 
@@ -30,78 +31,88 @@ text.
 Simple Use
 +++++++++++
 
-Read a label from a file, and then write it out to another::
+Read a label from a file::
 
  >>> import pvl
- >>> img = 'path/to/image.ext'
- >>> label = pvl.load(img)
- # Change information
- >>> label['Existing_Key'] = 'Different_Value'
- # Add Information
- >>> label['New_Key'] = 'New_Value'
- # Write out new label to file
- >>> pvl.dump(label, 'path/to/new.pvl')
+ >>> pvl_file = 'tests/data/pds3/tiny1.lbl'
+ >>> label = pvl.load(pvl_file)
+ >>> print(label)
+ PVLModule([
+   ('PDS_VERSION_ID', 'PDS3')
+ ])
 
+Change a value::
+
+ >>> label['PDS_VERSION_ID'] = 42
+ >>> print(label)
+ PVLModule([
+   ('PDS_VERSION_ID', 42)
+ ])
+
+Change and add keys to the ``label`` object::
+ >>> label['New_Key'] = 'New_Value'
+ >>> print(label)
+ PVLModule([
+   ('PDS_VERSION_ID', 42)
+   ('New_Key', 'New_Value')
+ ])
+
+and then write out the PVL text to a file::
+
+ >>> pvl.dump(label, 'new.lbl')
+ 54
+
+:func:`pvl.dump` returns the number of characters written to the file.
 
 Changing A Key
 +++++++++++++++
 
-In order to change the value assigned to a key::
+More complicated parameter value change.
+
+Load some PVL text from a file::
 
  >>> import pvl
- >>> img = 'pattern.cub'
+ >>> img = 'tests/data/pattern.cub'
  >>> label = pvl.load(img)
- >>> print label['IsisCube']['Core']['Format']
+ >>> print(label['IsisCube']['Core']['Format'])
  Tile
- # Changing key 'Format' to 'Changed_Value'
+
+Changing key 'Format' to 'Changed_Value'::
+
  >>> label['IsisCube']['Core']['Format'] = 'Changed_Value'
- # Writing out file with new value
- >>> with open(img,'w') as stream:
-         pvl.dump(label,stream)
- # Showing the value changed in the file
- >>> new_label = pvl.load(img)
- >>> print new_label['IsisCube']['Core']['Format']
+
+Writing out file with new value::
+
+ >>> new_file = 'new.lbl'
+ >>> pvl.dump(label, new_file) 
+ 494
+
+Showing the value changed in the file::
+
+ >>> new_label = pvl.load(new_file)
+ >>> print(new_label['IsisCube']['Core']['Format'])
+ Traceback (most recent call last):
+    ...
+ KeyError: 'Format'
+
+Since the default for pvl.dump() and pvl.dumps() is to write out
+PDS3-Standards-compliant PVL, the parameter values (but not the aggregation
+block names) are uppercased::
+
+ >>> print(new_label['IsisCube']['Core'].keys())
+ KeysView(['STARTBYTE', 'FORMAT', 'TILESAMPLES', 'TILELINES', 'Dimensions', 'Pixels'])
+ >>> print(new_label['IsisCube']['Core']['FORMAT'])
  Changed_Value
 
-Adding A Key
-+++++++++++++
+Clean up::
 
-In order to add a new key and value to a label::
+    >>> import os
+    >>> os.remove(new_file)
 
- >>> import pvl
- >>> img = 'pattern.cub'
- >>> label = pvl.load(img)
- # Adding a new key and value
- >>> label['New_Key'] = 'New_Value'
- # Adding a new key and value to a sub group
- >>> label['IsisCube']['Core']['New_SubKey'] = 'New_SubValue'
- # Writing new keys and values to file
- >>> with open(img,'w') as stream:
-         pvl.dump(label,stream)
- # Showing the value changed in the file
- >>> new_label = pvl.load(img)
- >>>print new_label['New_Key']
- New_Value
- >>> print new_label['IsisCube']['Core']['New_SubKey']
- New_SubValue
+Yes, this case difference is weird, yes, this means that you need
+to be aware of the case of different keys in your :class:`pvl.PVLModule`
+objects.
 
-Writing to a Different File
-++++++++++++++++++++++++++++
-
-If you do not want to overwrite the existing file and make a detached label::
-
- >>> import pvl
- >>> img = 'pattern.cub'
- >>> label = pvl.load(img)
- >>> label['IsisCube']['Core']['Format'] = 'Changed_Value'
- # Creating new file with same name but with .lbl extension
- >>> new_name = img.replace('.img','.lbl')
- >>> print(new_name)
- pattern.lbl
- >>> pvl.dump(label, new_name)
- >>> new_label = pvl.load(new_name)
- >>> print new_label['IsisCube']['Core']['Format']
- Changed_Value
 
 ----------------------------
 Writing PVL Text to a String
@@ -114,20 +125,104 @@ Python object (typically a :class:`pvl.PVLModule` object) to a Python
 Simple Use
 +++++++++++
 
-How to use::
+Get started, as above::
 
  >>> import pvl
- >>> img = 'path/to/image.ext'
- >>> label = pvl.load(img)
- # Change information
- >>> label['Existing_Key'] = 'Different_Value'
- # Add Information
+ >>> pvl_file = 'tests/data/pds3/tiny1.lbl'
+ >>> label = pvl.load(pvl_file)
+ >>> print(label)
+ PVLModule([
+   ('PDS_VERSION_ID', 'PDS3')
+ ])
+
+Change a value, and add keys::
+
+ >>> label['PDS_VERSION_ID'] = 42
+ >>> label['New_Param'] = 'New_Value'
+ >>> print(label)
+ PVLModule([
+   ('PDS_VERSION_ID', 42)
+   ('New_Param', 'New_Value')
+ ])
+
+Write to a string::
+
+ >>> print(pvl.dumps(label))
+ PDS_VERSION_ID = 42
+ NEW_PARAM      = New_Value
+ END
+ <BLANKLINE>
+
+Here we can see the effects of the PDS3LabelEncoder in the default
+behavior of :func:`pvl.dumps`: it uppercases the parameters, and
+puts a blank line after the END statement.  If we were to use the PVLEncoder,
+you can see different behavior::
+
+ >>> print(pvl.dumps(label, encoder=pvl.encoder.PVLEncoder()))
+ PDS_VERSION_ID = 42;
+ New_Param      = New_Value;
+ END;
+
+
+Adding A Key
++++++++++++++
+
+More complicated::
+
+ >>> import pvl
+ >>> pvl_file = 'tests/data/pds3/group1.lbl'
+ >>> label = pvl.load(pvl_file)
+ >>> print(label)
+ PVLModule([
+   ('PDS_VERSION_ID', 'PDS3')
+   ('IMAGE',
+    {'CHECKSUM': 25549531,
+     'MAXIMUM': 255,
+     'STANDARD_DEVIATION': 16.97019})
+   ('SHUTTER_TIMES', PVLGroup([
+     ('START', 1234567)
+     ('STOP', 2123232)
+   ]))
+ ])
+
+Adding a new key and value to a sub group::
+
  >>> label['New_Key'] = 'New_Value'
- # Convert to a string
- >>> label_string = pvl.dumps(label)
- >>> print(label_string)
- EXISTING_KEY = Different_Value
- NEW_KEY = New_Value
+ >>> label['IMAGE']['New_SubKey'] = 'New_SubValue'
+ >>> print(label)
+ PVLModule([
+   ('PDS_VERSION_ID', 'PDS3')
+   ('IMAGE',
+    {'CHECKSUM': 25549531,
+     'MAXIMUM': 255,
+     'New_SubKey': 'New_SubValue',
+     'STANDARD_DEVIATION': 16.97019})
+   ('SHUTTER_TIMES', PVLGroup([
+     ('START', 1234567)
+     ('STOP', 2123232)
+   ]))
+   ('New_Key', 'New_Value')
+ ])
+
+When we dump, the default is to write PDS3 Labels, so the parameters are
+uppercased::
+
+  >>> print(pvl.dumps(label))
+  PDS_VERSION_ID = PDS3
+  OBJECT = IMAGE
+    MAXIMUM            = 255
+    STANDARD_DEVIATION = 16.97019
+    CHECKSUM           = 25549531
+    NEW_SUBKEY         = New_SubValue
+  END_OBJECT = IMAGE
+  GROUP = SHUTTER_TIMES
+    START = 1234567
+    STOP  = 2123232
+  END_GROUP = SHUTTER_TIMES
+  NEW_KEY        = New_Value
+  END
+  <BLANKLINE>
+
 
 Example
 ++++++++
@@ -135,23 +230,33 @@ Example
 ::
 
  >>> import pvl
- >>> img = 'pattern.cub'
+ >>> img = 'tests/data/pattern.cub'
  >>> label = pvl.load(img)
  >>> label['New_Key'] = 'New_Value'
  >>> label_string = pvl.dumps(label)
  >>> print(label_string)
- Object = IsisCube
-  Object = Core
-    StartByte = 65537
-    Format = Tile
-    TileSamples = 128
-    TileLines = 128
-    Group = Dimensions
-      Samples = 90
-      Lines = 90
-      Bands = 1
-    End_Group
- End_Object
- New_Key = New_Value
- End
-
+ OBJECT = IsisCube
+   OBJECT = Core
+     STARTBYTE   = 65537
+     FORMAT      = Tile
+     TILESAMPLES = 128
+     TILELINES   = 128
+     GROUP = Dimensions
+       SAMPLES = 90
+       LINES   = 90
+       BANDS   = 1
+     END_GROUP = Dimensions
+     GROUP = Pixels
+       TYPE       = Real
+       BYTEORDER  = Lsb
+       BASE       = 0.0
+       MULTIPLIER = 1.0
+     END_GROUP = Pixels
+   END_OBJECT = Core
+ END_OBJECT = IsisCube
+ OBJECT = Label
+   BYTES = 65536
+ END_OBJECT = Label
+ NEW_KEY      = New_Value
+ END
+ <BLANKLINE>
