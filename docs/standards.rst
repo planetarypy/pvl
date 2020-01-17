@@ -73,7 +73,8 @@ It was based on PDS3 ODL from the 1990s, but has some extensions
 adopted from existing and prior data sets from ISIS2, PDS, JAXA,
 ISRO, etc., and extensions used only within ISIS3 files (.cub,
 .net).  This is one of the reasons using ISIS cube files as an
-archive format has been strongly discouraged.
+archive format or PVL text written by ISIS as a submission to the 
+PDS has been strongly discouraged.
 
 Since there is no specification, only a detailed analysis of the ISIS
 software that writes its PVL text would yield a strategy for parsing it.

@@ -19,7 +19,7 @@ import warnings
 from collections import abc
 
 from ._collections import PVLAggregation, PVLObject, PVLGroup, Units
-from .grammar import PVLGrammar, ODLGrammar
+from .grammar import PVLGrammar, ODLGrammar, ISISGrammar
 from .token import Token
 from .decoder import PVLDecoder, ODLDecoder
 
@@ -865,3 +865,41 @@ class PDSLabelEncoder(ODLEncoder):
         else:
             raise ValueError('PDS labels should only have UTC times, but '
                              f'this time has a timezone: {value}')
+
+
+class ISISEncoder(PVLEncoder):
+    """An encoder for writing PVL text that can be parsed by the
+    ISIS PVL text parser.
+
+    The ISIS3 implementation (as of 3.9) of PVL/ODL (like) does not
+    strictly follow any of the published standards. It was based
+    on PDS3 ODL from the 1990s, but has several extensions adopted
+    from existing and prior data sets from ISIS2, PDS, JAXA, ISRO,
+    ..., and extensions used only within ISIS files (cub, net). This
+    is one of the reasons using ISIS cube files or PVL text written by
+    ISIS as an archive format has been strongly discouraged.
+
+    Since there is no specification, only a detailed analysis of
+    the ISIS software that parses and writes its PVL text would
+    yield a strategy for parsing it.  This encoder is most likely the
+    least reliable for that reason.  We welcome bug reports to help
+    extend our coverage of this flavor of PVL text.
+
+    :param grammar: defaults to pvl.grammar.ISISGrammar().
+    :param decoder: defaults to pvl.decoder.PVLDecoder().
+    :param end_delimiter: defaults to False.
+    :param newline: defaults to '\\n'.
+    """
+
+    def __init__(self, grammar=None, decoder=None,
+                 indent=2, width=80, aggregation_end=True,
+                 end_delimiter=False, newline='\n'):
+
+        if grammar is None:
+            grammar = ISISGrammar()
+
+        if decoder is None:
+            decoder = PVLDecoder(grammar)
+
+        super().__init__(grammar, decoder, indent, width, aggregation_end,
+                         end_delimiter, newline)

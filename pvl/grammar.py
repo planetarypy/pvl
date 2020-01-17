@@ -173,28 +173,49 @@ class ODLGrammar(PVLGrammar):
             return False
 
 
-# The only thing that ISIS seems to be doing differently is to
-# split any text of all kinds with a dash continuation character.  This
-# is currently handled in the OmniParser.parse() function.  There are
-# no true 'grammar' differences.
-#
-# At
-# https://astrodiscuss.usgs.gov/t/what-pvl-specification-does-isis-conform-to/
-#
-# Stuart Sides, ISIS developer, says:
-#     The ISIS3 implementation of PVL/ODL (like) does not strictly
-#     follow any of the published standards. It was based on PDS3
-#     ODL from the 1990s, but has several extensions (your example
-#     of continuation lines) adopted from existing and prior data
-#     sets from ISIS2, PDS, JAXA, ISRO, ..., and extensions used
-#     only within ISIS3 files (cub, net). This is one of the
-#     reasons using ISIS cube files as an archive format has been
-#     strongly discouraged. So to answer your question, there is
-#     no published specification for ISIS3 PVL.
-#
-#
-# class ISISgrammar(grammar):
-#     """This might definte the ISIS version of PVL."""
+class ISISGrammar(PVLGrammar):
+    """This defines the ISIS version of PVL.
+
+       This is valid as of ISIS 3.9, and before, at least.
+
+       The ISIS 'Pvl' object typically writes out parameter
+       values and keywords in CamelCase (e.g. 'Group', 'End_Group',
+       'CenterLatitude', etc.), but it will accept all-uppercase
+       versions.
+
+       Technically, since the ISIS 'Pvl' object which parses
+       PVL text into C++ objects for ISIS programs to work with
+       does not recognize the 'BEGIN_<GROUP|OBJECT>' construction,
+       this means that ISIS does not parse PVL text that would be
+       valid according to the PVL, ODL, or PDS3 specs.
+    """
+    # The other thing that ISIS seems to be doing differently is to
+    # split any text of all kinds with a dash continuation character.  This
+    # is currently handled in the OmniParser.parse() function.
+
+    # At
+    # https://astrodiscuss.usgs.gov/t/what-pvl-specification-does-isis-conform-to/
+    #
+    # Stuart Sides, ISIS developer, says:
+    #     The ISIS3 implementation of PVL/ODL (like) does not strictly
+    #     follow any of the published standards. It was based on PDS3
+    #     ODL from the 1990s, but has several extensions (your example
+    #     of continuation lines) adopted from existing and prior data
+    #     sets from ISIS2, PDS, JAXA, ISRO, ..., and extensions used
+    #     only within ISIS3 files (cub, net). This is one of the
+    #     reasons using ISIS cube files as an archive format has been
+    #     strongly discouraged. So to answer your question, there is
+    #     no published specification for ISIS3 PVL.
+
+    # The ISIS parser (at least <=3.9) doesn't recognize the
+    # 'BEGIN_<GROUP|OBJECT>' construction, which is why we must
+    # have a separate grammar object.  Since we're at it, we might
+    # as well use the *_pref_keywords to indicate the CamelCase
+    # that ISIS folks are expecting.
+    group_pref_keywords = ('Group', 'End_Group')
+    group_keywords = {'GROUP': 'END_GROUP'}
+    object_pref_keywords = ('Object', 'End_Object')
+    object_keywords = {'OBJECT': 'END_OBJECT'}
 
 
 class OmniGrammar(PVLGrammar):
