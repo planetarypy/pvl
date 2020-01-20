@@ -51,10 +51,14 @@ def load(path, **kwargs):
     cube file), that's fine, this function will just extract the
     decodable text.
     """
+    return loads(get_text_from(path), **kwargs)
+
+
+def get_text_from(path) -> str:
     try:
         try:
             p = Path(path)
-            return loads(p.read_text(), **kwargs)
+            return p.read_text()
         except UnicodeDecodeError:
             # This may be the result of an ISIS cube file (or anything else)
             # where the first set of bytes might be decodable, but once the
@@ -63,25 +67,28 @@ def load(path, **kwargs):
             # we can't decode.  We don't want to just run the .read_bytes()
             # method of Path, because this could be a giant file.
             with open(p, mode='rb') as f:
-                s = decode_by_char(f)
-                return loads(s, **kwargs)
+                return decode_by_char(f)
 
     except TypeError:
         # Not an os.PathLike, maybe it is an already-opened file object
         if path.readable():
             try:
                 position = path.tell()
-                return loads(path.read(), **kwargs)
+                s = path.read()
+                if isinstance(s, bytes):
+                    path.seek(position)  # Reset after the previous .read():
+                    s = decode_by_char(path)
             except UnicodeDecodeError:
                 # All of the bytes weren't decodeable, maybe the initial
                 # sequence is (as above)?
                 path.seek(position)  # Reset after the previous .read():
                 s = decode_by_char(path)
-                return loads(s, **kwargs)
+
         else:
             # Not a path, not an already-opened file.
             raise TypeError('Expected an os.PathLike or an already-opened '
                             'file object, but did not get either.')
+        return s
 
 
 def decode_by_char(f: io.RawIOBase) -> str:
@@ -100,10 +107,8 @@ def decode_by_char(f: io.RawIOBase) -> str:
     try:
         for elem in iter(lambda: f.read(1), b''):
             if isinstance(elem, str):
-                # f was opened in read mode ('r')
                 s += elem
             else:
-                # f was opened in binary mode ('rb')
                 s += elem.decode()
     except UnicodeError:
         # Expecting this to mean that we got to the end of decodable
