@@ -58,6 +58,7 @@ introduced to the codebase.
   'r' mode or 'rb' mode as alluded to in #6 is implemented and tested.
 * The library now properly parses quoted strings that include backslashes
   as path separators as detailed in #33.
+* Utility programs pvl_validate and pvl_translate were added.
 * Documentation was updated and expanded.
 
 0.3.0 (2017-06-28)
