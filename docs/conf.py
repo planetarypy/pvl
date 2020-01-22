@@ -42,7 +42,8 @@ import pvl
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode',
               'sphinx.ext.intersphinx',
-              'sphinxcontrib.apidoc']
+              'sphinxcontrib.apidoc',
+              'sphinxcontrib.autoprogram']
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
 

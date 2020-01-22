@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
-"""A program for converting PVL text to a specific PVL dialect."""
+"""A program for converting PVL text to a specific PVL dialect.
+
+The ``pvl_translate`` program will read a file with PVL text (any
+of the kinds of files that :func:`pvl.load` reads) or STDIN and
+will convert that PVL text to a particular PVL dialect.  It is not
+particularly robust, and if it cannot make simple conversions, it
+will raise errors.
+"""
 
 # Copyright 2020, ``pvl`` library authors.
 #
@@ -8,18 +15,45 @@
 # top level of this library.
 
 import argparse
+import json
+import os
 import sys
 
 import pvl
 from .encoder import PVLEncoder, ODLEncoder, ISISEncoder, PDSLabelEncoder
 
 
-def main():
-    formats = dict(PDS3=PDSLabelEncoder(),
-                   ODL=ODLEncoder(),
-                   ISIS=ISISEncoder(),
-                   PVL=PVLEncoder())
+class Writer(object):
+    """Base class for writers.  Descendents must implement dump().
+    """
 
+    def dump(self, dictlike: dict, outfile: os.PathLike):
+        raise Exception
+
+
+class PVLWriter(Writer):
+
+    def __init__(self, encoder):
+        self.encoder = encoder
+
+    def dump(self, dictlike: dict, outfile: os.PathLike):
+        return pvl.dump(dictlike, outfile, encoder=self.encoder)
+
+
+class JSONWriter(Writer):
+
+    def dump(self, dictlike: dict, outfile: os.PathLike):
+        return json.dump(dictlike, outfile)
+
+
+formats = dict(PDS3=PVLWriter(PDSLabelEncoder()),
+               ODL=PVLWriter(ODLEncoder()),
+               ISIS=PVLWriter(ISISEncoder()),
+               PVL=PVLWriter(PVLEncoder()),
+               JSON=JSONWriter())
+
+
+def arg_parser(formats):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-of', '--output_format', required=True,
                         choices=formats.keys(),
@@ -32,12 +66,15 @@ def main():
                         default=sys.stdout,
                         help='file to write translated PVL to, defaults '
                         'to STDOUT.')
+    return parser
 
-    args = parser.parse_args()
+
+def main():
+    args = arg_parser(formats).parse_args()
 
     some_pvl = pvl.load(args.infile)
 
-    pvl.dump(some_pvl, args.outfile, encoder=formats[args.output_format])
+    formats[args.output_format].dump(some_pvl, args.outfile)
     return
 
 

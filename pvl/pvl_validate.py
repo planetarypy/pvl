@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 """A program for testing and validating PVL text.
 
-Returns a report for one file or many.  The program
-will attempt to load the PVL text in each file
-with the various kinds of PVL dialects, and if successful,
-will also try and encode the read-in text.  Some kinds of
-PVL text can be loaded, but not encoded.
+The ``pvl_validate`` program will read a file with PVL text (any of
+the kinds of files that :func:`pvl.load` reads) and will report
+on which of the various PVL dialects were able to load that PVL
+text, and then also reports on whether the ``pvl`` library can encode
+the Python Objects back out to PVL text.
+
+You can imagine some PVL text that could be loaded, but is not able
+to be written out in a particular strict PVL dialect (like PDS3
+labels).
 """
 
 # Copyright 2020, ``pvl`` library authors.
@@ -15,6 +19,7 @@ PVL text can be loaded, but not encoded.
 # top level of this library.
 
 import argparse
+import logging
 import sys
 
 import pvl
@@ -24,13 +29,43 @@ from .parser import ParseError, PVLParser, ODLParser, OmniParser
 from .decoder import PVLDecoder, ODLDecoder, OmniDecoder
 from .encoder import PVLEncoder, ODLEncoder, ISISEncoder, PDSLabelEncoder
 
+dialects = dict(PDS3=dict(parser=ODLParser(),
+                          grammar=ODLGrammar(),
+                          decoder=ODLDecoder(),
+                          encoder=PDSLabelEncoder()),
+                ODL=dict(parser=ODLParser(),
+                         grammar=ODLGrammar(),
+                         decoder=ODLDecoder(),
+                         encoder=ODLEncoder()),
+                PVL=dict(parser=PVLParser(),
+                         grammar=PVLGrammar(),
+                         decoder=PVLDecoder(),
+                         encoder=PVLEncoder()),
+                ISIS=dict(parser=OmniParser(),
+                          grammar=ISISGrammar(),
+                          decoder=OmniDecoder(),
+                          encoder=ISISEncoder()),
+                Omni=dict(parser=OmniParser(),
+                          grammar=OmniGrammar(),
+                          decoder=OmniDecoder(),
+                          encoder=PVLEncoder()))
+dialect_order = ['PDS3', 'ODL', 'PVL', 'ISIS', 'Omni']
+
+
+def arg_parser():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('-v', '--verbose', action='count', default=0,
+                   help='Will report the errors that are encountered.')
+    p.add_argument('file', nargs='+',
+                   help='file containing PVL text to validate.')
+    return p
+
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('file', nargs='+',
-                        help='file containing PVL text to validate.')
+    args = arg_parser().parse_args()
 
-    args = parser.parse_args()
+    logging.basicConfig(format='%(levelname)s: %(message)s',
+                        level=(60 - 20 * args.verbose))
 
     results_list = list()
     for f in args.file:
@@ -38,29 +73,38 @@ def main():
 
         results = dict()
 
-        results['PDS3'] = pvl_flavor(pvl_text,
-                                     ODLParser(), ODLGrammar(),
-                                     ODLDecoder(), PDSLabelEncoder())
-        results['ODL'] = pvl_flavor(pvl_text,
-                                    ODLParser(), ODLGrammar(),
-                                    ODLDecoder(), ODLEncoder())
-        results['PVL'] = pvl_flavor(pvl_text,
-                                    PVLParser(), PVLGrammar(),
-                                    PVLDecoder(), PVLEncoder())
-        results['ISIS'] = pvl_flavor(pvl_text,
-                                     OmniParser(), ISISGrammar(),
-                                     OmniDecoder(), ISISEncoder())
-        results['Omni'] = pvl_flavor(pvl_text,
-                                     OmniParser(), OmniGrammar(),
-                                     OmniDecoder(), PVLEncoder())
+        for k, v in dialects.items():
+            results[k] = pvl_flavor(pvl_text, k, v, f, args.verbose)
+
+        # results['PDS3'] = pvl_flavor(pvl_text,
+        #                              ODLParser(), ODLGrammar(),
+        #                              ODLDecoder(), PDSLabelEncoder(),
+        #                              f, args.verbose)
+        # results['ODL'] = pvl_flavor(pvl_text,
+        #                             ODLParser(), ODLGrammar(),
+        #                             ODLDecoder(), ODLEncoder(),
+        #                             f, args.verbose)
+        # results['PVL'] = pvl_flavor(pvl_text,
+        #                             PVLParser(), PVLGrammar(),
+        #                             PVLDecoder(), PVLEncoder(),
+        #                             f, args.verbose)
+        # results['ISIS'] = pvl_flavor(pvl_text,
+        #                              OmniParser(), ISISGrammar(),
+        #                              OmniDecoder(), ISISEncoder(),
+        #                              f, args.verbose)
+        # results['Omni'] = pvl_flavor(pvl_text,
+        #                              OmniParser(), OmniGrammar(),
+        #                              OmniDecoder(), PVLEncoder(),
+        #                              f, args.verbose)
         results_list.append((f, results))
 
     # Writing the flavors out again to preserve order.
-    print(report(results_list, ['PDS3', 'ODL', 'PVL', 'ISIS', 'Omni']))
+    print(report(results_list, dialect_order))
     return
 
 
-def pvl_flavor(text, p, g, d, e) -> tuple((bool, bool)):
+def pvl_flavor(text, dialect, decenc: dict, filename,
+               verbose=False) -> tuple((bool, bool)):
     """Returns a two-tuple of booleans which indicate
     whether the *text* could be loaded and then encoded.
 
@@ -73,21 +117,17 @@ def pvl_flavor(text, p, g, d, e) -> tuple((bool, bool)):
     loads = None
     encodes = None
     try:
-        some_pvl = pvl.loads(text,
-                             parser=p,
-                             grammar=g,
-                             decoder=d)
+        some_pvl = pvl.loads(text, **decenc)
         loads = True
 
         try:
-            pvl.dumps(some_pvl,
-                      encoder=e,
-                      grammar=g,
-                      decoder=d)
+            pvl.dumps(some_pvl, **decenc)
             encodes = True
-        except (LexerError, ParseError, ValueError):
+        except (LexerError, ParseError, ValueError) as err:
+            logging.error(f'{dialect} encode error {filename} {err}')
             encodes = False
-    except (LexerError, ParseError):
+    except (LexerError, ParseError) as err:
+        logging.error(f'{dialect} load error {filename} {err}')
         loads = False
 
     return (loads, encodes)

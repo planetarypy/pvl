@@ -4,7 +4,7 @@ History
 -------
 
 1.0.0-alpha (winter 2019-2020)
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The above label will be changed and this paragraph will be removed
 when the decision is made to release 1.0.0.  This work is categorized
 as 1.0.0-alpha because backwards-incompatible changes are being
