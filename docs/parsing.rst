@@ -75,7 +75,7 @@ extract use the ``.keys()`` function::
  >>> lbl.keys()
  KeysView(['PDS_VERSION_ID', 'RECORD_TYPE', 'RECORD_BYTES', 'LABEL_RECORDS', 'FILE_RECORDS', '^IMAGE', 'IMAGE'])
 
-Now you can just copy and paste from this list::
+... now you can just copy and paste from this list::
  
  >>> lbl['RECORD_TYPE']
  'FIXED_LENGTH'
@@ -111,7 +111,7 @@ example, if you want to print out the first 5 pieces of information::
  LABEL_RECORDS 1
  FILE_RECORDS 601
 
-Some values have sub-dictionaries. You can access those by::
+... some values have sub-dictionaries. You can access those by::
  
  >>> print(pvl.load(img)['IMAGE'].keys())
  KeysView(['LINES', 'LINE_SAMPLES', 'SAMPLE_TYPE', 'SAMPLE_BITS', 'MEAN', 'MEDIAN', 'MINIMUM', 'MAXIMUM', 'STANDARD_DEVIATION', 'CHECKSUM'])
@@ -185,19 +185,19 @@ To view the image label dictionary::
    ]))
  ])
 
-To view the keys available::
+... to view the keys available::
 
  >>> print(pvl.loads(string).keys())
  KeysView(['IsisCube', 'Label'])
 
-And to see the information contained in the keys::
+... and to see the information contained in the keys::
  
  >>> print(pvl.loads(string)['Label'])
  PVLObject([
    ('Bytes', 65536)
  ])
 
-And what is in the sub-dictionary::
+... and what is in the sub-dictionary::
 
  >>> print(pvl.loads(string)['Label']['Bytes'])
  65536

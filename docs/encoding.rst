@@ -41,7 +41,7 @@ Read a label from a file::
    ('PDS_VERSION_ID', 'PDS3')
  ])
 
-Change a value::
+... then you can change a value::
 
  >>> label['PDS_VERSION_ID'] = 42
  >>> print(label)
@@ -49,7 +49,8 @@ Change a value::
    ('PDS_VERSION_ID', 42)
  ])
 
-Change and add keys to the ``label`` object::
+... then add keys to the ``label`` object::
+
  >>> label['New_Key'] = 'New_Value'
  >>> print(label)
  PVLModule([
@@ -57,7 +58,7 @@ Change and add keys to the ``label`` object::
    ('New_Key', 'New_Value')
  ])
 
-and then write out the PVL text to a file::
+... and then write out the PVL text to a file::
 
  >>> pvl.dump(label, 'new.lbl')
  54
@@ -77,17 +78,18 @@ Load some PVL text from a file::
  >>> print(label['IsisCube']['Core']['Format'])
  Tile
 
-Changing key 'Format' to 'Changed_Value'::
+... then change key 'Format' to 'Changed_Value'::
 
  >>> label['IsisCube']['Core']['Format'] = 'Changed_Value'
 
-Writing out file with new value::
+... then writing out file with new value::
 
  >>> new_file = 'new.lbl'
  >>> pvl.dump(label, new_file) 
  494
 
-Showing the value changed in the file::
+If you then try to show the changed value in the file, you'll 
+get an error::
 
  >>> new_label = pvl.load(new_file)
  >>> print(new_label['IsisCube']['Core']['Format'])
@@ -95,8 +97,8 @@ Showing the value changed in the file::
     ...
  KeyError: 'Format'
 
-Since the default for pvl.dump() and pvl.dumps() is to write out
-PDS3-Standards-compliant PVL, the parameter values (but not the aggregation
+This is because the default for :func:`pvl.dump` and :func:`pvl.dumps` is to write out
+PDS3-Standards-compliant PVL, in which the parameter values (but not the aggregation
 block names) are uppercased::
 
  >>> print(new_label['IsisCube']['Core'].keys())
@@ -135,7 +137,7 @@ Get started, as above::
    ('PDS_VERSION_ID', 'PDS3')
  ])
 
-Change a value, and add keys::
+... then change a value, and add keys::
 
  >>> label['PDS_VERSION_ID'] = 42
  >>> label['New_Param'] = 'New_Value'
@@ -145,7 +147,7 @@ Change a value, and add keys::
    ('New_Param', 'New_Value')
  ])
 
-Write to a string::
+... then write to a string::
 
  >>> print(pvl.dumps(label))
  PDS_VERSION_ID = 42
@@ -185,7 +187,7 @@ More complicated::
    ]))
  ])
 
-Adding a new key and value to a sub group::
+... then add a new key and value to a sub group::
 
  >>> label['New_Key'] = 'New_Value'
  >>> label['IMAGE']['New_SubKey'] = 'New_SubValue'
@@ -204,7 +206,7 @@ Adding a new key and value to a sub group::
    ('New_Key', 'New_Value')
  ])
 
-When we dump, the default is to write PDS3 Labels, so the parameters are
+... then when we dump, the default is to write PDS3 Labels, so the parameters are
 uppercased::
 
   >>> print(pvl.dumps(label))
@@ -224,8 +226,8 @@ uppercased::
   <BLANKLINE>
 
 
-Example
-++++++++
+Example with an ISIS cube file
+++++++++++++++++++++++++++++++
 
 ::
 

@@ -16,7 +16,7 @@ by the parser) to the appropriate Python type.
 # top level of this library.
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from itertools import repeat, chain
 from time import strptime
 from warnings import warn
@@ -241,47 +241,31 @@ class ODLDecoder(PVLDecoder):
             super().__init__(grammar=grammar)
 
     def decode_datetime(self, value: str):
-        """Returns an appropriate Python datetime time, date, or datetime
-        object by using the 3rd party dateutil library (if present)
-        to parse an ISO 8601 datetime string in *value*.  If it cannot,
-        or the dateutil library is not present, it will raise a
-        ValueError.
+        """Extends parent function to also deal with datetimes
+        and times with a time zone offset.
+
+        If it cannot, it will raise a ValueError.
         """
 
         try:
             return super().decode_datetime(value)
         except ValueError:
-            try:
-                from dateutil.parser import isoparser
-                isop = isoparser()
-
-                if(len(value) > 3
-                   and value[-2] == '+'
-                   and value[-1].isdigit()):
-                    # This technically means that we accept slightly more
-                    # formats than ISO 8601 strings, since under that
-                    # specification, two digits after the '+' are required
-                    # for an hour offset, but ODL doesn't have this
-                    # requirement.  If we find only one digit, we'll
-                    # just assume it means an hour and insert a zero so
-                    # that it can be parsed.
-                    tokens = value.rpartition('+')
-                    value = tokens[0] + '+0' + tokens[-1]
-
-                try:
-                    return isop.parse_isodate(value)
-                except ValueError:
-                    try:
-                        return isop.parse_isotime(value)
-                    except ValueError:
-                        return isop.isoparse(value)
-
-            except ImportError:
-                warn('The dateutil library is not present, so date and time '
-                     'formats beyond the PVL set will be left as strings '
-                     'instead of being parsed and returned as datetime '
-                     'objects.', ImportWarning)
-
+            # if there is a +HH:MM or a -HH:MM suffix that
+            # can be stripped, then we're in business.
+            # Otherwise ...
+            match = re.fullmatch(r'(?P<dt>.+?)'  # the part before the sign
+                                 r'(?P<sign>[+-])'  # required sign
+                                 r'(?P<hour>0?[1-9]|1[0-2])'  # 1 to 12
+                                 fr'(?:{self.grammar._M_frag})?',  # Minutes
+                                 value)
+            if match is not None:
+                gd = match.groupdict(default=0)
+                dt = super().decode_datetime(gd['dt'])
+                offset = timedelta(hours=int(gd['hour']),
+                                   minutes=int(gd['minute']))
+                if gd['sign'] == '-':
+                    offset = -1 * offset
+                return dt.replace(tzinfo=timezone(offset))
             raise ValueError
 
     def decode_non_decimal(self, value: str) -> int:
@@ -349,3 +333,46 @@ class OmniDecoder(ODLDecoder):
 
             return int(sign + d['non_decimal'], base=int(d['radix']))
         raise ValueError
+
+    def decode_datetime(self, value: str):
+        """Returns an appropriate Python datetime time, date, or datetime
+        object by using the 3rd party dateutil library (if present)
+        to parse an ISO 8601 datetime string in *value*.  If it cannot,
+        or the dateutil library is not present, it will raise a
+        ValueError.
+        """
+
+        try:
+            return super().decode_datetime(value)
+        except ValueError:
+            try:
+                from dateutil.parser import isoparser
+                isop = isoparser()
+
+                if(len(value) > 3
+                   and value[-2] == '+'
+                   and value[-1].isdigit()):
+                    # This technically means that we accept slightly more
+                    # formats than ISO 8601 strings, since under that
+                    # specification, two digits after the '+' are required
+                    # for an hour offset, but ODL doesn't have this
+                    # requirement.  If we find only one digit, we'll
+                    # just assume it means an hour and insert a zero so
+                    # that it can be parsed.
+                    tokens = value.rpartition('+')
+                    value = tokens[0] + '+0' + tokens[-1]
+
+                try:
+                    return isop.parse_isodate(value)
+                except ValueError:
+                    try:
+                        return isop.parse_isotime(value)
+                    except ValueError:
+                        return isop.isoparse(value)
+
+            except ImportError:
+                warn('The dateutil library is not present, so more '
+                     'exotic date and time formats beyond the PVL/ODL '
+                     'set cannot be parsed.', ImportWarning)
+
+            raise ValueError
