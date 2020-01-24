@@ -55,11 +55,11 @@ with::
 Basic Usage
 -----------
 
-:mod:`pvl` exposes an API familiar to users of the standard library
-:mod:`json` module.
+``pvl`` exposes an API familiar to users of the standard library
+``json`` module.
 
-Decoding is primarily done through :func:`pvl.load` for file like objects and
-:func:`pvl.loads` for strings::
+Decoding is primarily done through ``pvl.load()`` for file like objects and
+``pvl.loads()`` for strings::
 
     >>> import pvl
     >>> module = pvl.loads("""
@@ -75,7 +75,7 @@ Decoding is primarily done through :func:`pvl.load` for file like objects and
     >>> print(module['foo'])
     bar
 
-You may also use :func:`pvl.load` to read PVL text directly from an image_::
+You may also use ``pvl.load()`` to read PVL text directly from an image_::
 
     >>> import pvl
     >>> label = pvl.load('tests/data/pattern.cub')
@@ -102,7 +102,7 @@ You may also use :func:`pvl.load` to read PVL text directly from an image_::
 
 
 Similarly, encoding Python objects as PVL text is done through
-:func:`pvl.dump` and :func:`pvl.dumps`::
+``pvl.dump()`` and ``pvl.dumps()``::
 
     >>> import pvl
     >>> print(pvl.dumps({
@@ -114,7 +114,7 @@ Similarly, encoding Python objects as PVL text is done through
     END
     <BLANKLINE>
 
-:class:`pvl.PVLModule` objects may also be pragmatically built up
+``pvl.PVLModule`` objects may also be pragmatically built up
 to control the order of parameters as well as duplicate keys::
 
     >>> import pvl
@@ -126,9 +126,9 @@ to control the order of parameters as well as duplicate keys::
     END
     <BLANKLINE>
 
-A :class:`pvl.PVLModule` is a :class:`dict`-like container that preserves
+A ``pvl.PVLModule`` is a ``dict``-like container that preserves
 ordering as well as allows multiple values for the same key. It provides
-similar semantics to a :class:`list` of key/value :class:`tuples` but 
+similar semantics to a ``list`` of key/value ``tuples`` but 
 with ``dict``-style access::
 
     >>> import pvl
@@ -154,12 +154,12 @@ with ``dict``-style access::
     END
     <BLANKLINE>
 
-The intent is for the loaders (:func:`pvl.load` and :func:`pvl.loads`)
+The intent is for the loaders (``pvl.load()`` and ``pvl.loads()``)
 to be permissive, and attempt to parse as wide a variety of PVL text as
 possible, including some kinds of 'broken' PVL text.
 
 On the flip side, when dumping a Python object to PVL text (via
-:func:`pvl.dumps` and :func:`pvl.dump`), the library will default
+``pvl.dumps()`` and ``pvl.dump()``), the library will default
 to writing PDS3-Standards-compliant PVL text, which in some ways
 is the most restrictive, but the most likely version of PVL text
 that you need if you're writing it out (this is different from

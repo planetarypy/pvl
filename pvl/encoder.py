@@ -28,31 +28,22 @@ class PVLEncoder(object):
     """An encoder based on the rules in the CCSDS-641.0-B-2 'Blue Book'
     which defines the PVL language.
 
-    *grammar* must be a pvl.grammar object, and defaults to
-    pvl.grammar.PVLGrammar().
-
-    *decoder* most be a pvl.decoder object, and defaults to
-    pvl.decoder.PVLDecoder().
-
-    *indent* specifies the number of spaces that will be used to
-    indent each level of the PVL document, when Groups or Objects
-    are encountered, defaults to 2.
-
-    *width* specifies the number of characters in width that each
-    line should have, defaults to 80.
-
-    *aggregation_end* when True the encoder will print the value
-    of the aggregation's Block Name in the End Aggregation Statement
-    (e.g. END_GROUP = foo), and when false, it won't (e.g. END_GROUP).
-    Defaults to True.
-
-
-    *end_delimiter* when True the encoder will print the grammar's
-    delimiter (e.g. ';' for PVL) after each statement, when False
-    it won't.  Defaults to True.
-
-    *newline* is the string that will be placed at the end of each
-    'line' of output (and counts against *width*), defaults to '\\n'.
+    :param grammar: defaults to pvl.grammar.PVLGrammar().
+    :param decoder: defaults to pvl.decoder.PVLDecoder().
+    :param indent: specifies the number of spaces that will be used to
+        indent each level of the PVL document, when Groups or Objects
+        are encountered, defaults to 2.
+    :param width: specifies the number of characters in width that each
+        line should have, defaults to 80.
+    :param aggregation_end: when True the encoder will print the value
+        of the aggregation's Block Name in the End Aggregation Statement
+        (e.g. END_GROUP = foo), and when false, it won't (e.g. END_GROUP).
+        Defaults to True.
+    :param end_delimiter: when True the encoder will print the grammar's
+        delimiter (e.g. ';' for PVL) after each statement, when False
+        it won't.  Defaults to True.
+    :param newline: is the string that will be placed at the end of each
+        'line' of output (and counts against *width*), defaults to '\\\\n'.
     """
 
     def __init__(self, grammar=None, decoder=None,
@@ -378,15 +369,10 @@ class ODLEncoder(PVLEncoder):
 
     It extends PVLEncoder.
 
-    *grammar* must be a pvl.grammar object, and defaults to
-    pvl.grammar.ODLGrammar().
-
-    *decoder* most be a pvl.decoder object, and defaults to
-    pvl.decoder.ODLDecoder().
-
-    *end_delimiter* defaults to False.
-
-    *newline* defaults to '\\r\\n'.
+    :param grammar: defaults to pvl.grammar.ODLGrammar().
+    :param decoder: defaults to pvl.decoder.ODLDecoder().
+    :param end_delimiter: defaults to False.
+    :param newline: defaults to '\\\\r\\\\n'.
     """
 
     def __init__(self, grammar=None, decoder=None,
@@ -888,7 +874,7 @@ class ISISEncoder(PVLEncoder):
     :param grammar: defaults to pvl.grammar.ISISGrammar().
     :param decoder: defaults to pvl.decoder.PVLDecoder().
     :param end_delimiter: defaults to False.
-    :param newline: defaults to '\\n'.
+    :param newline: defaults to '\\\\n'.
     """
 
     def __init__(self, grammar=None, decoder=None,

@@ -262,3 +262,103 @@ Example with an ISIS cube file
  NEW_KEY      = New_Value
  END
  <BLANKLINE>
+
+PVL text for ISIS program consumption
++++++++++++++++++++++++++++++++++++++
+
+There are a number of ISIS programs that take PVL text files as a
+way of allowing users to provide more detailed inputs.  To write
+PVL text that is readable by ISIS, you can use the
+:class:`pvl.encoder.ISISEncoder`.  Here's an example of creating a map file
+used by the ISIS program ``cam2map``.  Since ``cam2map`` needs the
+'Mapping' aggregation to be a PVL Group, you must use the
+:class:`pvl.PVLGroup` object to assign to 'Mapping' rather than
+just a dict-like (which gets encoded as a PVL Object by default).
+You'd normally use :func:`pvl.dump` to write to a file, but we use
+:func:`pvl.dumps` here to show what you'd get::
+
+ >>> import pvl
+ >>> subsc_lat = 10
+ >>> subsc_lon = 10
+ >>> map_pvl = {'Mapping': pvl.PVLGroup({'ProjectionName': 'Orthographic',
+ ...                                     'CenterLatitude': subsc_lat,
+ ...                                     'CenterLongitude': subsc_lon})}
+ >>> print(pvl.dumps(map_pvl, encoder=pvl.encoder.ISISEncoder()))
+ Group = Mapping
+   ProjectionName  = Orthographic
+   CenterLatitude  = 10
+   CenterLongitude = 10
+ End_Group = Mapping
+ END
+
+
+Pre-1.0 pvl dump behavior
++++++++++++++++++++++++++
+
+If you don't like the new default behavior of writing out PDS3 Label
+Compliant PVL text, then just using an encoder with some different 
+settings will get you the old style::
+
+ >>> import pvl
+ >>> img = 'tests/data/pattern.cub'
+ >>> label = pvl.load(img)
+ >>> print(pvl.dumps(label))
+ OBJECT = IsisCube
+   OBJECT = Core
+     STARTBYTE   = 65537
+     FORMAT      = Tile
+     TILESAMPLES = 128
+     TILELINES   = 128
+     GROUP = Dimensions
+       SAMPLES = 90
+       LINES   = 90
+       BANDS   = 1
+     END_GROUP = Dimensions
+     GROUP = Pixels
+       TYPE       = Real
+       BYTEORDER  = Lsb
+       BASE       = 0.0
+       MULTIPLIER = 1.0
+     END_GROUP = Pixels
+   END_OBJECT = Core
+ END_OBJECT = IsisCube
+ OBJECT = Label
+   BYTES = 65536
+ END_OBJECT = Label
+ END
+ <BLANKLINE>
+ >>> print(pvl.dumps(label, encoder=pvl.PVLEncoder(end_delimiter=False)))
+ ...                                               
+ BEGIN_OBJECT = IsisCube
+   BEGIN_OBJECT = Core
+     StartByte   = 65537
+     Format      = Tile
+     TileSamples = 128
+     TileLines   = 128
+     BEGIN_GROUP = Dimensions
+       Samples = 90
+       Lines   = 90
+       Bands   = 1
+     END_GROUP = Dimensions
+     BEGIN_GROUP = Pixels
+       Type       = Real
+       ByteOrder  = Lsb
+       Base       = 0.0
+       Multiplier = 1.0
+     END_GROUP = Pixels
+   END_OBJECT = Core
+ END_OBJECT = IsisCube
+ BEGIN_OBJECT = Label
+   Bytes = 65536
+ END_OBJECT = Label
+ END
+
+
+... of course, to really get the true old behavior, you should also use
+the carriage return/newline combination line endings, and encode the string as a
+bytearray, since that is the Python type that the pre-1.0 library
+produced::
+
+ >>> print(pvl.dumps(label, encoder=pvl.PVLEncoder(end_delimiter=False,
+ ...                                               newline='\r\n')).encode())
+ b'BEGIN_OBJECT = IsisCube\r\n  BEGIN_OBJECT = Core\r\n    StartByte   = 65537\r\n    Format      = Tile\r\n    TileSamples = 128\r\n    TileLines   = 128\r\n    BEGIN_GROUP = Dimensions\r\n      Samples = 90\r\n      Lines   = 90\r\n      Bands   = 1\r\n    END_GROUP = Dimensions\r\n    BEGIN_GROUP = Pixels\r\n      Type       = Real\r\n      ByteOrder  = Lsb\r\n      Base       = 0.0\r\n      Multiplier = 1.0\r\n    END_GROUP = Pixels\r\n  END_OBJECT = Core\r\nEND_OBJECT = IsisCube\r\nBEGIN_OBJECT = Label\r\n  Bytes = 65536\r\nEND_OBJECT = Label\r\nEND'
