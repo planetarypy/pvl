@@ -35,5 +35,9 @@ setup(
         'Natural Language :: English',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-    ]
+    ],
+    entry_points={"console_scripts": [
+        "pvl_translate = pvl.pvl_translate:main",
+        "pvl_validate= pvl.pvl_validate:main",
+    ], }
 )

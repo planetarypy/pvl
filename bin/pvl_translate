@@ -1,5 +1,0 @@
-#!/usr/bin/env python
-
-import pvl.pvl_translate
-
-pvl.pvl_translate.main()
