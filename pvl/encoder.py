@@ -14,11 +14,10 @@ string values that conform to a PVL specification.
 import datetime
 import re
 import textwrap
-import warnings
 
 from collections import abc
 
-from ._collections import PVLAggregation, PVLObject, PVLGroup, Units
+from ._collections import PVLObject, PVLGroup, Units
 from .grammar import PVLGrammar, ODLGrammar, ISISGrammar
 from .token import Token
 from .decoder import PVLDecoder, ODLDecoder
@@ -50,7 +49,7 @@ class PVLEncoder(object):
                  indent: int = 2, width: int = 80,
                  aggregation_end: bool = True,
                  end_delimiter: bool = True,
-                 newline: str ='\n'):
+                 newline: str = '\n'):
 
         if grammar is None:
             self.grammar = PVLGrammar()
@@ -565,7 +564,7 @@ class ODLEncoder(PVLEncoder):
         """
 
         if not all(map(self.is_scalar, values)):
-            raise ValueError(f'ODL only allows scalar values in sets: {value}')
+            raise ValueError(f'ODL only allows scalar values in sets: {values}')
 
         return super().encode_set(values)
 

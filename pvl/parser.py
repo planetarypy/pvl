@@ -56,10 +56,6 @@ will be thrown into the *tokens* generator iterator (via .throw()).
 import collections.abc as abc
 import re
 
-from datetime import datetime
-from itertools import cycle
-from warnings import warn
-
 from ._collections import PVLModule, PVLGroup, PVLObject, Units
 from .token import Token
 from .grammar import PVLGrammar, OmniGrammar
@@ -251,7 +247,7 @@ class PVLParser(object):
                     parsing = True
                 else:
                     return m
-            except:
+            except Exception:
                 pass
 
         # print(f'got to bottom: {m}')
@@ -509,7 +505,7 @@ class PVLParser(object):
                 return True
             elif t.is_WSC():
                 # If there's a comment, could parse here.
-                    pass
+                pass
             else:
                 tokens.send(t)
                 return False
@@ -603,7 +599,7 @@ class PVLParser(object):
         for t in tokens:
             if t.is_WSC():
                 # If there's a comment, could parse here.
-                    pass
+                pass
             elif t.is_delimiter():
                 return True
             else:
@@ -640,11 +636,9 @@ class PVLParser(object):
                              f'found: "{t}"')
 
         # print(f'in parse_value, value is: {value}')
-        units = None
         self.parse_WSC_until(None, tokens)
         try:
             return self.parse_units(value, tokens)
-            # return Units(value, units)
         except (ValueError, StopIteration):
             return value
 

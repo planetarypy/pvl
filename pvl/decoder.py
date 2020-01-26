@@ -18,7 +18,6 @@ by the parser) to the appropriate Python type.
 import re
 from datetime import datetime, timedelta, timezone
 from itertools import repeat, chain
-from time import strptime
 from warnings import warn
 
 from .grammar import PVLGrammar, ODLGrammar
@@ -65,7 +64,7 @@ class PVLDecoder(object):
 
     def decode(self, value: str):
         """Returns a Python object based on *value*."""
-        return decode_simple_value(value)
+        return self.decode_simple_value(value)
 
     def decode_simple_value(self, value: str):
         """Returns a Python object based on *value*, assuming
@@ -289,7 +288,7 @@ class ODLDecoder(PVLDecoder):
         s = super().decode_quoted_string(value)
 
         # Deal with dash (-) continuation:
-        sp = ''.join(self.grammar.spacing_characters)
+        # sp = ''.join(self.grammar.spacing_characters)
         fe = ''.join(self.grammar.format_effectors)
         ws = ''.join(self.grammar.whitespace)
         nodash = re.sub(fr'-[{fe}][{ws}]*', '', s)

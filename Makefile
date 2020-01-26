@@ -50,8 +50,8 @@ test-all:
 	tox
 
 coverage:
-	py.test --cov pvl --cov-report html tests
-	open htmlcov/index.html
+	python -m pytest --cov pvl --cov-report html tests
+	$(BROWSER) htmlcov/index.html
 
 docs:
 	$(MAKE) -C docs clean

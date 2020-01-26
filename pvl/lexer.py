@@ -9,9 +9,7 @@
 # top level of this library.
 
 
-import re
 from enum import Enum, auto
-from datetime import datetime
 
 from .grammar import PVLGrammar
 from .token import Token
@@ -286,8 +284,8 @@ def lex_char(char: str, prev_char: str, next_char: str,
                              'recognized preservation state.')
     elif (char == '#' and
           g.nondecimal_pre_re.fullmatch(lexeme + char) is not None):
-            lexeme += char
-            preserve = dict(state=Preserve.NONDECIMAL, end='#')
+        lexeme += char
+        preserve = dict(state=Preserve.NONDECIMAL, end='#')
     elif char in c_info['chars']:
         (lexeme,
          preserve) = lex_comment(char, prev_char, next_char,

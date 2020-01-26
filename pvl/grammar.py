@@ -239,5 +239,7 @@ class OmniGrammar(PVLGrammar):
     # of radix, and the variational placement of the optional sign:
     # [sign]radix#[sign]non_decimal_integer#
     _ss = r'(?P<second_sign>[+-]?)'
-    nondecimal_pre_re = re.compile(fr'{PVLGrammar._s}(?P<radix>[2-9]|1[0-6])#{_ss}')
-    nondecimal_re = re.compile(fr'{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-F|a-f]+)#')
+    nondecimal_pre_re = re.compile(PVLGrammar._s +
+                                   fr'(?P<radix>[2-9]|1[0-6])#{_ss}')
+    nondecimal_re = re.compile(nondecimal_pre_re.pattern +
+                               fr'(?P<non_decimal>[0-9|A-F|a-f]+)#')
