@@ -56,19 +56,17 @@ def load(path, **kwargs):
 
 def get_text_from(path) -> str:
     try:
-        try:
-            p = Path(path)
-            return p.read_text()
-        except UnicodeDecodeError:
-            # This may be the result of an ISIS cube file (or anything else)
-            # where the first set of bytes might be decodable, but once the
-            # image data starts, they won't be, and the above tidy function
-            # fails.  So open the file as a bytestream, and read until
-            # we can't decode.  We don't want to just run the .read_bytes()
-            # method of Path, because this could be a giant file.
-            with open(p, mode='rb') as f:
-                return decode_by_char(f)
-
+        p = Path(path)
+        return p.read_text()
+    except UnicodeDecodeError:
+        # This may be the result of an ISIS cube file (or anything else)
+        # where the first set of bytes might be decodable, but once the
+        # image data starts, they won't be, and the above tidy function
+        # fails.  So open the file as a bytestream, and read until
+        # we can't decode.  We don't want to just run the .read_bytes()
+        # method of Path, because this could be a giant file.
+        with open(p, mode='rb') as f:
+            return decode_by_char(f)
     except TypeError:
         # Not an os.PathLike, maybe it is an already-opened file object
         if path.readable():
@@ -76,8 +74,12 @@ def get_text_from(path) -> str:
                 position = path.tell()
                 s = path.read()
                 if isinstance(s, bytes):
-                    path.seek(position)  # Reset after the previous .read():
-                    s = decode_by_char(path)
+                    # Oh, it was opened in 'b' mode, need to rewind and
+                    # decode.  Since the 'catch' below already does that,
+                    # we'll just emit a ... contrived ... UnicodeDecodeError
+                    # so we don't have to double-write the code:
+                    raise UnicodeDecodeError('utf_8', 'dummy'.encode(), 0, 1,
+                                             'file object in byte mode')
             except UnicodeDecodeError:
                 # All of the bytes weren't decodeable, maybe the initial
                 # sequence is (as above)?
