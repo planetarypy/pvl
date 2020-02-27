@@ -21,6 +21,7 @@ labels).
 import argparse
 import logging
 import sys
+from collections import OrderedDict
 
 import pvl
 from .lexer import LexerError
@@ -29,27 +30,26 @@ from .parser import ParseError, PVLParser, ODLParser, OmniParser
 from .decoder import PVLDecoder, ODLDecoder, OmniDecoder
 from .encoder import PVLEncoder, ODLEncoder, ISISEncoder, PDSLabelEncoder
 
-dialects = dict(PDS3=dict(parser=ODLParser(),
-                          grammar=ODLGrammar(),
-                          decoder=ODLDecoder(),
-                          encoder=PDSLabelEncoder()),
-                ODL=dict(parser=ODLParser(),
-                         grammar=ODLGrammar(),
-                         decoder=ODLDecoder(),
-                         encoder=ODLEncoder()),
-                PVL=dict(parser=PVLParser(),
-                         grammar=PVLGrammar(),
-                         decoder=PVLDecoder(),
-                         encoder=PVLEncoder()),
-                ISIS=dict(parser=OmniParser(),
-                          grammar=ISISGrammar(),
-                          decoder=OmniDecoder(),
-                          encoder=ISISEncoder()),
-                Omni=dict(parser=OmniParser(),
-                          grammar=OmniGrammar(),
-                          decoder=OmniDecoder(),
-                          encoder=PVLEncoder()))
-dialect_order = ['PDS3', 'ODL', 'PVL', 'ISIS', 'Omni']
+dialects = OrderedDict(PDS3=dict(parser=ODLParser(),
+                                 grammar=ODLGrammar(),
+                                 decoder=ODLDecoder(),
+                                 encoder=PDSLabelEncoder()),
+                       ODL=dict(parser=ODLParser(),
+                                grammar=ODLGrammar(),
+                                decoder=ODLDecoder(),
+                                encoder=ODLEncoder()),
+                       PVL=dict(parser=PVLParser(),
+                                grammar=PVLGrammar(),
+                                decoder=PVLDecoder(),
+                                encoder=PVLEncoder()),
+                       ISIS=dict(parser=OmniParser(),
+                                 grammar=ISISGrammar(),
+                                 decoder=OmniDecoder(),
+                                 encoder=ISISEncoder()),
+                       Omni=dict(parser=OmniParser(),
+                                 grammar=OmniGrammar(),
+                                 decoder=OmniDecoder(),
+                                 encoder=PVLEncoder()))
 
 
 def arg_parser():
@@ -76,30 +76,10 @@ def main():
         for k, v in dialects.items():
             results[k] = pvl_flavor(pvl_text, k, v, f, args.verbose)
 
-        # results['PDS3'] = pvl_flavor(pvl_text,
-        #                              ODLParser(), ODLGrammar(),
-        #                              ODLDecoder(), PDSLabelEncoder(),
-        #                              f, args.verbose)
-        # results['ODL'] = pvl_flavor(pvl_text,
-        #                             ODLParser(), ODLGrammar(),
-        #                             ODLDecoder(), ODLEncoder(),
-        #                             f, args.verbose)
-        # results['PVL'] = pvl_flavor(pvl_text,
-        #                             PVLParser(), PVLGrammar(),
-        #                             PVLDecoder(), PVLEncoder(),
-        #                             f, args.verbose)
-        # results['ISIS'] = pvl_flavor(pvl_text,
-        #                              OmniParser(), ISISGrammar(),
-        #                              OmniDecoder(), ISISEncoder(),
-        #                              f, args.verbose)
-        # results['Omni'] = pvl_flavor(pvl_text,
-        #                              OmniParser(), OmniGrammar(),
-        #                              OmniDecoder(), PVLEncoder(),
-        #                              f, args.verbose)
         results_list.append((f, results))
 
     # Writing the flavors out again to preserve order.
-    print(report(results_list, dialect_order))
+    print(report(results_list, list(dialects.keys())))
     return
 
 
