@@ -3,6 +3,69 @@
 History
 -------
 
+1.0.0-alpha (winter 2019-2020)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The above label will be changed and this paragraph will be removed
+when the decision is made to release 1.0.0.  This work is categorized
+as 1.0.0-alpha because backwards-incompatible changes are being
+introduced to the codebase.
+
+* Refactored code so that it will no longer support Python 2, 
+  and is only guaranteed to work with Python 3.6 and above.
+* Rigorously implemented the three dialects of PVL text: PVL itself,
+  ODL, and the PDS3 Label Standard.  There is a fourth de-facto
+  dialect, that of ISIS cube labels that is also handled.  These
+  dialects each have their own grammars, parsers, decoders, and
+  encoders, and there are also some 'Omni' versions of same that
+  handle the widest possible range of PVL text.
+* When parsing via the loaders, ``pvl`` continues to consume as
+  wide a variety of PVL text as is reasonably possible, just like
+  always.  However, now when encoding via the dumpers, ``pvl`` will
+  default to writing out PDS3 Label Standard format PVL text, one
+  of the strictest dialects, but other options are available.  This
+  behavior is different from the pre-1.0 version, which wrote out 
+  more generic PVL text.
+* Removed the dependency on the ``six`` library that provided Python 2
+  compatibility.
+* Removed the dependency on the ``pytz`` library that provided 'timezone'
+  support, as that functionality is replaced with the Standard Library's
+  ``datetime`` module.
+* The private ``pvl/_numbers.py`` file was removed, as its capability is now
+  accomplished with the Python Standard Library.
+* The private ``pvl/_datetimes.py`` file was removed, as its capability is now
+  accomplished with the Standard Library's ``datetime`` module.
+* the private ``pvl/_strings.py`` file was removed, as its capabilities are now
+  mostly replaced with the new grammar module and some functions in other new
+  modules.
+* Internally, the library is now working with string objects, not byte literals, 
+  so the ``pvl/stream.py`` module is no longer needed.
+* Added an optional dependency on the 3rd party ``dateutil`` library, to parse
+  more exotic date and time formats.  If this library is not present, the
+  ``pvl`` library will gracefully fall back to not parsing more exotic
+  formats. 
+* Implmented a more formal approach to parsing PVL text:  The properties
+  of the PVL language are represented by a grammar object.  A string is
+  broken into tokens by the lexer function.  Those tokens are parsed by a
+  parser object, and when a token needs to be converted to a Python object,
+  a decoder object does that job.  When a Python object must be converted to
+  PVL text, an encoder object does that job.
+* Since the tests in ``tests/test_decoder.py`` and ``tests/test_encoder.py``
+  were really just exercising the loader and dumper functions, those tests were
+  moved to ``tests/test_pvl.py``, but all still work (with light modifications for
+  the new defaults).  Unit tests were added for most of the new classes and
+  functions.  All docstring tests now also pass doctest testing and are now
+  included in the ``make test`` target.
+* Functionality to correctly parse dash (-) continuation lines written by ISIS
+  as detailed in #34 is implemented and tested.
+* Functionality to use ``pathlib.Path`` objects for ``pvl.load()`` and
+  ``pvl.dump()`` as requested in #20 and #31 is implemented and tested.
+* Functionality to accept already-opened file objects that were opened in 
+  'r' mode or 'rb' mode as alluded to in #6 is implemented and tested.
+* The library now properly parses quoted strings that include backslashes
+  as detailed in #33.
+* Utility programs pvl_validate and pvl_translate were added.
+* Documentation was updated and expanded.
+
 0.3.0 (2017-06-28)
 ~~~~~~~~~~~~~~~~~~
 

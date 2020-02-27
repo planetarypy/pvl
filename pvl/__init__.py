@@ -1,56 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Python implementation of PVL (Parameter Value Language).
+"""Python implementation of PVL (Parameter Value Language)."""
 
-PVL is a markup language, similar to xml, commonly employed for entries in the
-Planetary Database System used by NASA to store mission data, among other uses.
-This package supports both encoding a decoding a superset of PVL, including the
-USGS Isis Cube Label and NASA PDS 3 Label dialects.
+# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+#
+# Reuse is permitted under the terms of the license.
+# The AUTHORS file and the LICENSE file are at the
+# top level of this library.
 
-Basic Usage
------------
-
-Decoding pvl modules::
-
-    >>> import pvl
-    >>> module = pvl.loads('''
-    ...   foo = bar
-    ...   items = (1, 2, 3)
-    ...   END
-    ... ''')
-    >>> print module
-    PVLModule([
-      (u'foo', u'bar')
-      (u'items', [1, 2, 3])
-    ])
-    >>> print module['foo']
-    bar
-
-Encoding pvl modules::
-
-    >>> import pvl
-    >>> print pvl.dumps({
-    ...   'foo': 'bar',
-    ...   'items': [1, 2, 3]
-    ... })
-    items = (1, 2, 3)
-    foo = bar
-    END
-
-Building pvl modules::
-
-    >>> import pvl
-    >>> module = pvl.PVLModule({'foo': 'bar'})
-    >>> module.append('items', [1, 2, 3])
-    >>> print pvl.dumps(module)
-    foo = bar
-    items = (1, 2, 3)
-    END
-"""
 import io
-import six
+from pathlib import Path
 
-from .decoder import PVLDecoder
-from .encoder import PVLEncoder
+from .encoder import PDSLabelEncoder, PVLEncoder
+from .parser import PVLParser, OmniParser
 from ._collections import (
     PVLModule,
     PVLGroup,
@@ -58,9 +19,9 @@ from ._collections import (
     Units,
 )
 
-__author__ = 'The PlanetaryPy Developers'
+__author__ = 'The pvl Developers'
 __email__ = 'trevor@heytrevor.com'
-__version__ = '0.2.0'
+__version__ = '1.0.0-alpha'
 __all__ = [
     'load',
     'loads',
@@ -73,90 +34,166 @@ __all__ = [
 ]
 
 
-def __create_decoder(cls, strict, **kwargs):
-    decoder = cls(**kwargs)
-    decoder.set_strict(strict)
-    return decoder
+def load(path, **kwargs):
+    """Returns a Python object from parsing the file at *path*.
 
+    :param path: an :class:`os.PathLike` which presumably has a
+        PVL Module in it to parse.
+    :param ``**kwargs``: the keyword arguments that will be passed
+        to :func:`loads()` and are described there.
 
-def load(stream, cls=PVLDecoder, strict=True, **kwargs):
-    """Deserialize ``stream`` as a pvl module.
+    If *path* is not an :class:`os.PathLike`, it will be assumed to be an
+    already-opened file object, and ``.read()`` will be applied
+    to extract the text.
 
-    :param stream: a ``.read()``-supporting file-like object containing a
-        module. If ``stream`` is a string it will be treated as a filename
-
-    :param cls: the decoder class used to deserialize the pvl module. You may
-        use the default ``PVLDecoder`` class or provide a custom sublcass.
-
-    :param **kwargs: the keyword arguments to pass to the decoder class.
+    If the :class:`os.PathLike` or file object contains some bytes
+    decodable as text, followed by some that is not (e.g. an ISIS
+    cube file), that's fine, this function will just extract the
+    decodable text.
     """
-    decoder = __create_decoder(cls, strict, **kwargs)
-    if isinstance(stream, six.string_types):
-        with open(stream, 'rb') as fp:
-            return decoder.decode(fp)
-    return decoder.decode(stream)
+    return loads(get_text_from(path), **kwargs)
 
 
-def loads(data, cls=PVLDecoder, strict=True, **kwargs):
-    """Deserialize ``data`` as a pvl module.
+def get_text_from(path) -> str:
+    try:
+        p = Path(path)
+        return p.read_text()
+    except UnicodeDecodeError:
+        # This may be the result of an ISIS cube file (or anything else)
+        # where the first set of bytes might be decodable, but once the
+        # image data starts, they won't be, and the above tidy function
+        # fails.  So open the file as a bytestream, and read until
+        # we can't decode.  We don't want to just run the .read_bytes()
+        # method of Path, because this could be a giant file.
+        with open(p, mode='rb') as f:
+            return decode_by_char(f)
+    except TypeError:
+        # Not an os.PathLike, maybe it is an already-opened file object
+        if path.readable():
+            try:
+                position = path.tell()
+                s = path.read()
+                if isinstance(s, bytes):
+                    # Oh, it was opened in 'b' mode, need to rewind and
+                    # decode.  Since the 'catch' below already does that,
+                    # we'll just emit a ... contrived ... UnicodeDecodeError
+                    # so we don't have to double-write the code:
+                    raise UnicodeDecodeError('utf_8', 'dummy'.encode(), 0, 1,
+                                             'file object in byte mode')
+            except UnicodeDecodeError:
+                # All of the bytes weren't decodeable, maybe the initial
+                # sequence is (as above)?
+                path.seek(position)  # Reset after the previous .read():
+                s = decode_by_char(path)
 
-    :param data: a pvl module as a byte or unicode string
+        else:
+            # Not a path, not an already-opened file.
+            raise TypeError('Expected an os.PathLike or an already-opened '
+                            'file object, but did not get either.')
+        return s
 
-    :param cls: the decoder class used to deserialize the pvl module. You may
-        use the default ``PVLDecoder`` class or provide a custom sublcass.
 
-    :param **kwargs: the keyword arguments to pass to the decoder class.
+def decode_by_char(f: io.RawIOBase) -> str:
+    """Returns a ``str`` decoded from the characters in *f*.
+
+    :param f: is expected to be a file object which has been
+        opened in binary mode ('rb') or just read mode ('r').
+
+    The *f* stream will have one character or byte at a time read from it,
+    and will attempt to decode each to a string and accumulate
+    those individual strings together.  Once the end of the file is found
+    or an element can no longer be decoded, the accumulated string will
+    be returned.
     """
-    decoder = __create_decoder(cls, strict, **kwargs)
-    if not isinstance(data, bytes):
-        data = data.encode('utf-8')
-    return decoder.decode(data)
+    s = ''
+    try:
+        for elem in iter(lambda: f.read(1), b''):
+            if isinstance(elem, str):
+                s += elem
+            else:
+                s += elem.decode()
+    except UnicodeError:
+        # Expecting this to mean that we got to the end of decodable
+        # bytes, so we're all done, and pass through to return s.
+        pass
+
+    return s
 
 
-def dump(module, stream, cls=PVLEncoder, **kwargs):
-    """Serialize ``module`` as a pvl module to the provided ``stream``.
+def loads(s: str, parser=None, grammar=None, decoder=None, **kwargs):
+    """Deserialize the string, *s*, as a Python object.
 
-    :param module: a ```PVLModule``` or ```dict``` like object to serialize
-
-    :param stream: a ``.write()``-supporting file-like object to serialize the
-        module to. If ``stream`` is a string it will be treated as a filename
-
-    :param cls: the encoder class used to serialize the pvl module. You may use
-        the default ``PVLEncoder`` class or provided encoder formats such as the
-        ```IsisCubeLabelEncoder``` and ```PDSLabelEncoder``` classes. You may
-        also provided a custom sublcass of ```PVLEncoder```
-
-    :param **kwargs: the keyword arguments to pass to the encoder class.
+    :param s: contains some PVL to parse.
+    :param parser: defaults to :class:`pvl.parser.OmniParser()`.
+    :param grammar: defaults to :class:`pvl.grammar.OmniGrammar()`.
+    :param decoder: defaults to :class:`pvl.decoder.OmniDecoder()`.
+    :param ``**kwargs``: the keyword arguments to pass to the *parser* class
+        if *parser* is none.
     """
-    if isinstance(stream, six.string_types):
-        with open(stream, 'wb') as fp:
-            return cls(**kwargs).encode(module, fp)
-    cls(**kwargs).encode(module, stream)
+    # decoder = __create_decoder(cls, strict, grammar=grammar, **kwargs)
+    # return decoder.decode(s)
+
+    if isinstance(s, bytes):
+        # Someone passed us an old-style bytes sequence.  Although it isn't
+        # a string, we can deal with it:
+        s = s.decode()
+
+    if parser is None:
+        parser = OmniParser(grammar=grammar, decoder=decoder, **kwargs)
+    elif not isinstance(parser, PVLParser):
+        raise TypeError('The parser must be an instance of pvl.PVLParser.')
+
+    return parser.parse(s)
 
 
-def dumps(module, cls=PVLEncoder, **kwargs):
-    """Serialize ``module`` as a pvl module formated byte string.
+def dump(module, path, **kwargs):
+    """Serialize *module* as PVL text to the provided *path*.
 
-    :param module: a ```PVLModule``` or ```dict``` like object to serialize
+    :param module: a ``PVLModule`` or ``dict``-like object to serialize.
+    :param path: an :class:`os.PathLike`
+    :param ``**kwargs``: the keyword arguments to pass to :func:`dumps()`.
 
-    :param cls: the encoder class used to serialize the pvl module. You may use
-        the default ``PVLEncoder`` class or provided encoder formats such as the
-        ```IsisCubeLabelEncoder``` and ```PDSLabelEncoder``` classes. You may
-        also provided a custom sublcass of ```PVLEncoder```
+    If *path* is an :class:`os.PathLike`, it will attempt to be opened
+    and the serialized module will be written into that file via
+    the :func:`pathlib.Path.write_text()` function, and will return
+    what that function returns.
 
-    :param **kwargs: the keyword arguments to pass to the encoder class.
-
-    :returns: a byte string encoding of the pvl module
+    If *path* is not an :class:`os.PathLike`, it will be assumed to be an
+    already-opened file object, and ``.write()`` will be applied
+    on that object to write the serialized module, and will return
+    what that function returns.
     """
-    stream = io.BytesIO()
-    cls(**kwargs).encode(module, stream)
-    return stream.getvalue()
+    try:
+        p = Path(path)
+        return p.write_text(dumps(module, **kwargs))
+
+    except TypeError:
+        # Not an os.PathLike, maybe it is an already-opened file object
+        try:
+            if isinstance(path, io.TextIOBase):
+                return path.write(dumps(module, **kwargs))
+            else:
+                return path.write(dumps(module, **kwargs).encode())
+        except AttributeError:
+            # Not a path, not an already-opened file.
+            raise TypeError('Expected an os.PathLike or an already-opened '
+                            'file object for writing, but got neither.')
 
 
-# Depreciated aliases
-# TODO: add warnings for these?
-Label = PVLModule
-LabelGroup = PVLGroup
-LabelObject = PVLObject
-LabelEncoder = PVLEncoder
-LabelDecoder = PVLEncoder
+def dumps(module, encoder=None, grammar=None, decoder=None, **kwargs) -> str:
+    """Returns a string where the *module* object has been serialized
+    to PVL syntax.
+
+    :param module: a ``PVLModule`` or ``dict`` like object to serialize.
+    :param encoder: defaults to :class:`pvl.parser.PDSLabelEncoder()`.
+    :param grammar: defaults to :class:`pvl.grammar.ODLGrammar()`.
+    :param decoder: defaults to :class:`pvl.decoder.ODLDecoder()`.
+    :param ``**kwargs``: the keyword arguments to pass to the encoder
+        class if *encoder* is none.
+    """
+    if encoder is None:
+        encoder = PDSLabelEncoder(grammar=grammar, decoder=decoder, **kwargs)
+    elif not isinstance(encoder, PVLEncoder):
+        raise TypeError('The encoder must be an instance of pvl.PVLEncoder.')
+
+    return encoder.encode(module)

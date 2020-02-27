@@ -1,792 +1,377 @@
 # -*- coding: utf-8 -*-
-from six import b
+"""Parameter Value Language decoder.
 
-from .stream import BufferedStream, ByteStream
-from ._collections import PVLModule, PVLGroup, PVLObject, Units
-from ._datetimes import parse_datetime
-from ._numbers import parse_number
-from ._strings import FORMATTING_CHARS
+The definition of PVL used in this module is based on the Consultive
+Committee for Space Data Systems, and their Parameter Value
+Language Specification (CCSD0006 and CCSD0008), CCSDS 6441.0-B-2,
+referred to as the Blue Book with a date of June 2000.
+
+A decoder deals with converting strings given to it (typically
+by the parser) to the appropriate Python type.
+"""
+# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+#
+# Reuse is permitted under the terms of the license.
+# The AUTHORS file and the LICENSE file are at the
+# top level of this library.
+
+import re
+from datetime import datetime, timedelta, timezone
+from itertools import repeat, chain
+from warnings import warn
+
+from .grammar import PVLGrammar, ODLGrammar
 
 
-class ParseError(ValueError):
-    """Subclass of ValueError with the following additional properties:
-    msg: The unformatted error message
-    pos: The start index of where parsing failed
-    lineno: The line corresponding to pos
-    colno: The column corresponding to pos
+def for_try_except(exception, function, *iterable):
+    """Return the result of the first successful application of *function*
+    to an element of *iterable*.  If the *function* raises an Exception
+    of type *exception*, it will continue to the next item of *iterable*.
+    If there are no successful applications an Exception of type
+    *exception* will be raised.
+
+    If additional *iterable* arguments are passed, *function* must
+    take that many arguments and is applied to the items from
+    all iterables in parallel (like ``map()``). With multiple iterables,
+    the iterator stops when the shortest iterable is exhausted.
     """
-    def __init__(self, msg, pos, lineno, colno):
-        if None not in (pos, colno):
-            errmsg = '%s: line %d column %d (char %d)' % (
-                msg, lineno, colno, pos)
-        else:
-            errmsg = '%s: line %d' % (msg, lineno)
-        super(ParseError, self).__init__(errmsg)
-        self.msg = msg
-        self.pos = pos
-        self.lineno = lineno
-        self.colno = colno
+    for tup in zip(*iterable):
+        try:
+            return function(*tup)
+        except exception:
+            pass
 
-
-class EmptyValueAtLine(str):
-    """Empty string to be used as a placeholder for a parameter without a value
-
-    When a label is contains a parameter without a value, it is considered a
-    broken label. To rectify the broken parameter-value pair, the parameter is
-    set to have a value of EmptyValueAtLine. The empty value is an empty
-    string and can be treated as such. It also contains and requires as an
-    argument the line number of the error.
-
-    Parameters
-    ----------
-    lineno : int
-        The line number of the broken parameter-value pair
-
-    Attributes
-    ----------
-    lineno : int
-        The line number of the broken parameter-value pai
-
-    Examples
-    --------
-    >>> from pvl.decoder import EmptyValueAtLine
-    >>> EV1 = EmptyValueAtLine(1)
-    >>> EV1
-    EmptyValueAtLine(1 does not have a value. Treat as an empty string)
-    >>> EV1.lineno
-    1
-    >>> print(EV1)
-
-    >>> EV1 + 'foo'
-    'foo'
-    >>> # Can be turned into an integer and float as 0:
-    >>> int(EV1)
-    0
-    >>> float(EV1)
-    0.0
-    """
-
-    def __new__(cls, lineno, *args, **kwargs):
-        self = super(EmptyValueAtLine, cls).__new__(cls, '')
-        self.lineno = lineno
-        return self
-
-    def __int__(self):
-        return 0
-
-    def __float__(self):
-        return 0.0
-
-    def __repr__(self):
-        message = '%s(%d does not have a value.'
-        message = message % (type(self).__name__, self.lineno)
-        message += ' Treat as an empty string)'
-        return message
-
-
-def char_set(chars):
-    return set([b(c) for c in chars])
+    raise exception
 
 
 class PVLDecoder(object):
-    whitespace = char_set(' \r\n\t\v\f')
-    newline_chars = char_set('\r\n')
-    reserved_chars = char_set('&<>\'{},[]=!#()%";|')
-    delimiter_chars = whitespace | reserved_chars
-    eof_chars = (b'', b'\0')
+    """A decoder based on the rules in the CCSDS-641.0-B-2 'Blue Book'
+    which defines the PVL language.
 
-    quote_marks = (b'"', b"'")
-    null_tokens = (b'Null', b'NULL')
-    end_tokens = (b'End', b'END')
+    *grammar* must be a pvl.grammar object, and defaults to
+    pvl.grammar.PVLGrammar()
+    """
 
-    true_tokens = (b'TRUE', b'True', b'true')
-    false_tokens = (b'FALSE', b'False', b'false')
-    boolean_tokens = true_tokens + false_tokens
-
-    begin_group_tokens = (b'Group', b'GROUP', b'BEGIN_GROUP')
-    end_group_tokens = (b'End_Group', b'END_GROUP')
-
-    begin_object_tokens = (b'Object', b'OBJECT', b'BEGIN_OBJECT')
-    end_object_tokens = (b'End_Object', b'END_OBJECT')
-
-    seporator = b','
-    radix_symbole = b'#'
-    statement_delimiter = b';'
-    continuation_symbole = b'-'
-    assignment_symbole = b'='
-
-    begin_comment = b'/*'
-    end_comment = b'*/'
-    line_comment = b'#'
-
-    begin_sequence = b'('
-    end_sequence = b')'
-
-    begin_set = b'{'
-    end_set = b'}'
-
-    begin_units = b'<'
-    end_units = b'>'
-
-    plus_sign = b'+'
-    minus_sign = b'-'
-    signs = set([plus_sign, minus_sign])
-
-    binary_chars = (b'0', b'1')
-    octal_chars = char_set('01234567')
-    decimal_chars = char_set('0123456789')
-    hex_chars = char_set('0123456789ABCDEFabcdef')
-
-    def __init__(self):
-        self.strict = True
+    def __init__(self, grammar=None):
         self.errors = []
 
-    def set_strict(self, strict):
-        self.strict = strict
-
-    def peek(self, stream, n, offset=0):
-        return stream.peek(n + offset)[offset:offset + n]
-
-    def raise_error(self, msg, stream):
-        raise ParseError(msg, stream.pos, stream.lineno, stream.colno)
-
-    def optional(self, stream, token):
-        if not self.has_next(token, stream):
-            return
-        self.expect(stream, token)
-
-    def expect(self, stream, expected):
-        actual = stream.read(len(expected))
-        if actual == expected:
-            return
-        msg = 'Unexpected token %r (expected %r)'
-        self.raise_error(msg % (actual, expected), stream)
-
-    def expect_in(self, stream, tokens):
-        for token in tokens:
-            if self.has_next(token, stream):
-                break
-        self.expect(stream, token)
-
-    def raise_unexpected(self, stream, token=None):
-        if token is None:
-            token = self.peek(stream, 1)
-        self.raise_error('Unexpected token %r' % token, stream)
-
-    def raise_unexpected_eof(self, stream):
-        self.raise_error('Unexpected EOF', stream)
-
-    def broken_assignment(self, lineno):
-        if self.strict:
-            msg = (
-                "Broken Parameter-Value. Using 'strict=False' when calling" +
-                " 'pvl.load' may help you parse the label, it could also" +
-                " inadvertently mask other errors"
-            )
-            raise ParseError(msg, None, lineno, None)
+        if grammar is None:
+            self.grammar = PVLGrammar()
+        elif isinstance(grammar, PVLGrammar):
+            self.grammar = grammar
         else:
-            self.errors.append(lineno)
-            return EmptyValueAtLine(lineno)
+            raise Exception
 
-    def has_eof(self, stream, offset=0):
-        return self.peek(stream, 1, offset) in self.eof_chars
+    def decode(self, value: str):
+        """Returns a Python object based on *value*."""
+        return self.decode_simple_value(value)
 
-    def has_next(self, token, stream, offset=0):
-        return self.peek(stream, len(token), offset) == token
+    def decode_simple_value(self, value: str):
+        """Returns a Python object based on *value*, assuming
+        that *value* can be decoded as a PVL Simple Value::
 
-    def has_delimiter(self, stream, offset=0):
-        if self.has_eof(stream, offset):
+         <Simple-Value> ::= (<Date-Time> | <Numeric> | <String>)
+        """
+        for d in (self.decode_quoted_string,
+                  self.decode_non_decimal,
+                  self.decode_decimal,
+                  self.decode_datetime):
+            try:
+                return d(value)
+            except ValueError:
+                pass
+
+        if value.casefold() == self.grammar.none_keyword.casefold():
+            return None
+
+        if value.casefold() == self.grammar.true_keyword.casefold():
             return True
 
-        if self.has_comment(stream, offset):
-            return True
-
-        if self.peek(stream, 1, offset) in self.delimiter_chars:
-            return True
-
-    def has_token_in(self, tokens, stream):
-        for token in tokens:
-            if not self.has_token(token, stream):
-                continue
-            return token
-
-    def has_token(self, token, stream):
-        if not self.has_next(token, stream):
+        if value.casefold() == self.grammar.false_keyword.casefold():
             return False
-        return self.has_delimiter(stream, len(token))
 
-    def next_token(self, stream):
-        token = b''
-        while not self.has_delimiter(stream):
-            token += stream.read(1)
-        return token
+        return self.decode_unquoted_string(value)
 
-    def decode(self, stream):
-        if isinstance(stream, bytes):
-            stream = ByteStream(stream)
+    def decode_unquoted_string(self, value: str) -> str:
+        """Returns a Python ``str`` if *value* can be decoded
+        as an unquoted string, based on this decoder's grammar.
+        Raises a ValueError otherwise.
+        """
+        for coll in (('a comment', chain.from_iterable(self.grammar.comments)),
+                     ('some whitespace', self.grammar.whitespace),
+                     ('a special character', self.grammar.reserved_characters)):
+            for item in coll[1]:
+                if item in value:
+                    raise ValueError('Expected a Simple Value, but encountered '
+                                     f'{coll[0]} in "{self}": "{item}".')
+
+        agg_keywords = self.grammar.aggregation_keywords.items()
+        for kw in chain.from_iterable(agg_keywords):
+            if kw.casefold() == value.casefold():
+                raise ValueError('Expected a Simple Value, but encountered '
+                                 f'an aggregation keyword: "{value}".')
+
+        for es in self.grammar.end_statements:
+            if es.casefold() == value.casefold():
+                raise ValueError('Expected a Simple Value, but encountered '
+                                 f'an End-Statement: "{value}".')
+
+        # This try block is going to look illogical.  But the decode
+        # rules for Unquoted Strings spell out the things that they
+        # cannot be, so if it *can* be a datetime, then it *can't* be
+        # an Unquoted String, which is why we raise if it succeeds,
+        # and pass if it fails:
+        try:
+            self.decode_datetime(value)
+            raise ValueError
+        except ValueError:
+            pass
+
+        return str(value)
+
+    def decode_quoted_string(self, value: str) -> str:
+        """Returns a Python ``str`` if *value* begins and ends
+        with matching quote characters based on this decoder's
+        grammar.  Raises ValueError otherwise.
+        """
+        for q in self.grammar.quotes:
+            if(value.startswith(q) and
+               value.endswith(q) and
+               len(value) > 1):
+                return str(value[1:-1])
+        raise ValueError(f'The object "{value}" is not a PVL Quoted String.')
+
+    @staticmethod
+    def decode_decimal(value: str):
+        """Returns a Python ``int`` or ``float`` as appropriate
+        based on *value*.  Raises a ValueError otherwise.
+        """
+        # Returns int or float
+        try:
+            return int(value, base=10)
+        except ValueError:
+            return float(value)
+
+    def decode_non_decimal(self, value: str) -> int:
+        """Returns a Python ``int`` as decoded from *value*
+        on the assumption that *value* conforms to a
+        non-decimal integer value as defined by this decoder's
+        grammar, raises ValueError otherwise.
+        """
+        # Non-Decimal (Binary, Hex, and Octal)
+        for nd_re in (self.grammar.binary_re,
+                      self.grammar.octal_re,
+                      self.grammar.hex_re):
+            match = nd_re.fullmatch(value)
+            if match is not None:
+                d = match.groupdict('')
+                return int(d['sign'] + d['non_decimal'], base=int(d['radix']))
+        raise ValueError
+
+    def decode_datetime(self, value: str):
+        """Takes a string and attempts to convert it to the appropriate
+        Python ``datetime`` ``time``, ``date``, or ``datetime``
+        type based on this decoder's grammar, or in one case, a ``str``.
+
+        The PVL standard allows for the seconds value to range
+        from zero to 60, so that the 60 can accomodate leap
+        seconds.  However, the Python ``datetime`` classes don't
+        support second values for more than 59 seconds.
+
+        If a time with 60 seconds is encountered, it will not be
+        returned as a datetime object, but simply as a string.
+
+        The user can then then try and use the ``time`` module
+        to parse this string into a ``time.struct_time``.  We
+        chose not to do this with pvl because ``time.struct_time``
+        is a full *datetime* like object, even if it parsed
+        only a *time* like object, the year, month, and day
+        values in the ``time.struct_time`` would default, which
+        could be misleading.
+
+        Alternately, the pvl.grammar.PVLGrammar class contains
+        two regexes: ``leap_second_Ymd_re`` and ``leap_second_Yj_re``
+        which could be used along with the ``re.match`` object's
+        ``groupdict()`` function to extract the string representations
+        of the various numerical values, cast them to the appropriate
+        numerical types, and do something useful with them.
+        """
+        try:
+            return for_try_except(ValueError, datetime.strptime,
+                                  repeat(value),
+                                  self.grammar.date_formats).date()
+        except ValueError:
+            try:
+                return for_try_except(ValueError, datetime.strptime,
+                                      repeat(value),
+                                      self.grammar.time_formats).time()
+            except ValueError:
+                try:
+                    return for_try_except(ValueError, datetime.strptime,
+                                          repeat(value),
+                                          self.grammar.datetime_formats)
+                except ValueError:
+                    pass
+
+        # if we can regex a 60-second time, return str
+        for r in (self.grammar.leap_second_Ymd_re,
+                  self.grammar.leap_second_Yj_re):
+            if r is not None and r.fullmatch(value) is not None:
+                return str(value)
+
+        raise ValueError
+
+
+class ODLDecoder(PVLDecoder):
+    """A decoder based on the rules in the PDS3 Standards Reference
+    (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+    Language Specification and Usage.
+
+    Extends PVLDecoder, and if *grammar* is not specified, it will
+    default to an ODLGrammar() object.
+    """
+
+    def __init__(self, grammar=None):
+        self.errors = []
+
+        if grammar is None:
+            super().__init__(grammar=ODLGrammar())
         else:
-            stream = BufferedStream(stream)
+            super().__init__(grammar=grammar)
 
-        module = PVLModule(self.parse_block(stream, self.has_end))
-        module.errors = sorted(self.errors)
-        self.skip_end(stream)
-        return module
+    def decode_datetime(self, value: str):
+        """Extends parent function to also deal with datetimes
+        and times with a time zone offset.
 
-    def parse_block(self, stream, has_end):
+        If it cannot, it will raise a ValueError.
         """
-        PVLModuleContents ::= (Statement | WSC)* EndStatement?
-        AggrObject ::= BeginObjectStmt AggrContents EndObjectStmt
-        AggrGroup ::= BeginGroupStmt AggrContents EndGroupStmt
-        AggrContents := WSC Statement (WSC | Statement)*
+
+        try:
+            return super().decode_datetime(value)
+        except ValueError:
+            # if there is a +HH:MM or a -HH:MM suffix that
+            # can be stripped, then we're in business.
+            # Otherwise ...
+            match = re.fullmatch(r'(?P<dt>.+?)'  # the part before the sign
+                                 r'(?P<sign>[+-])'  # required sign
+                                 r'(?P<hour>0?[1-9]|1[0-2])'  # 1 to 12
+                                 fr'(?:{self.grammar._M_frag})?',  # Minutes
+                                 value)
+            if match is not None:
+                gd = match.groupdict(default=0)
+                dt = super().decode_datetime(gd['dt'])
+                offset = timedelta(hours=int(gd['hour']),
+                                   minutes=int(gd['minute']))
+                if gd['sign'] == '-':
+                    offset = -1 * offset
+                return dt.replace(tzinfo=timezone(offset))
+            raise ValueError
+
+    def decode_non_decimal(self, value: str) -> int:
+        """Extends parent function by allowing the wider variety of
+        radix values that ODL permits over PVL.
         """
-        statements = []
-        while 1:
-            self.skip_whitespace_or_comment(stream)
+        match = self.grammar.nondecimal_re.fullmatch(value)
+        if match is not None:
+            d = match.groupdict('')
+            return int(d['sign'] + d['non_decimal'], base=int(d['radix']))
+        raise ValueError
 
-            if has_end(stream):
-                return statements
+    def decode_quoted_string(self, value: str) -> str:
+        """Extends parent function because the
+        ODL specification allows for a dash (-) line continuation
+        character that results in the dash, the line end, and any
+        leading whitespace on the next line to be removed.  It also
+        allows for a sequence of format effectors surrounded by
+        spacing characters to be collapsed to a single space.
+        """
+        s = super().decode_quoted_string(value)
 
-            statement = self.parse_statement(stream)
-            if isinstance(statement, EmptyValueAtLine):
-                if len(statements) == 0:
-                    self.raise_unexpected(stream)
-                self.skip_whitespace_or_comment(stream)
-                value = self.parse_value(stream)
-                last_statement = statements.pop(-1)
-                fixed_last = (
-                    last_statement[0],
-                    statement
-                )
-                statements.append(fixed_last)
-                statements.append((last_statement[1], value))
+        # Deal with dash (-) continuation:
+        # sp = ''.join(self.grammar.spacing_characters)
+        fe = ''.join(self.grammar.format_effectors)
+        ws = ''.join(self.grammar.whitespace)
+        nodash = re.sub(fr'-[{fe}][{ws}]*', '', s)
 
+        # Originally thought that only format effectors surrounded
+        # by whitespace was to be collapsed
+        # foo = re.sub(fr'[{sp}]*[{fe}]+[{sp}]*', ' ', nodash)
+
+        # But really it collapses all whitespace and strips lead and trail.
+        return re.sub(fr'[{ws}]+', ' ', nodash.strip(ws))
+
+
+class OmniDecoder(ODLDecoder):
+    """A permissive decoder that attempts to parse all forms of
+    "PVL" that are thrown at it.
+
+    Extends ODLDecoder.
+    """
+
+    def decode_non_decimal(self, value: str) -> int:
+        """Extends parent function by allowing a plus or
+        minus sign to be in two different positions
+        in a non-decimal number, since PVL has one
+        specification, and ODL has another.
+        """
+        # Non-Decimal with a variety of radix values and sign
+        # positions.
+        match = self.grammar.nondecimal_re.fullmatch(value)
+        if match is not None:
+            d = match.groupdict('')
+            if 'second_sign' in d:
+                if d['sign'] != '' and d['second_sign'] != '':
+                    raise ValueError(f'The non-decimal value, "{value}", '
+                                     'has two signs.')
+                elif d['sign'] != '':
+                    sign = d['sign']
+                else:
+                    sign = d['second_sign']
             else:
-                statements.append(statement)
+                sign = d['sign']
 
-    def skip_whitespace_or_comment(self, stream):
-        while 1:
-            if self.has_whitespace(stream):
-                self.skip_whitespace(stream)
-                continue
+            return int(sign + d['non_decimal'], base=int(d['radix']))
+        raise ValueError
 
-            if self.has_comment(stream):
-                self.skip_comment(stream)
-                continue
-
-            return
-
-    def skip_statement_delimiter(self, stream):
-        """Ensure that a Statement Delimiter consists of one semicolon,
-        optionally preceded by multiple White Spaces and/or Comments, OR one or
-        more Comments and/or White Space sequences.
-
-        StatementDelim ::= WSC (SemiColon | WhiteSpace | Comment)
-                         | EndProvidedOctetSeq
-
+    def decode_datetime(self, value: str):
+        """Returns an appropriate Python datetime time, date, or datetime
+        object by using the 3rd party dateutil library (if present)
+        to parse an ISO 8601 datetime string in *value*.  If it cannot,
+        or the dateutil library is not present, it will raise a
+        ValueError.
         """
-        self.skip_whitespace_or_comment(stream)
-        self.optional(stream, self.statement_delimiter)
-
-    def parse_statement(self, stream):
-        """
-        Statement ::= AggrGroup
-                    | AggrObject
-                    | AssignmentStmt
-        """
-
-        if self.has_group(stream):
-            return self.parse_group(stream)
-
-        if self.has_object(stream):
-            return self.parse_object(stream)
-
-        if self.has_assignment(stream):
-            return self.parse_assignment(stream)
-
-        if self.has_assignment_symbol(stream):
-            return self.broken_assignment(stream.lineno - 1)
-
-        self.raise_unexpected(stream)
-
-    def has_assignment_symbol(self, stream):
-        self.skip_whitespace(stream)
-        self.expect(stream, self.assignment_symbole)
-        return True
-
-    def has_whitespace(self, stream, offset=0):
-        return self.peek(stream, 1, offset) in self.whitespace
-
-    def skip_whitespace(self, stream):
-        while self.peek(stream, 1) in self.whitespace:
-            stream.read(1)
-
-    def has_multiline_comment(self, stream, offset=0):
-        return self.has_next(self.begin_comment, stream, offset)
-
-    def has_line_comment(self, stream, offset=0):
-        return self.has_next(self.line_comment, stream, offset)
-
-    def has_comment(self, stream, offset=0):
-        return (
-            self.has_line_comment(stream, offset) or
-            self.has_multiline_comment(stream, offset)
-        )
-
-    def skip_comment(self, stream):
-        if self.has_line_comment(stream):
-            end_comment = b'\n'
-        else:
-            end_comment = self.end_comment
-
-        while 1:
-            next = self.peek(stream, len(end_comment))
-            if not next:
-                self.raise_unexpected_eof(stream)
-
-            if next == end_comment:
-                break
-
-            stream.read(1)
-        stream.read(len(end_comment))
-
-    def has_end(self, stream):
-        """
-        EndStatement ::=
-            EndKeyword (SemiColon | WhiteSpace | Comment | EndProvidedOctetSeq)
-        """
-        for token in self.end_tokens:
-            if not self.has_next(token, stream):
-                continue
-
-            offset = len(token)
-
-            if self.has_eof(stream, offset):
-                return True
-
-            if self.has_whitespace(stream, offset):
-                return True
-
-            if self.has_comment(stream, offset):
-                return True
-
-            if self.has_next(self.statement_delimiter, stream, offset):
-                return True
-
-        return self.has_eof(stream)
-
-    def skip_end(self, stream):
-        if self.has_eof(stream):
-            return
-
-        self.expect_in(stream, self.end_tokens)
-        self.skip_whitespace_or_comment(stream)
-        self.optional(stream, self.statement_delimiter)
-
-    def has_group(self, stream):
-        return self.has_token_in(self.begin_group_tokens, stream)
-
-    def parse_end_assignment(self, stream, expected):
-        self.skip_whitespace_or_comment(stream)
-
-        if not self.has_next(self.assignment_symbole, stream):
-            return
-
-        self.ensure_assignment(stream)
-
-        name = self.next_token(stream)
-        if name == expected:
-            return
-
-        self.raise_unexpected(stream, name)
-
-    def parse_group(self, stream):
-        """Block Name must match Block Name in paired End Group Statement if
-        Block Name is present in End Group Statement.
-
-        BeginGroupStmt ::=
-            BeginGroupKeywd WSC AssignmentSymbol WSC BlockName StatementDelim
-        """
-        self.expect_in(stream, self.begin_group_tokens)
-
-        self.ensure_assignment(stream)
-        name = self.next_token(stream)
-
-        self.skip_statement_delimiter(stream)
-        statements = self.parse_block(stream, self.has_end_group)
-
-        self.expect_in(stream, self.end_group_tokens)
-        self.parse_end_assignment(stream, name)
-        self.skip_statement_delimiter(stream)
-
-        return name.decode('utf-8'), PVLGroup(statements)
-
-    def has_end_group(self, stream):
-        """
-        EndGroupLabel :=  AssignmentSymbol WSC BlockName
-        EndGroupStmt := EndGroupKeywd WSC EndGroupLabel? StatementDelim
-        """
-        return self.has_token_in(self.end_group_tokens, stream)
-
-    def has_object(self, stream):
-        return self.has_token_in(self.begin_object_tokens, stream)
-
-    def parse_object(self, stream):
-        """Block Name must match Block Name in paired End Object Statement
-        if Block Name is present in End Object Statement StatementDelim.
-
-        BeginObjectStmt ::=
-            BeginObjectKeywd WSC AssignmentSymbol WSC BlockName StatementDelim
-        """
-        self.expect_in(stream, self.begin_object_tokens)
-
-        self.ensure_assignment(stream)
-        name = self.next_token(stream)
-
-        self.skip_statement_delimiter(stream)
-        statements = self.parse_block(stream, self.has_end_object)
-
-        self.expect_in(stream, self.end_object_tokens)
-        self.parse_end_assignment(stream, name)
-        self.skip_statement_delimiter(stream)
-
-        return name.decode('utf-8'), PVLObject(statements)
-
-    def has_end_object(self, stream):
-        """
-        EndObjectLabel ::= AssignmentSymbol WSC BlockName
-        EndObjectStmt ::= EndObjectKeywd WSC EndObjectLabel? StatementDelim
-        """
-        return self.has_token_in(self.end_object_tokens, stream)
-
-    def has_assignment(self, stream):
-        return not self.has_delimiter(stream)
-
-    def ensure_assignment(self, stream):
-        self.skip_whitespace_or_comment(stream)
-        self.expect(stream, self.assignment_symbole)
-        self.skip_whitespace_or_comment(stream)
-
-    def parse_assignment(self, stream):
-        """
-        AssignmentStmt ::= Name WSC AssignmentSymbol WSC Value StatementDelim
-        """
-        lineno = stream.lineno
-        name = self.next_token(stream)
-        self.ensure_assignment(stream)
-        at_an_end = any((
-            self.has_end_group(stream),
-            self.has_end_object(stream),
-            self.has_end(stream),
-            self.has_next(self.statement_delimiter, stream, 0)))
-        if at_an_end:
-            value = self.broken_assignment(lineno)
-            self.skip_whitespace_or_comment(stream)
-        else:
-            value = self.parse_value(stream)
-        self.skip_statement_delimiter(stream)
-        return name.decode('utf-8'), value
-
-    def parse_value(self, stream):
-        """
-        Value ::= (SimpleValue | Set | Sequence) WSC UnitsExpression?
-        """
-        if self.has_sequence(stream):
-            value = self.parse_sequence(stream)
-        elif self.has_set(stream):
-            value = self.parse_set(stream)
-        else:
-            value = self.parse_simple_value(stream)
-
-        self.skip_whitespace_or_comment(stream)
-
-        if self.has_units(stream):
-            return Units(value, self.parse_units(stream))
-
-        return value
-
-    def parse_iterable(self, stream, start, end):
-        """
-        Sequence ::= SequenceStart WSC SequenceValue? WSC SequenceEnd
-        Set := SetStart WSC SequenceValue? WSC SetEnd
-        SequenceValue ::= Value (WSC SeparatorSymbol WSC Value)*
-        """
-        values = []
-
-        self.expect(stream, start)
-        self.skip_whitespace_or_comment(stream)
-
-        if self.has_next(end, stream):
-            self.expect(stream, end)
-            return values
-
-        while 1:
-            self.skip_whitespace_or_comment(stream)
-            values.append(self.parse_value(stream))
-            self.skip_whitespace_or_comment(stream)
-
-            if self.has_next(end, stream):
-                self.expect(stream, end)
-                return values
-
-            self.expect(stream, self.seporator)
-
-    def has_sequence(self, stream):
-        return self.has_next(self.begin_sequence, stream)
-
-    def parse_sequence(self, stream):
-        return self.parse_iterable(
-            stream,
-            self.begin_sequence,
-            self.end_sequence
-        )
-
-    def has_set(self, stream):
-        return self.has_next(self.begin_set, stream)
-
-    def parse_set(self, stream):
-        return set(self.parse_iterable(stream, self.begin_set, self.end_set))
-
-    def has_units(self, stream):
-        return self.has_next(self.begin_units, stream)
-
-    def parse_units(self, stream):
-        """
-        UnitsExpression ::=
-            UnitsStart WhiteSpace* UnitsValue WhiteSpace* UnitsEnd
-        """
-        value = b''
-        self.expect(stream, self.begin_units)
-
-        while not self.has_next(self.end_units, stream):
-            if self.has_eof(stream):
-                self.raise_unexpected_eof(stream)
-            value += stream.read(1)
-
-        self.expect(stream, self.end_units)
-        return value.strip(b''.join(self.whitespace)).decode('utf-8')
-
-    def parse_simple_value(self, stream):
-        """
-        SimpleValue ::= Integer
-                      | FloatingPoint
-                      | Exponential
-                      | BinaryNum
-                      | OctalNum
-                      | HexadecimalNum
-                      | DateTimeValue
-                      | QuotedString
-                      | UnquotedString
-        """
-        if self.has_quoted_string(stream):
-            return self.parse_quoted_string(stream)
-
-        if self.has_binary_number(stream):
-            return self.parse_binary_number(stream)
-
-        if self.has_octal_number(stream):
-            return self.parse_octal_number(stream)
-
-        if self.has_decimal_number(stream):
-            return self.parse_decimal_number(stream)
-
-        if self.has_hex_number(stream):
-            return self.parse_hex_number(stream)
-
-        if self.has_unquoated_string(stream):
-            return self.parse_unquoated_string(stream)
-
-        if self.has_end(stream):
-            return self.broken_assignment(stream.lineno)
-
-        self.raise_unexpected(stream)
-
-    def has_radix(self, radix, stream):
-        prefix = b(str(radix)) + self.radix_symbole
-        if self.has_next(prefix, stream):
-            return True
-
-        for sign in self.signs:
-            if self.has_next(sign + prefix, stream):
-                return True
-
-        return False
-
-    def parse_sign(self, stream):
-        if self.has_next(self.plus_sign, stream):
-            self.expect(stream, self.plus_sign)
-            return 1
-
-        if self.has_next(self.minus_sign, stream):
-            self.expect(stream, self.minus_sign)
-            return -1
-
-        return 1
-
-    def parse_radix(self, radix, chars, stream):
-        """
-        BinaryNum ::= [+-]? '2' RadixSymbol [0-1]+ RadixSymbol
-        OctalChar ::= [+-]? '8' RadixSymbol [0-7]+ RadixSymbol
-        HexadecimalNum ::= [+-]? '16' RadixSymbol [0-9a-zA-Z]+ RadixSymbol
-        """
-        value = b''
-        sign = self.parse_sign(stream)
-        self.expect(stream, b(str(radix)) + self.radix_symbole)
-        sign *= self.parse_sign(stream)
-
-        while not self.has_next(self.radix_symbole, stream):
-            next = stream.read(1)
-            if not next:
-                self.raise_unexpected_eof(stream)
-
-            if next not in chars:
-                self.raise_unexpected(stream, next)
-
-            value += next
-
-        if not value:
-            self.raise_unexpected(stream, self.radix_symbole)
-
-        self.expect(stream, self.radix_symbole)
-        return sign * int(value, radix)
-
-    def has_binary_number(self, stream):
-        return self.has_radix(2, stream)
-
-    def parse_binary_number(self, stream):
-        return self.parse_radix(2, self.binary_chars, stream)
-
-    def has_octal_number(self, stream):
-        return self.has_radix(8, stream)
-
-    def parse_octal_number(self, stream):
-        return self.parse_radix(8, self.octal_chars, stream)
-
-    def has_decimal_number(self, stream):
-        return self.has_radix(10, stream)
-
-    def parse_decimal_number(self, stream):
-        return self.parse_radix(10, self.decimal_chars, stream)
-
-    def has_hex_number(self, stream):
-        return self.has_radix(16, stream)
-
-    def parse_hex_number(self, stream):
-        return self.parse_radix(16, self.hex_chars, stream)
-
-    def has_quoted_string(self, stream):
-        for mark in self.quote_marks:
-            if self.has_next(mark, stream):
-                return True
-        return False
-
-    def unescape_next_char(self, stream):
-        esc = stream.read(1)
-
-        if esc in self.quote_marks:
-            return esc
 
         try:
-            return FORMATTING_CHARS[esc]
-        except KeyError:
-            msg = "Invalid \\escape: " + repr(esc)
-            self.raise_error(msg, stream)
-
-    def parse_quoted_string(self, stream):
-        for mark in self.quote_marks:
-            if self.has_next(mark, stream):
-                break
-
-        self.expect(stream, mark)
-        self.skip_whitespace(stream)
-
-        value = b''
-
-        while not self.has_next(mark, stream):
-            next = stream.read(1)
-            if not next:
-                self.raise_unexpected_eof(stream)
-
-            if next == b'\\':
-                next = self.unescape_next_char(stream)
-
-            elif next in self.whitespace:
-                self.skip_whitespace(stream)
-                if self.has_next(mark, stream):
-                    break
-                next = b' '
-
-            elif next == b'-' and self.has_token_in(self.newline_chars, stream):
-                self.skip_whitespace(stream)
-                continue
-
-            value += next
-
-        self.expect(stream, mark)
-        return value.decode('utf-8')
-
-    def has_unquoated_string(self, stream):
-        next = self.peek(stream, 1)
-        if not next:
-            return False
-
-        if next in self.delimiter_chars:
-            return False
-
-        return not self.has_comment(stream)
-
-    def parse_unquoated_string(self, stream):
-        value = b''
-        while 1:
-            value += self.next_token(stream)
-
-            if not value.endswith(self.continuation_symbole):
-                break
-
-            if self.peek(stream, 1) not in self.newline_chars:
-                break
-
-            self.skip_whitespace_or_comment(stream)
-
-            if not self.has_unquoated_string(stream):
-                break
-
-            value = value[:-1]
-
-        return self.cast_unquoated_string(value)
-
-    def cast_unquoated_string(self, value):
-        if self.is_null(value):
-            return self.parse_null(value)
-
-        if self.is_boolean(value):
-            return self.parse_boolean(value)
-
-        try:
-            return self.parse_number(value)
+            return super().decode_datetime(value)
         except ValueError:
-            pass
+            try:
+                from dateutil.parser import isoparser
+                isop = isoparser()
 
-        try:
-            return self.parse_datetime(value)
-        except ValueError:
-            pass
+                if(len(value) > 3
+                   and value[-2] == '+'
+                   and value[-1].isdigit()):
+                    # This technically means that we accept slightly more
+                    # formats than ISO 8601 strings, since under that
+                    # specification, two digits after the '+' are required
+                    # for an hour offset, but ODL doesn't have this
+                    # requirement.  If we find only one digit, we'll
+                    # just assume it means an hour and insert a zero so
+                    # that it can be parsed.
+                    tokens = value.rpartition('+')
+                    value = tokens[0] + '+0' + tokens[-1]
 
-        return value.decode('utf-8')
+                try:
+                    return isop.parse_isodate(value)
+                except ValueError:
+                    try:
+                        return isop.parse_isotime(value)
+                    except ValueError:
+                        return isop.isoparse(value)
 
-    def is_null(self, value):
-        return value in self.null_tokens
+            except ImportError:
+                warn('The dateutil library is not present, so more '
+                     'exotic date and time formats beyond the PVL/ODL '
+                     'set cannot be parsed.', ImportWarning)
 
-    def parse_null(self, value):
-        return None
-
-    def is_boolean(self, value):
-        return value in self.boolean_tokens
-
-    def parse_boolean(self, value):
-        return value in self.true_tokens
-
-    def parse_number(self, value):
-        return parse_number(value)
-
-    def parse_datetime(self, value):
-        return parse_datetime(value)
+            raise ValueError

@@ -11,17 +11,18 @@ pvl
 .. image:: https://img.shields.io/pypi/dm/pvl.svg?style=flat-square
         :target: https://pypi.python.org/pypi/pvl
 
-Python implementation of PVL (Parameter Value Language)
+Python implementation of a PVL (Parameter Value Language) library.
 
 * Free software: BSD license
 * Documentation: http://pvl.readthedocs.org.
-* Support for Python 2, 3 and pypi.
-* Proudly part of the `PlanetaryPy Toolkit`_
+* Support for Python 3.6 and higher (avaiable via pypi).
+* `PlanetaryPy`_ Affiliate Package.
 
-PVL is a markup language, similar to xml, commonly employed for entries in the
-Planetary Database System used by NASA to store mission data, among other uses.
-This package supports both encoding a decoding a superset of PVL, including the
-`USGS Isis Cube Label`_ and `NASA PDS 3 Label`_ dialects.
+PVL is a markup language, similar to XML, commonly employed for
+entries in the Planetary Database System used by NASA to store
+mission data, among other uses.  This package supports both encoding
+and decoding a variety of PVL 'flavors' including PVL itself, ODL,
+`NASA PDS 3 Labels`_, and `USGS ISIS Cube Labels`_.
 
 
 Installation
@@ -35,17 +36,17 @@ To install with pip, at the command line::
 
 Directions for installing with conda-forge:
 
-Installing pvl from the conda-forge channel can be achieved by adding
+Installing ``pvl`` from the conda-forge channel can be achieved by adding
 conda-forge to your channels with::
 
     conda config --add channels conda-forge
 
 
-Once the conda-forge channel has been enabled, pvl can be installed with::
+Once the conda-forge channel has been enabled, ``pvl`` can be installed with::
 
     conda install pvl
 
-It is possible to list all of the versions of pvl available on your platform
+It is possible to list all of the versions of ``pvl`` available on your platform
 with::
 
     conda search pvl --channel conda-forge
@@ -54,10 +55,11 @@ with::
 Basic Usage
 -----------
 
-pvl exposes an API familiar to users of the standard library json module.
+``pvl`` exposes an API familiar to users of the standard library
+``json`` module.
 
-Decoding is primarily done through ``pvl.load`` for file like objects and
-``pvl.loads`` for strings::
+Decoding is primarily done through ``pvl.load()`` for file like objects and
+``pvl.loads()`` for strings::
 
     >>> import pvl
     >>> module = pvl.loads("""
@@ -65,56 +67,69 @@ Decoding is primarily done through ``pvl.load`` for file like objects and
     ...     items = (1, 2, 3)
     ...     END
     ... """)
-    >>> print module
+    >>> print(module)
     PVLModule([
-      (u'foo', u'bar')
-      (u'items', [1, 2, 3])
+      ('foo', 'bar')
+      ('items', [1, 2, 3])
     ])
-    >>> print module['foo']
+    >>> print(module['foo'])
     bar
 
-You may also use ``pvl.load`` to read a label directly from an image_::
+You may also use ``pvl.load()`` to read PVL text directly from an image_::
 
     >>> import pvl
-    >>> label = pvl.load('pattern.cub')
-    >>> print label
+    >>> label = pvl.load('tests/data/pattern.cub')
+    >>> print(label)
     PVLModule([
-      (u'IsisCube',
-       PVLObject([
-        (u'Core',
-         PVLObject([
-          (u'StartByte', 65537)
-          (u'Format', u'Tile')
-    # output truncated...
-    >>> print label['IsisCube']['Core']['StartByte']
+      ('IsisCube',
+       {'Core': {'Dimensions': {'Bands': 1,
+                                'Lines': 90,
+                                'Samples': 90},
+                 'Format': 'Tile',
+                 'Pixels': {'Base': 0.0,
+                            'ByteOrder': 'Lsb',
+                            'Multiplier': 1.0,
+                            'Type': 'Real'},
+                 'StartByte': 65537,
+                 'TileLines': 128,
+                 'TileSamples': 128}})
+      ('Label', PVLObject([
+        ('Bytes', 65536)
+      ]))
+    ])
+    >>> print(label['IsisCube']['Core']['StartByte'])
     65537
 
 
-Similarly, encoding pvl modules is done through ``pvl.dump`` and ``pvl.dumps``::
+Similarly, encoding Python objects as PVL text is done through
+``pvl.dump()`` and ``pvl.dumps()``::
 
     >>> import pvl
-    >>> print pvl.dumps({
+    >>> print(pvl.dumps({
     ...     'foo': 'bar',
     ...     'items': [1, 2, 3]
-    ... })
-    items = (1, 2, 3)
-    foo = bar
+    ... }))
+    FOO   = bar
+    ITEMS = (1, 2, 3)
     END
+    <BLANKLINE>
 
-``PVLModule`` objects may also be pragmatically built up to control the order
-of parameters as well as duplicate keys::
+``pvl.PVLModule`` objects may also be pragmatically built up
+to control the order of parameters as well as duplicate keys::
 
     >>> import pvl
     >>> module = pvl.PVLModule({'foo': 'bar'})
     >>> module.append('items', [1, 2, 3])
-    >>> print pvl.dumps(module)
-    foo = bar
-    items = (1, 2, 3)
+    >>> print(pvl.dumps(module))
+    FOO   = bar
+    ITEMS = (1, 2, 3)
     END
+    <BLANKLINE>
 
-A ``PVLModule`` is a ``dict`` like container that preserves ordering as well as
-allows multiple values for the same key. It provides a similar similar semantics
-to a ``list`` of key/value ``tuples`` but with ``dict`` style access::
+A ``pvl.PVLModule`` is a ``dict``-like container that preserves
+ordering as well as allows multiple values for the same key. It provides
+similar semantics to a ``list`` of key/value ``tuples`` but 
+with ``dict``-style access::
 
     >>> import pvl
     >>> module = pvl.PVLModule([
@@ -122,17 +137,38 @@ to a ``list`` of key/value ``tuples`` but with ``dict`` style access::
     ...     ('items', [1, 2, 3]),
     ...     ('foo', 'remember me?'),
     ... ])
-    >>> print module['foo']
+    >>> print(module['foo'])
     bar
-    >>> print module.getlist('foo')
+    >>> print(module.getlist('foo'))
     ['bar', 'remember me?']
-    >>> print module.items()
-    [('foo', 'bar'), ('items', [1, 2, 3]), ('foo', u'remember me?')]
-    >>> print pvl.dumps(module)
-    foo = bar
-    items = (1, 2, 3)
-    foo = "remember me?"
+    >>> print(module.items())
+    ItemsView(PVLModule([
+      ('foo', 'bar')
+      ('items', [1, 2, 3])
+      ('foo', 'remember me?')
+    ]))
+    >>> print(pvl.dumps(module))
+    FOO   = bar
+    ITEMS = (1, 2, 3)
+    FOO   = 'remember me?'
     END
+    <BLANKLINE>
+
+The intent is for the loaders (``pvl.load()`` and ``pvl.loads()``)
+to be permissive, and attempt to parse as wide a variety of PVL text as
+possible, including some kinds of 'broken' PVL text.
+
+On the flip side, when dumping a Python object to PVL text (via
+``pvl.dumps()`` and ``pvl.dump()``), the library will default
+to writing PDS3-Standards-compliant PVL text, which in some ways
+is the most restrictive, but the most likely version of PVL text
+that you need if you're writing it out (this is different from
+pre-1.0 versions of ``pvl``).
+
+You can change this behavior by giving different parameters to the
+loaders and dumpers that define the grammar of the PVL text that
+you're interested in, as well as custom parsers, decoders, and
+encoders.
 
 For more information on custom serilization and deseralization see the
 `full documentation`_.
@@ -146,9 +182,9 @@ Feedback, issues, and contributions are always gratefully welcomed. See the
 environment.
 
 
-.. _PlanetaryPy Toolkit: https://github.com/planetarypy
-.. _USGS Isis Cube Label: http://isis.astrogeology.usgs.gov/
-.. _NASA PDS 3 Label: https://pds.nasa.gov
+.. _PlanetaryPy: https://github.com/planetarypy
+.. _USGS ISIS Cube Labels: http://isis.astrogeology.usgs.gov/
+.. _NASA PDS 3 Labels: https://pds.nasa.gov
 .. _image: https://github.com/planetarypy/pvl/raw/master/tests/data/pattern.cub
 .. _full documentation: http://pvl.readthedocs.org
 .. _contributing guide: https://github.com/planetarypy/pvl/blob/master/CONTRIBUTING.rst
