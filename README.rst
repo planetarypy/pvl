@@ -11,6 +11,10 @@ pvl
 .. image:: https://img.shields.io/pypi/dm/pvl.svg?style=flat-square
         :target: https://pypi.python.org/pypi/pvl
 
+.. image:: https://readthedocs.org/projects/pvl/badge/?version=latest
+        :target: https://pvl.readthedocs.io/en/latest/?badge=latest
+        :alt: Documentation Status
+
 Python implementation of a PVL (Parameter Value Language) library.
 
 * Free software: BSD license
