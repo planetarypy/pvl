@@ -26,21 +26,23 @@ However, the ``pvl`` library also supports the use of other quantity objects.
 Getting other quantity objects from PVL text
 --------------------------------------------
 
-In order to get the parsing side of the ``pvl`` library to return a particular
-kind of quantity object when a PVL Value followed by a PVL Units Expression
-is found, can be achieved by passing the name of that quantity class to the
-decoder's ``quantity_cls`` argument.  This quantity class's constructor must
-take two arguments, where the first will receive the PVL Value (as whatever
-Python type ``pvl`` determines it to be) and the second will receive the 
-PVL Units Expression (as a ``str``).
+In order to get the parsing side of the ``pvl`` library to return
+a particular kind of quantity object when a PVL Value followed by
+a PVL Units Expression is found, you must pass the name of that
+quantity class to the decoder's ``quantity_cls`` argument.  This
+quantity class's constructor must take two arguments, where the
+first will receive the PVL Value (as whatever Python type ``pvl``
+determines it to be) and the second will receive the PVL Units
+Expression (as a ``str``).
 
-Examples of how to do this with :func:`pvl.load` or :func:`pvl.loads` are below
-for ``astropy`` and ``pint``.
+Examples of how to do this with :func:`pvl.load` or :func:`pvl.loads`
+are below for ``astropy`` and ``pint``.
 
-Depending on the PVL text that you are parsing, and the quantity class that you
-are using, you may get errors if the quantity class can't accept the PVL Units
-Expression, or if the *value* part of the quantity class can't handle all of the
-possible types of PVL Values (which can be Simple Values, Sets, or Sequences).
+Depending on the PVL text that you are parsing, and the quantity
+class that you are using, you may get errors if the quantity class
+can't accept the PVL Units Expression, or if the *value* part of
+the quantity class can't handle all of the possible types of PVL
+Values (which can be Simple Values, Sets, or Sequences).
 
 
 ----------------------------------------------
@@ -57,8 +59,29 @@ test for those objects).  Any other kind of quantity object in the
 data structure passed to :func:`pvl.dump` or :func:`pvl.dumps` will
 just be encoded as a string.
 
-Other types are possible, but require subclassing the encoder classes, or
-submitting a PR to the repo to add them.
+Other types are possible, but require additions to the encoder in
+use.  The :class:`astropy.units.Quantity` object is already handled
+by the ``pvl`` library, but if it wasn't, this is how you would
+enable it.  You just need the class name, the name of the
+property on the class that yields the value or magnitude (for
+:class:`astropy.units.Quantity` that is ``value``), and the property
+that yields the units (for :class:`astropy.units.Quantity` that is
+``unit``).  With those pieces in hand, we just need to instantiate
+an encoder and add the new quantity class and the names of those
+properties to it, and then pass it to :func:`pvl.dump` or
+:func:`pvl.dumps` as follows::
+
+ >>> import pvl
+ >>> from astropy import units as u
+ >>> my_label = dict(length=u.Quantity(15, u.m), velocity=u.Quantity(0.5, u.m / u.s))
+ >>> my_encoder = pvl.PDSLabelEncoder()
+ >>> my_encoder.add_quantity_cls(u.Quantity, 'value', 'unit')
+ >>> print(pvl.dumps(my_label, encoder=my_encoder))
+ LENGTH   = 15.0 <m>
+ VELOCITY = 0.5 <m / s>
+ END
+ <BLANKLINE>
+
 
 
 ----------------------
