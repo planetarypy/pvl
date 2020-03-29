@@ -16,6 +16,7 @@ import re
 import textwrap
 
 from collections import abc
+from warnings import warn
 
 from ._collections import PVLObject, PVLGroup, Units
 from .grammar import PVLGrammar, ODLGrammar, ISISGrammar
@@ -224,12 +225,46 @@ class PVLEncoder(object):
         """Returns a ``str`` formatted as a PVL Value based
         on the *value* object according to the rules of this encoder.
         """
-        if isinstance(value, Units):
-            val = self.encode_simple_value(value.value)
-            units = self.encode_units(value.units)
-            return f'{val} {units}'
-        else:
+        try:
+            return self.encode_quantity(value)
+        except ValueError:
             return self.encode_simple_value(value)
+
+    def encode_quantity(self, value) -> str:
+        """Returns a ``str`` formatted as a PVL Value followed by
+        a PVL Units Expression if the *value* object can be
+        encoded this way, otherwise raise ValueError."""
+        if isinstance(value, Units):
+            return self.encode_value_units(value.value, value.units)
+
+        try:
+            from astropy import units as astrounits
+            if isinstance(value, astrounits.Quantity):
+                return self.encode_value_units(value.value, value.unit)
+        except ImportError:
+            warn("The astropy library is not present, so "
+                 "astropy.units.Quantity objects will not "
+                 "be properly encoded.", ImportWarning)
+
+        try:
+            from pint import Quantity as pintquantity
+            if isinstance(value, pintquantity):
+                return self.encode_value_units(value.magnitude, value.units)
+        except ImportError:
+            warn("The pint library is not present, so "
+                 "pint.Quantity objects will not "
+                 "be properly encoded.", ImportWarning)
+
+        raise ValueError(f"The value object {value} could not be "
+                         "encoded as a PVL Value followed by a PVL "
+                         f"Units Expression, it is of type {type(value)}")
+
+    def encode_value_units(self, value, units) -> str:
+        """Returns a ``str`` formatted as a PVL Value from *value*
+        followed by a PVL Units Expressions from *units*."""
+        value_str = self.encode_simple_value(value)
+        units_str = self.encode_units(str(units))
+        return f'{value_str} {units_str}'
 
     def encode_simple_value(self, value) -> str:
         """Returns a ``str`` formatted as a PVL Simple Value based
@@ -618,7 +653,7 @@ class ODLEncoder(PVLEncoder):
         """
 
         # if self.is_identifier(value.strip('*/()-')):
-        if self.is_identifier(re.sub(r'[\*/\(\)-]', '', value)):
+        if self.is_identifier(re.sub(r'[\s\*/\(\)-]', '', value)):
 
             if '**' in value:
                 exponents = re.findall(r'\*\*.+?', value)

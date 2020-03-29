@@ -128,6 +128,34 @@ END_GROUP = foo;
 END;'''
         self.assertEqual(s, self.e.encode(m))
 
+    def test_encode_quantity(self):
+        p = (Units(34, 'm/s'), '34 <m/s>')
+        self.assertEqual(p[1], self.e.encode_quantity(p[0]))
+
+        self.assertRaises(ValueError, self.e.encode_quantity, 'not a quant')
+
+        try:
+            from astropy import units as u
+            # astropy.units.Quantity makes values floating point
+            # and appears to print the units with spaces.
+            # It doesn't violate the PVL spec, but may cause users
+            # a surprise.  However, if they are using Astropy
+            # Quantities, they are theoretically aware of all that.
+            p = (u.Quantity(34, 'm/s'), '34.0 <m / s>')
+            self.assertEqual(p[1], self.e.encode_quantity(p[0]))
+        except ImportError:  # astropy isn't available.
+            pass
+
+        try:
+            from pint import Quantity as pintquant
+            # pint.Quantity also has its own peculiarities about
+            # formating the output.  Again, doesn't break the spec,
+            # but may cause surprises.
+            p = (pintquant(34, 'm/s'), '34 <meter / second>')
+            self.assertEqual(p[1], self.e.encode_quantity(p[0]))
+        except ImportError:  # pint isn't available.
+            pass
+
 
 class TestODLDecoder(unittest.TestCase):
 
@@ -139,6 +167,14 @@ class TestODLDecoder(unittest.TestCase):
         self.assertTrue(self.e.is_scalar('scalar'))
         self.assertTrue(self.e.is_scalar(Units(5, 'm')))
         self.assertFalse(self.e.is_scalar(Units('five', 'm')))
+
+    def test_encode_quantity(self):
+        try:
+            from astropy import units as u
+            p = (u.Quantity(34, 'm/s'), '34.0 <m / s>')
+            self.assertEqual(p[1], self.e.encode_quantity(p[0]))
+        except ImportError:  # astropy isn't available.
+            pass
 
 
 class TestPDSLabelEncoder(unittest.TestCase):

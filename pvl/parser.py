@@ -56,7 +56,7 @@ will be thrown into the *tokens* generator iterator (via .throw()).
 import collections.abc as abc
 import re
 
-from ._collections import PVLModule, PVLGroup, PVLObject, Units
+from ._collections import PVLModule, PVLGroup, PVLObject
 from .token import Token
 from .grammar import PVLGrammar, OmniGrammar
 from .decoder import PVLDecoder, OmniDecoder
@@ -704,7 +704,7 @@ class PVLParser(object):
                              'Was expecting a units character, but found a '
                              f'unit delimiter, "{d}" instead.')
 
-        return Units(value, str(units_value))
+        return self.decoder.decode_quantity(value, units_value)
 
 
 class ODLParser(PVLParser):

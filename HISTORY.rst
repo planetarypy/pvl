@@ -70,6 +70,8 @@ backwards-incompatible changes are being introduced to the codebase.
 * The library now properly parses quoted strings that include backslashes
   as detailed in #33.
 * Utility programs pvl_validate and pvl_translate were added.
+* The ability to deal with 3rd-party 'quantity' objects like astropy.units.Quantity
+  and pint.Quantity was added and documented, addresses #22.
 * Documentation was updated and expanded.
 
 0.3.0 (2017-06-28)
