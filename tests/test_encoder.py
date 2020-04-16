@@ -129,8 +129,8 @@ END;'''
         self.assertEqual(s, self.e.encode(m))
 
     def test_encode_quantity(self):
-        p = (Units(34, 'm/s'), '34 <m/s>')
-        self.assertEqual(p[1], self.e.encode_quantity(p[0]))
+        q, s = Units(34, 'm/s'), '34 <m/s>'
+        self.assertEqual(s, self.e.encode_quantity(q))
 
         self.assertRaises(ValueError, self.e.encode_quantity, 'not a quant')
 
@@ -141,8 +141,8 @@ END;'''
             # It doesn't violate the PVL spec, but may cause users
             # a surprise.  However, if they are using Astropy
             # Quantities, they are theoretically aware of all that.
-            p = (u.Quantity(34, 'm/s'), '34.0 <m / s>')
-            self.assertEqual(p[1], self.e.encode_quantity(p[0]))
+            q, s = u.Quantity(34, 'm/s'), '34.0 <m / s>'
+            self.assertEqual(s, self.e.encode_quantity(q))
         except ImportError:  # astropy isn't available.
             pass
 
@@ -151,8 +151,8 @@ END;'''
             # pint.Quantity also has its own peculiarities about
             # formating the output.  Again, doesn't break the spec,
             # but may cause surprises.
-            p = (pintquant(34, 'm/s'), '34 <meter / second>')
-            self.assertEqual(p[1], self.e.encode_quantity(p[0]))
+            q, s = pintquant(34, 'm/s'), '34 <meter / second>'
+            self.assertEqual(s, self.e.encode_quantity(q))
         except ImportError:  # pint isn't available.
             pass
 
