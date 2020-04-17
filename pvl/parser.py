@@ -520,7 +520,7 @@ class PVLParser(object):
         t = next(tokens)
         if t != delimiters[0]:
             tokens.send(t)
-            raise ValueError(f'Expecting a begin delimiter "{delimiters[0]} =" '
+            raise ValueError(f'Expecting a begin delimiter "{delimiters[0]}" '
                              f'but found: "{t}"')
         set_seq = list()
         # Initial WSC and/or empty
@@ -627,6 +627,8 @@ class PVLParser(object):
                 try:
                     value = p(tokens)
                     break
+                except LexerError:
+                    raise
                 except ValueError:
                     pass
             else:
