@@ -333,6 +333,13 @@ def lex_continue(char: str, next_char: str, lexeme: str,
     if g.nondecimal_pre_re.fullmatch(lexeme + next_char) is not None:
         return True
 
+    # Since the numeric signs could be in the reserved characters,
+    # make sure we can parse scientific notation correctly:
+    if(char.lower() == 'e'
+       and next_char in g.numeric_start_chars
+       and Token(lexeme + next_char + '2', grammar=g).is_numeric()):
+        return True
+
     # Some datetimes can have trailing numeric tz offsets,
     # if the decoder allows it, this means there could be
     # a '+' that splits the lexeme that we don't want.
