@@ -237,7 +237,8 @@ class TestLexer(unittest.TestCase):
 
     def test_numeric(self):
         pairs = (('Number: +79', ['Number:', '+79']),
-                 ('Binary: +2#0101#', ['Binary:', '+2#0101#']))
+                 ('Binary: +2#0101#', ['Binary:', '+2#0101#']),
+                 ('Scientific_notation: 2e+2', ['Scientific_notation:', '2e+2']))
         # ('Binary: +2#0101#', ['Binary:', '+2', '#', '0101', '#']))
         for p in pairs:
             with self.subTest(pairs=p):
