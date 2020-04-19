@@ -3,6 +3,11 @@
 History
 -------
 
+1.0.0-alpha.2 (2020-04-18)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* The ability to deal with 3rd-party 'quantity' objects like astropy.units.Quantity
+  and pint.Quantity was added and documented, addresses #22.
+
 1.0.0-alpha.1 (2020-04-17)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This is a bugfix on 1.0.0-alpha to properly parse scientific notation
@@ -70,8 +75,6 @@ backwards-incompatible changes are being introduced to the codebase.
 * The library now properly parses quoted strings that include backslashes
   as detailed in #33.
 * Utility programs pvl_validate and pvl_translate were added.
-* The ability to deal with 3rd-party 'quantity' objects like astropy.units.Quantity
-  and pint.Quantity was added and documented, addresses #22.
 * Documentation was updated and expanded.
 
 0.3.0 (2017-06-28)
