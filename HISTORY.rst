@@ -3,12 +3,18 @@
 History
 -------
 
+1.0.0-alpha.1 (2020-04-17)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This is a bugfix on 1.0.0-alpha to properly parse scientific notation
+and deal with properly catching an error.
+
+
 1.0.0-alpha (winter 2019-2020)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The above label will be changed and this paragraph will be removed
-when the decision is made to release 1.0.0.  This work is categorized
-as 1.0.0-alpha because backwards-incompatible changes are being
-introduced to the codebase.
+This is the alpha version of release 1.0.0 for pvl, and the items
+here and in other 'alpha' entries may be consolidated when 1.0.0
+is released.  This work is categorized as 1.0.0-alpha because
+backwards-incompatible changes are being introduced to the codebase.
 
 * Refactored code so that it will no longer support Python 2, 
   and is only guaranteed to work with Python 3.6 and above.

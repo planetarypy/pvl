@@ -21,7 +21,7 @@ from ._collections import (
 
 __author__ = 'The pvl Developers'
 __email__ = 'trevor@heytrevor.com'
-__version__ = '1.0.0-alpha'
+__version__ = '1.0.0-alpha.1'
 __all__ = [
     'load',
     'loads',

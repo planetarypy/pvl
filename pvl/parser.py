@@ -520,7 +520,7 @@ class PVLParser(object):
         t = next(tokens)
         if t != delimiters[0]:
             tokens.send(t)
-            raise ValueError(f'Expecting a begin delimiter "{delimiters[0]} =" '
+            raise ValueError(f'Expecting a begin delimiter "{delimiters[0]}" '
                              f'but found: "{t}"')
         set_seq = list()
         # Initial WSC and/or empty
@@ -627,7 +627,15 @@ class PVLParser(object):
                 try:
                     value = p(tokens)
                     break
+                except LexerError:
+                    # A LexerError is a subclass of ValueError, but
+                    # if we get a LexerError, that's a problem and
+                    # we need to raise it, and not let it pass.
+                    raise
                 except ValueError:
+                    # Getting a ValueError is a normal conseqence of
+                    # one of the parsing strategies not working,
+                    # this pass allows us to go to the next one.
                     pass
             else:
                 tokens.throw(ValueError,
