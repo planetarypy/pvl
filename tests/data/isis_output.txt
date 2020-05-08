@@ -1,0 +1,13 @@
+Group = Results
+  From                    = test_Hidestripe-out.diff.cub
+  Band                    = 1
+  TotalPixels             = 2048000
+  ValidPixels             = 0
+  OverValidMaximumPixels  = 0
+  UnderValidMinimumPixels = 0
+  NullPixels              = 0
+  LisPixels               = 0
+  LrsPixels               = 0
+  HisPixels               = 0
+  HrsPixels               = 2048000
+End_Group

@@ -472,7 +472,7 @@ class PVLParser(object):
                 raise ValueError('Expecting a Parameter Name, but '
                                  f'found: "{t}"')
         except StopIteration:
-            raise ParseError('Ran out of tokens before starting to parse '
+            raise ValueError('Ran out of tokens before starting to parse '
                              'an Assignment-Statement.')
 
         Value = None

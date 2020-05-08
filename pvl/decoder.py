@@ -243,7 +243,7 @@ class PVLDecoder(object):
            based on the decoder's *quantity_cls*.
         """
         try:
-            return self.quantity_cls(value, unit)
+            return self.quantity_cls(value, str(unit))
         except ValueError as err:
             raise QuantityError(err)
 
