@@ -3,6 +3,11 @@
 History
 -------
 
+1.0.0-alpha.2 (2020-04-18)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* The ability to deal with 3rd-party 'quantity' objects like astropy.units.Quantity
+  and pint.Quantity was added and documented, addresses #22.
+
 1.0.0-alpha.1 (2020-04-17)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This is a bugfix on 1.0.0-alpha to properly parse scientific notation

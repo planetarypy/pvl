@@ -21,6 +21,7 @@ from itertools import repeat, chain
 from warnings import warn
 
 from .grammar import PVLGrammar, ODLGrammar
+from ._collections import Units
 
 
 def for_try_except(exception, function, *iterable):
@@ -44,15 +45,24 @@ def for_try_except(exception, function, *iterable):
     raise exception
 
 
+class QuantityError(Exception):
+    """A simple exception to distinguish errors from Quantity classes."""
+    pass
+
+
 class PVLDecoder(object):
     """A decoder based on the rules in the CCSDS-641.0-B-2 'Blue Book'
     which defines the PVL language.
 
-    *grammar* must be a pvl.grammar object, and defaults to
-    pvl.grammar.PVLGrammar()
+    :param grammar: defaults to a :class:`pvl.grammar.PVLGrammar`, but can
+        be any object that implements the :class:`pvl.grammar` interface.
+
+    :param quantity_cls: defaults to :class:`pvl._collections.Units`, but
+        could be any class object that takes two arguments, where the
+        first is the value, and the second is the units type.
     """
 
-    def __init__(self, grammar=None):
+    def __init__(self, grammar=None, quantity_cls=None):
         self.errors = []
 
         if grammar is None:
@@ -61,6 +71,11 @@ class PVLDecoder(object):
             self.grammar = grammar
         else:
             raise Exception
+
+        if quantity_cls is None:
+            self.quantity_cls = Units
+        else:
+            self.quantity_cls = quantity_cls
 
     def decode(self, value: str):
         """Returns a Python object based on *value*."""
@@ -221,6 +236,17 @@ class PVLDecoder(object):
 
         raise ValueError
 
+    def decode_quantity(self, value, unit):
+        """Returns a Python object that represents a value with
+           an associated unit, based on the values provided via
+           *value* and *unit*.  This function creates an object
+           based on the decoder's *quantity_cls*.
+        """
+        try:
+            return self.quantity_cls(value, str(unit))
+        except ValueError as err:
+            raise QuantityError(err)
+
 
 class ODLDecoder(PVLDecoder):
     """A decoder based on the rules in the PDS3 Standards Reference
@@ -231,13 +257,13 @@ class ODLDecoder(PVLDecoder):
     default to an ODLGrammar() object.
     """
 
-    def __init__(self, grammar=None):
+    def __init__(self, grammar=None, quantity_cls=None):
         self.errors = []
 
         if grammar is None:
-            super().__init__(grammar=ODLGrammar())
+            super().__init__(grammar=ODLGrammar(), quantity_cls=quantity_cls)
         else:
-            super().__init__(grammar=grammar)
+            super().__init__(grammar=grammar, quantity_cls=quantity_cls)
 
     def decode_datetime(self, value: str):
         """Extends parent function to also deal with datetimes

@@ -56,7 +56,7 @@ will be thrown into the *tokens* generator iterator (via .throw()).
 import collections.abc as abc
 import re
 
-from ._collections import PVLModule, PVLGroup, PVLObject, Units
+from ._collections import PVLModule, PVLGroup, PVLObject
 from .token import Token
 from .grammar import PVLGrammar, OmniGrammar
 from .decoder import PVLDecoder, OmniDecoder
@@ -337,7 +337,7 @@ class PVLParser(object):
                 tokens.send(t)
                 raise ValueError(f'Expecting "=", got: {t}')
             except StopIteration:
-                raise ParseError(f'Expecting "=", but ran out of tokens.')
+                raise ParseError('Expecting "=", but ran out of tokens.')
 
         self.parse_WSC_until(None, tokens)
         return
@@ -472,7 +472,7 @@ class PVLParser(object):
                 raise ValueError('Expecting a Parameter Name, but '
                                  f'found: "{t}"')
         except StopIteration:
-            raise ParseError('Ran out of tokens before starting to parse '
+            raise ValueError('Ran out of tokens before starting to parse '
                              'an Assignment-Statement.')
 
         Value = None
@@ -704,7 +704,7 @@ class PVLParser(object):
                              'Was expecting a units character, but found a '
                              f'unit delimiter, "{d}" instead.')
 
-        return Units(value, str(units_value))
+        return self.decoder.decode_quantity(value, units_value)
 
 
 class ODLParser(PVLParser):

@@ -20,6 +20,7 @@ import itertools
 import unittest
 
 from pvl.decoder import PVLDecoder, ODLDecoder, for_try_except
+from pvl._collections import Units
 
 
 class TestForTryExcept(unittest.TestCase):
@@ -119,6 +120,26 @@ class TestDecoder(unittest.TestCase):
                  ('false', False)):
             with self.subTest(pair=p):
                 self.assertEqual(p[1], self.d.decode_simple_value(p[0]))
+
+    def test_decode_quantity(self):
+        q = self.d.decode_quantity('15', 'm/s')
+        self.assertEqual(q, Units('15', 'm/s'))
+
+        try:
+            from astropy import units as u
+            d = PVLDecoder(quantity_cls=u.Quantity)
+            q = d.decode_quantity('15', 'm/s')
+            self.assertEqual(q, u.Quantity('15', 'm/s'))
+        except ImportError:  # astropy isn't available.
+            pass
+
+        try:
+            from pint import Quantity as pintquant
+            d = PVLDecoder(quantity_cls=pintquant)
+            q = d.decode_quantity('15', 'm/s')
+            self.assertEqual(q, pintquant('15', 'm/s'))
+        except ImportError:  # pint isn't available.
+            pass
 
 
 class TestODLDecoder(unittest.TestCase):

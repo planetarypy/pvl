@@ -242,4 +242,4 @@ class OmniGrammar(PVLGrammar):
     nondecimal_pre_re = re.compile(PVLGrammar._s +
                                    fr'(?P<radix>[2-9]|1[0-6])#{_ss}')
     nondecimal_re = re.compile(nondecimal_pre_re.pattern +
-                               fr'(?P<non_decimal>[0-9|A-F|a-f]+)#')
+                               r'(?P<non_decimal>[0-9|A-F|a-f]+)#')

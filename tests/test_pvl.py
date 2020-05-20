@@ -760,6 +760,11 @@ def test_delimiters():
     assert label['embedded_group']['foo'] == 'bar'
 
 
+def test_isis_output():
+    label = pvl.load(os.path.join(DATA_DIR, 'isis_output.txt'))
+    assert label['Results']['TotalPixels'] == 2048000
+
+
 def test_cube_label():
     with open(os.path.join(DATA_DIR, 'pattern.cub'), 'rb') as fp:
         label = pvl.load(fp)

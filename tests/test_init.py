@@ -74,6 +74,20 @@ class TestLoad(unittest.TestCase):
         string_path = str(self.simple)
         self.assertEqual(self.simplePVL, pvl.load(string_path))
 
+    def test_load_w_quantity(self):
+        try:
+            from astropy import units as u
+            from pvl.decoder import OmniDecoder
+            pvl_file = 'tests/data/pds3/units1.lbl'
+            km_upper = u.def_unit('KM', u.km)
+            m_upper = u.def_unit('M', u.m)
+            u.add_enabled_units([km_upper, m_upper])
+            label = pvl.load(pvl_file,
+                             decoder=OmniDecoder(quantity_cls=u.Quantity))
+            self.assertEqual(label['FLOAT_UNIT'], u.Quantity(0.414, 'KM'))
+        except ImportError:
+            pass
+
 
 class TestISIScub(unittest.TestCase):
 

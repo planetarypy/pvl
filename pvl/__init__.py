@@ -21,7 +21,7 @@ from ._collections import (
 
 __author__ = 'The pvl Developers'
 __email__ = 'trevor@heytrevor.com'
-__version__ = '1.0.0-alpha.1'
+__version__ = '1.0.0-alpha.2'
 __all__ = [
     'load',
     'loads',
@@ -34,11 +34,14 @@ __all__ = [
 ]
 
 
-def load(path, **kwargs):
+def load(path, parser=None, grammar=None, decoder=None, **kwargs):
     """Returns a Python object from parsing the file at *path*.
 
     :param path: an :class:`os.PathLike` which presumably has a
         PVL Module in it to parse.
+    :param parser: defaults to :class:`pvl.parser.OmniParser()`.
+    :param grammar: defaults to :class:`pvl.grammar.OmniGrammar()`.
+    :param decoder: defaults to :class:`pvl.decoder.OmniDecoder()`.
     :param ``**kwargs``: the keyword arguments that will be passed
         to :func:`loads()` and are described there.
 
@@ -51,7 +54,8 @@ def load(path, **kwargs):
     cube file), that's fine, this function will just extract the
     decodable text.
     """
-    return loads(get_text_from(path), **kwargs)
+    return loads(get_text_from(path), parser=parser, grammar=grammar,
+                 decoder=decoder, **kwargs)
 
 
 def get_text_from(path) -> str:
