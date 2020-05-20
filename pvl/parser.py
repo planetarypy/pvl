@@ -337,7 +337,7 @@ class PVLParser(object):
                 tokens.send(t)
                 raise ValueError(f'Expecting "=", got: {t}')
             except StopIteration:
-                raise ParseError(f'Expecting "=", but ran out of tokens.')
+                raise ParseError('Expecting "=", but ran out of tokens.')
 
         self.parse_WSC_until(None, tokens)
         return
