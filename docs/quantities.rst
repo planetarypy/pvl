@@ -3,24 +3,32 @@ Quantities: Values and Units
 ============================
 
 The PVL specifications supports the notion that PVL Value Expressions
-can contain an optional PVL Units Expression that follows the PVL Value.
+can contain an optional PVL Units Expression that follows the PVL
+Value.  This combination of information: a value followed by a unit
+can be represented by a single object that we might call a quantity.
 
-By default, the ``pvl`` library includes the :class:`pvl._collections.Units`
-class which is implemented as a :class:`collections.namedtuple` with
-a ``value`` and a ``unit`` parameter.  This kind of Python object, although
-not supported by the standard library, is sometimes also referred to as a
-'quantity' object in other 3rd party libraries.
+There is no fundamental Python object type that represents a value
+and the units of that value. However, libraries like ``astropy``
+and ``pint`` have implemented "quantity" objects (and managed to
+name them both Quantity, but they have slightly different interfaces).
+In order to avoid optional dependencies, the ``pvl`` library provides
+the :class:`pvl._collections.Units` class, implemented as a
+:class:`collections.namedtuple` with a ``value`` and a ``unit``
+parameter.  However, the ``unit`` parameter is just a string and
+so the ``pvl`` quantity objects doesn't have the super-powers that
+the ``astropy`` and ``pint`` quntity objects do.
 
-This means that when PVL text is parsed by :func:`pvl.load` or
-:func:`pvl.loads` when a PVL Value followed by a PVL Units Expression
-is encountered, the returned Python object will be a
-:class:`pvl._collections.Units` object.
+By default, this means that when PVL text is parsed by :func:`pvl.load`
+or :func:`pvl.loads` and when a PVL Value followed by a PVL Units
+Expression is encountered, a :class:`pvl._collections.Units` object
+will be placed in the returned dict-like.
 
 Likewise when :func:`pvl.dump` or :func:`pvl.dumps` encounters a
 :class:`pvl._collections.Units` its value and units will be serialized
 with the right PVL syntax.
 
-However, the ``pvl`` library also supports the use of other quantity objects.
+However, the ``pvl`` library also supports the use of other quantity
+objects.
 
 --------------------------------------------
 Getting other quantity objects from PVL text
