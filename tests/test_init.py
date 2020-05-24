@@ -44,6 +44,7 @@ END'''
 class TestLoad(unittest.TestCase):
 
     def setUp(self):
+        self.url = 'https://raw.githubusercontent.com/planetarypy/pvl/master/tests/data/pds3/simple_image_1.lbl'
         self.simple = data_dir / 'pds3' / 'simple_image_1.lbl'
         self.simplePVL = pvl.PVLModule(
             {'PDS_VERSION_ID': 'PDS3',
@@ -73,6 +74,9 @@ class TestLoad(unittest.TestCase):
     def test_load_w_string_path(self):
         string_path = str(self.simple)
         self.assertEqual(self.simplePVL, pvl.load(string_path))
+
+    def test_load_url(self):
+        self.assertEqual(self.simplePVL, pvl.load(self.url))
 
     def test_load_w_quantity(self):
         try:

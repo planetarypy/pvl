@@ -9,6 +9,8 @@
 
 import io
 from pathlib import Path
+import urllib.request
+from http.client import HTTPResponse
 
 from .encoder import PDSLabelEncoder, PVLEncoder
 from .parser import PVLParser, OmniParser
@@ -60,8 +62,13 @@ def load(path, parser=None, grammar=None, decoder=None, **kwargs):
 
 def get_text_from(path) -> str:
     try:
-        p = Path(path)
-        return p.read_text()
+        if isinstance(path, str) and path.startswith('http'):
+            with urllib.request.urlopen(path) as f:
+                c = f.read().decode('utf-8').replace('\r', '')
+                return c
+        else:
+            p = Path(path)
+            return p.read_text()
     except UnicodeDecodeError:
         # This may be the result of an ISIS cube file (or anything else)
         # where the first set of bytes might be decodable, but once the
@@ -69,11 +76,13 @@ def get_text_from(path) -> str:
         # fails.  So open the file as a bytestream, and read until
         # we can't decode.  We don't want to just run the .read_bytes()
         # method of Path, because this could be a giant file.
-        with open(p, mode='rb') as f:
+        with open(path, mode='rb') as f:
             return decode_by_char(f)
     except TypeError:
+        if isinstance(path, HTTPResponse):
+            return path.read().decode('utf-8')
         # Not an os.PathLike, maybe it is an already-opened file object
-        if path.readable():
+        elif path.readable():
             try:
                 position = path.tell()
                 s = path.read()
