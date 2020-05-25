@@ -7,6 +7,8 @@ import pytest
 import tempfile
 import shutil
 
+from collections import abc
+
 import pvl
 from pvl import (PVLModule as Label,
                  PVLObject as LabelObject,
@@ -774,22 +776,22 @@ def test_cube_label():
     with open(os.path.join(DATA_DIR, 'pattern.cub'), 'rb') as fp:
         label = pvl.load(fp)
 
-    assert isinstance(label['Label'], dict)
+    assert isinstance(label['Label'], abc.Mapping)
     assert label['Label']['Bytes'] == 65536
 
-    assert isinstance(label['IsisCube'], dict)
-    assert isinstance(label['IsisCube']['Core'], dict)
+    assert isinstance(label['IsisCube'], abc.Mapping)
+    assert isinstance(label['IsisCube']['Core'], abc.Mapping)
     assert label['IsisCube']['Core']['StartByte'] == 65537
     assert label['IsisCube']['Core']['Format'] == 'Tile'
     assert label['IsisCube']['Core']['TileSamples'] == 128
     assert label['IsisCube']['Core']['TileLines'] == 128
 
-    assert isinstance(label['IsisCube']['Core']['Dimensions'], dict)
+    assert isinstance(label['IsisCube']['Core']['Dimensions'], abc.Mapping)
     assert label['IsisCube']['Core']['Dimensions']['Samples'] == 90
     assert label['IsisCube']['Core']['Dimensions']['Lines'] == 90
     assert label['IsisCube']['Core']['Dimensions']['Bands'] == 1
 
-    assert isinstance(label['IsisCube']['Core']['Pixels'], dict)
+    assert isinstance(label['IsisCube']['Core']['Pixels'], abc.Mapping)
     assert label['IsisCube']['Core']['Pixels']['Type'] == 'Real'
     assert label['IsisCube']['Core']['Pixels']['ByteOrder'] == 'Lsb'
     assert label['IsisCube']['Core']['Pixels']['Base'] == 0.0
@@ -800,7 +802,7 @@ def test_cube_label_r():
     with open(os.path.join(DATA_DIR, 'pattern.cub'), 'r') as fp:
         label = pvl.load(fp)
 
-    assert isinstance(label['Label'], dict)
+    assert isinstance(label['Label'], abc.Mapping)
     assert label['Label']['Bytes'] == 65536
 
 

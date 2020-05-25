@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
+from collections import abc
 import pytest
 import pvl
 
 
-class DictLike(object):
+class DictLike(abc.Mapping):
 
-    def keys(self):
-        return ['a', 'b', 'a']
+    def __init__(self):
+        self.list = ['a', 'b', 'a']
 
     def __getitem__(self, key):
         return 42
+
+    def __iter__(self):
+        return iter(self.list)
+
+    def __len__(self):
+        return len(self.list)
 
 
 def test_empty():
@@ -32,7 +39,7 @@ def test_list_creation():
     assert len(module) == 3
     assert module['a'] == 1
     assert module['b'] == 2
-    assert module.getlist('a') == [1, 3]
+    assert module.getall('a') == [1, 3]
 
     with pytest.raises(KeyError):
         module['c']
@@ -46,7 +53,7 @@ def test_list_creation():
     assert len(module) == 3
     assert module['a'] == 42
     assert module['b'] == 42
-    assert module.getlist('a') == [42, 42]
+    assert module.getall('a') == [42, 42]
 
     with pytest.raises(KeyError):
         module['c']
@@ -127,7 +134,7 @@ def test_set():
 
     assert module['a'] == 3
     assert module['b'] == 2
-    assert module.getlist('a') == [3]
+    assert module.getall('a') == [3]
     assert len(module) == 2
 
     with pytest.raises(KeyError):
@@ -180,7 +187,9 @@ def test_clear():
 
     module.clear()
     assert len(module) == 0
-    assert module.getlist('a') == []
+
+    with pytest.raises(KeyError):
+        module.getall('a')
 
     with pytest.raises(KeyError):
         module['a']
@@ -205,7 +214,9 @@ def test_discard():
 
     module.discard('a')
     assert len(module) == 1
-    assert module.getlist('a') == []
+
+    with pytest.raises(KeyError):
+        module.getall('a')
 
     with pytest.raises(KeyError):
         module['a']
@@ -310,12 +321,12 @@ def test_append():
     module.append('a', 42)
     assert len(module) == 4
     assert module['a'] == 1
-    assert module.getlist('a') == [1, 3, 42]
+    assert module.getall('a') == [1, 3, 42]
 
     module.append('c', 43)
     assert len(module) == 5
     assert module['c'] == 43
-    assert module.getlist('c') == [43]
+    assert module.getall('c') == [43]
 
 
 def test_len():
@@ -353,6 +364,11 @@ def test_py3_items():
     assert isinstance(module.values(), pvl.collections.ValuesView)
     with pytest.raises(IndexError):
         module.values()[0]
+    # assert isinstance(module.items(), abc.ItemsView)
+
+    # assert isinstance(module.keys(), abc.KeysView)
+
+    # assert isinstance(module.values(), abc.ValuesView)
 
     module = pvl.PVLModule([
         ('a', 1),
@@ -362,6 +378,8 @@ def test_py3_items():
 
     assert isinstance(module.items(), pvl.collections.ItemsView)
     items = module.items()
+    # assert isinstance(module.items(), abc.ItemsView)
+    # items = list(module.items())
     assert items[0] == ('a', 1)
     assert items[1] == ('b', 2)
     assert items[2] == ('a', 3)
@@ -371,6 +389,8 @@ def test_py3_items():
 
     assert isinstance(module.keys(), pvl.collections.KeysView)
     keys = module.keys()
+    # assert isinstance(module.keys(), abc.KeysView)
+    # keys = list(module.keys())
     assert keys[0] == 'a'
     assert keys[1] == 'b'
     assert keys[2] == 'a'
@@ -379,6 +399,8 @@ def test_py3_items():
 
     assert isinstance(module.values(), pvl.collections.ValuesView)
     values = module.values()
+    # assert isinstance(module.values(), abc.ValuesView)
+    # values = list(module.values())
     assert values[0] == 1
     assert values[1] == 2
     assert values[2] == 3
@@ -403,18 +425,21 @@ def test_iterators():
     module = pvl.PVLModule()
 
     assert isinstance(iteritems(module), pvl.collections.MappingView)
+    # assert isinstance(iteritems(module), abc.MappingView)
     assert list(iteritems(module)) == []
     assert len(iteritems(module)) == 0
     assert isinstance(repr(iteritems(module)), str)
     assert ('a', 1) not in iteritems(module)
 
     assert isinstance(iterkeys(module), pvl.collections.MappingView)
+    # assert isinstance(iterkeys(module), abc.MappingView)
     assert list(iterkeys(module)) == []
     assert len(iterkeys(module)) == 0
     assert isinstance(repr(iterkeys(module)), str)
     assert 'a' not in iterkeys(module)
 
     assert isinstance(itervalues(module), pvl.collections.MappingView)
+    # assert isinstance(itervalues(module), abc.MappingView)
     assert list(itervalues(module)) == []
     assert len(itervalues(module)) == 0
     assert isinstance(repr(itervalues(module)), str)
@@ -427,6 +452,7 @@ def test_iterators():
     ])
 
     assert isinstance(iteritems(module), pvl.collections.MappingView)
+    # assert isinstance(iteritems(module), abc.MappingView)
     assert list(iteritems(module)) == [('a', 1), ('b', 2), ('a', 3)]
     assert len(iteritems(module)) == 3
     assert isinstance(repr(iteritems(module)), str)
@@ -436,6 +462,7 @@ def test_iterators():
     assert ('c', 4) not in iteritems(module)
 
     assert isinstance(iterkeys(module), pvl.collections.MappingView)
+    # assert isinstance(iterkeys(module), abc.MappingView)
     assert list(iterkeys(module)) == ['a', 'b', 'a']
     assert len(iterkeys(module)) == 3
     assert isinstance(repr(iterkeys(module)), str)
@@ -444,6 +471,7 @@ def test_iterators():
     assert 'c' not in iterkeys(module)
 
     assert isinstance(itervalues(module), pvl.collections.MappingView)
+    # assert isinstance(itervalues(module), abc.MappingView)
     assert list(itervalues(module)) == [1, 2, 3]
     assert len(itervalues(module)) == 3
     assert isinstance(repr(itervalues(module)), str)
@@ -583,12 +611,12 @@ def test_insert_before(expected_label, key, instance, expected_list,
     module1.insert_before(key, [('a', 4)], instance)
     assert expected_module == module1
     assert module1['a'] == expected_value
-    assert module1.getlist('a') == expected_list
+    assert module1.getall('a') == expected_list
 
     module2.insert_before(key, pvl.PVLModule([('a', 4)]), instance)
     assert module2 == expected_module
     assert module1['a'] == expected_value
-    assert module1.getlist('a') == expected_list
+    assert module1.getall('a') == expected_list
 
 
 @pytest.mark.parametrize(
@@ -637,12 +665,12 @@ def test_insert_after(expected_label, key, instance, expected_list,
     module1.insert_after(key, [('a', 4)], instance)
     assert expected_module == module1
     assert module1['a'] == expected_value
-    assert module1.getlist('a') == expected_list
+    assert module1.getall('a') == expected_list
 
     module2.insert_after(key, pvl.PVLModule([('a', 4)]), instance)
     assert module2 == expected_module
     assert module1['a'] == expected_value
-    assert module1.getlist('a') == expected_list
+    assert module1.getall('a') == expected_list
 
 
 @pytest.mark.parametrize(
@@ -658,7 +686,7 @@ def test_get_index_for_insert(key, instance, expected_index):
         ('a', 3),
     ])
 
-    module._get_index_for_insert(key, instance) == expected_index
+    assert module._get_index(key, instance) == expected_index
 
 
 def test_insert_raises():
@@ -680,8 +708,8 @@ def test_insert_raises():
     with pytest.raises(TypeError):
         module.insert_after('a', ('foo', 'bar'))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         module.insert_before('a', [('foo', 'bar')], 2)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         module.insert_after('a', [('foo', 'bar')], 2)

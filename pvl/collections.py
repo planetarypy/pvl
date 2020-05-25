@@ -29,6 +29,8 @@ import warnings
 from abc import abstractmethod
 from collections import namedtuple, abc
 
+from multidict import MultiDict
+
 
 class MutableMappingSequence(
     abc.MutableMapping, abc.MutableSequence
@@ -42,6 +44,10 @@ class MutableMappingSequence(
     versions return and operate on all values in the MutableMappingSequence
     with the key `k`.
     """
+
+    @abstractmethod
+    def append(self, key, value):
+        pass
 
     @abstractmethod
     def getall(self, key):
@@ -426,15 +432,163 @@ class OrderedMultiDict(dict, MutableMappingSequence):
         self._insert_item(key, new_item, instance, False)
 
 
+def _insert_check(func):
+    """This Decorator makes sure the arguments given to the insert methods
+    are correct.
+    """
+
+    def check_func(self, key, new_item, instance=0):
+        if key not in self.keys():
+            raise KeyError(f"'{key}' not not found.")
+        if not isinstance(new_item, Sized):
+            raise TypeError("The new item must be Sized.")
+        return func(self, key, new_item, instance)
+    return check_func
+
+
+class PVLMultiDict(MultiDict):
+    """Core data structure returned from the pvl loaders.
+
+    For now, this is just going to document the changes in going
+    from the old custom pvl.OrderedMultiDict to the multidict.MultiDict
+    object. Also evaluated the boltons.OrderedMultiDict, but its
+    semantics were too different #52
+
+    Will alias pvl.OrderedMultiDict as PVLModule and
+        alias multiduct.MultiDict as MultiDict
+
+    Differences:
+    - PVLModule.getlist() is now MultiDict.getall() - could put in an alias
+    - PVLModule.getlist('k') where k is not in the structure returns
+        an empty list, MultiDict.getall() properly returns a KeyError.
+    - PVLModule.append() is now MultiDict.add(), made an alias.
+    - The .items(), .keys(), and .values() are now proper iterators
+        and don't return sequences like PVLModule did.
+    - The PVLModule.insert_before() and PVLModule.insert_after() functionality
+        had an edge case where if you had a k, v pair, you had to
+        pass it to those functions as a sequence that contained a
+        single element that had two elements in it, now you can
+        also just pass a two-tuple or whatever, and as long as the
+        first thing is a string, it'll get inserted.
+
+    Potential changes:
+    - Calling list() on a PVLModule returns a list of tuples, which
+        is like calling list() on the results of a dict.items() iterator.
+        Calling list() on a MultiDict would return just a list of keys,
+        which is semantically identical to calling list() on a dict.
+        test_set(), test_conversion()
+    - PVLModule.pop(k) removed all keys that matched k, MultiDict.pop(k) now
+        just removes the first occurrence.  MultiDict.popall(k) would pop
+        and return all.
+        test_pop()
+    - PVLModule.popitem() used to remove the last item from the underlying list,
+        MultiDict.popitem() removes an arbitrary key, value pair.
+        test_popitem
+    - MultiDict.__repr__() returns something different, need to evaluate.
+        test_repr
+    - equality is different.  PVLModule has an isinstance()
+        check in the __eq__() operator, which I don't think was right,
+        since equality is about values, not about type.  MultiDict
+        has a value-based notion of equality.  So an empty PVLGroup and an
+        empty PVLObject could test equal, but would fail an isinstance() check.
+        test_equality
+    """
+
+    def __getitem__(self, key):
+        # Allow list-like access of the underlying structure
+        if isinstance(key, int):
+            i, k, v = self._impl._items[key]
+            return k, v
+        elif isinstance(key, slice):
+            return list(map((lambda t: (t[1], t[2])), self._impl._items[key]))
+        return super().__getitem__(key)
+
+    def _get_index(self, key, ith: int) -> int:
+        """Returns the index of the item in the underlying list implementation
+        that is the *ith* value of that *key*.
+
+        Effectively creates a list of all indexes that match *key*, and then
+        returns the index of the *ith* element of that list.  The *ith*
+        integer can be any positive or negative integer and follows the
+        rules for list indexes.
+        """
+        identity = self._title(key)
+        idxs = list()
+        for idx, (i, k, v) in enumerate(self._impl._items):
+            if i == identity:
+                idxs.append(idx)
+
+        try:
+            return idxs[ith]
+        except IndexError:
+            raise IndexError(
+                f"There are only {len(idxs)} elements with the key {key}, "
+                f"the provided index ({ith}) is out of bounds."
+            )
+
+    def _insert_item(self, key, new_item, instance: int, is_after: bool):
+        """Insert a new item before or after another item."""
+        index = self._get_index(key, instance)
+        index = index + 1 if is_after else index
+        if len(new_item) == 2 and isinstance(new_item[0], str):
+            identity = self._title(new_item[0])
+            self._impl._items.insert(index,
+                                     (identity, self._key(new_item[0]), new_item[1]))
+            self._impl.incr_version()
+        else:
+            triplets = list()
+            if isinstance(new_item, Mapping):
+                for k, v in new_item.items():
+                    identity = self._title(k)
+                    triplets.append((identity, self._key(k), v))
+            else:
+                # Maybe a sequence containing pairs?
+                for pair in new_item:
+                    if len(pair) != 2:
+                        raise ValueError(
+                            "Items to insert must be key, value pairs, and "
+                            f"{pair} is not."
+                        )
+                    identity = self._title(pair[0])
+                    triplets.append((identity, self._key(pair[0]), pair[1]))
+            # Now insert the list
+            self._impl._items = self._impl._items[:index] + triplets + self._impl._items[index:]
+            self._impl.incr_version()
+        return
+
+    @_insert_check
+    def insert_after(self, key, new_item, instance=0):
+        """Insert an item after a key"""
+        self._insert_item(key, new_item, instance, True)
+
+    @_insert_check
+    def insert_before(self, key, new_item, instance=0):
+        """Insert an item before a key"""
+        self._insert_item(key, new_item, instance, False)
+
+    def append(self, key, value):
+        self.add(key, value)
+
+    def discard(self, key):
+        # This should probably be deprecated, it is just
+        # version of del that swallows the exception
+        try:
+            del self[key]
+        except KeyError:
+            pass
+
+
+# class PVLModule(PVLMultiDict):
 class PVLModule(OrderedMultiDict):
 
-    def __init__(self, *args, **kwargs):
-        super(PVLModule, self).__init__(*args, **kwargs)
-        self.errors = []
+        pass
+    # def __init__(self, *args, **kwargs):
+    #     super(PVLModule, self).__init__(*args, **kwargs)
+    #     self.errors = []
 
-    @property
-    def valid(self):
-        return not self.errors
+    # @property
+    # def valid(self):
+    #     return not self.errors
 
 
 class PVLAggregation(OrderedMultiDict):

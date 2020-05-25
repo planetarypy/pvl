@@ -3,6 +3,12 @@
 History
 -------
 
+???
+~~~
+* Worked to switch out the custom OrderedMultiDict with the 3rd party
+  multidict.MultiDict.  Still in-process, have identified issues in
+  the docstring for pvl._collections.PVLMultiDict, not all tests passing.
+
 1.0.0-alpha.8 (2020-08-01)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Renamed the _collections module to just collections.
