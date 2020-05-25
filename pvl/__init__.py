@@ -7,7 +7,9 @@
 # The AUTHORS file and the LICENSE file are at the
 # top level of this library.
 
+import inspect
 import io
+import urllib.request
 from pathlib import Path
 
 from .encoder import PDSLabelEncoder, PVLEncoder
@@ -122,6 +124,41 @@ def decode_by_char(f: io.RawIOBase) -> str:
         pass
 
     return s
+
+
+def loadu(url, parser=None, grammar=None, decoder=None, **kwargs):
+    """Returns a Python object from parsing *url*.
+
+        :param url: this will be passed to :func:`urllib.request.urlopen`
+            and can be a string or a :class:`urllib.request.Request` object.
+        :param parser: defaults to :class:`pvl.parser.OmniParser()`.
+        :param grammar: defaults to :class:`pvl.grammar.OmniGrammar()`.
+        :param decoder: defaults to :class:`pvl.decoder.OmniDecoder()`.
+        :param ``**kwargs``: the keyword arguments that will be passed
+            to :func:`urllib.request.urlopen` and to :func:`loads()`.
+
+        The ``**kwargs`` will first be scanned for arguments that
+        can be given to :func:`urllib.request.urlopen`.  If any are
+        found, they are extracted and used.  All remaining elements
+        will be passed on as keyword arguments to :func:`loads()`.
+
+        Note that *url* can be any URL that :func:`urllib.request.urlopen`
+        takes.  Certainly http and https URLs, but also file, ftp, rsync,
+        sftp and more!
+        """
+
+    # Peel off the args for urlopen:
+    url_args = dict()
+    for a in inspect.signature(urllib.request.urlopen).parameters.keys():
+        if a in kwargs:
+            url_args[a] = kwargs.pop(a)
+
+    # The object returned from urlopen will always have a .read()
+    # function that returns bytes, so:
+    with urllib.request.urlopen(url, **url_args) as resp:
+        s = decode_by_char(resp)
+
+    return loads(s, parser=parser, grammar=grammar, decoder=decoder, **kwargs)
 
 
 def loads(s: str, parser=None, grammar=None, decoder=None, **kwargs):
