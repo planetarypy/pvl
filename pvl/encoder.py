@@ -47,13 +47,24 @@ class PVLEncoder(object):
         it won't.  Defaults to True.
     :param newline: is the string that will be placed at the end of each
         'line' of output (and counts against *width*), defaults to '\\\\n'.
+    :param group_class: must this class will be tested against with
+        isinstance() to determine if various elements of the dict-like
+        passed to encode() should be encoded as a PVL Group or PVL Object,
+        defaults to PVLGroup.
+    :param object_class: must be a class that can take a *group_class*
+        object in its constructor (essentially converting a *group_class*
+        to an *object_class*), otherwise will raise TypeError.  Defaults
+        to PVLObject.
     """
 
     def __init__(self, grammar=None, decoder=None,
                  indent: int = 2, width: int = 80,
                  aggregation_end: bool = True,
                  end_delimiter: bool = True,
-                 newline: str = '\n'):
+                 newline: str = '\n',
+                 group_class=None,
+                 object_class=None
+                 ):
 
         if grammar is None:
             if decoder is not None:
@@ -97,6 +108,31 @@ class PVLEncoder(object):
             warn("The pint library is not present, so "
                  "pint.Quantity objects will not "
                  "be properly encoded.", ImportWarning)
+
+        if group_class is None:
+            self.grpcls = PVLGroup
+        else:
+            if issubclass(group_class, abc.Mapping):
+                self.grpcls = group_class
+            else:
+                raise TypeError("The group_class must be a Mapping type.")
+
+        if object_class is None:
+            self.objcls = PVLObject
+        else:
+            if issubclass(object_class, abc.Mapping):
+                self.objcls = object_class
+            else:
+                raise TypeError('The object_class must be a Mapping type.')
+
+        try:
+            self.objcls(self.grpcls())
+        except TypeError:
+            raise TypeError(
+                f"The object_class type ({object_class}) cannot be "
+                f"instantiated with an argument that is of type "
+                f"group_class ({group_class})."
+            )
 
     def add_quantity_cls(self, cls, value_prop: str, units_prop: str):
         """Adds a quantity class to the list of possible
@@ -150,7 +186,7 @@ class PVLEncoder(object):
         else:
             return prefix + s
 
-    def encode(self, module: dict) -> str:
+    def encode(self, module: abc.Mapping) -> str:
         """Returns a ``str`` formatted as a PVL document based
         on the dict-like *module* object
         according to the rules of this encoder.
@@ -171,12 +207,12 @@ class PVLEncoder(object):
             if not self.grammar.char_allowed(c):
                 raise ValueError('Encountered a character that was not '
                                  'a valid character according to the '
-                                 f'grammar: "{c}", it is in: '
-                                 '"{}"'.format(s[i - 5, i + 5]))
+                                 'grammar: "{}", it is in: '
+                                 '"{}"'.format(c, s[i - 5, i + 5]))
 
         return self.newline.join(lines)
 
-    def encode_module(self, module: dict, level: int = 0) -> str:
+    def encode_module(self, module: abc.Mapping, level: int = 0) -> str:
         """Returns a ``str`` formatted as a PVL module based
         on the dict-like *module* object according to the
         rules of this encoder, with an indentation level
@@ -189,19 +225,19 @@ class PVLEncoder(object):
 
         non_agg_key_lengths = list()
         for k, v in module.items():
-            if not isinstance(v, dict):
+            if not isinstance(v, abc.Mapping):
                 non_agg_key_lengths.append(len(k))
         longest_key_len = max(non_agg_key_lengths, default=0)
 
         for k, v in module.items():
-            if isinstance(v, dict):
+            if isinstance(v, abc.Mapping):
                 lines.append(self.encode_aggregation_block(k, v, level))
             else:
                 lines.append(self.encode_assignment(k, v, level,
                                                     longest_key_len))
         return self.newline.join(lines)
 
-    def encode_aggregation_block(self, key: str, value: dict,
+    def encode_aggregation_block(self, key: str, value: abc.Mapping,
                                  level: int = 0) -> str:
         """Returns a ``str`` formatted as a PVL Aggregation Block with
         *key* as its name, and its contents based on the
@@ -211,10 +247,9 @@ class PVLEncoder(object):
         """
         lines = list()
 
-        agg_keywords = None
-        if isinstance(value, PVLGroup):
+        if isinstance(value, self.grpcls):
             agg_keywords = self.grammar.group_pref_keywords
-        elif isinstance(value, dict):
+        elif isinstance(value, abc.Mapping):
             agg_keywords = self.grammar.object_pref_keywords
         else:
             raise ValueError('The value {value} is not dict-like.')
@@ -458,7 +493,7 @@ class ODLEncoder(PVLEncoder):
         super().__init__(grammar, decoder, indent, width, aggregation_end,
                          end_delimiter, newline)
 
-    def encode(self, module: dict) -> str:
+    def encode(self, module: abc.Mapping) -> str:
         """Extends parent function, but ODL requires that there must be
         a spacing or format character after the END statement and this
         adds the encoder's ``newline`` sequence.
@@ -466,8 +501,7 @@ class ODLEncoder(PVLEncoder):
         s = super().encode(module)
         return s + self.newline
 
-    @staticmethod
-    def is_scalar(value) -> bool:
+    def is_scalar(self, value) -> bool:
         """Returns a boolean indicating whether the *value* object
         qualifies as an ODL 'scalar_value'.
 
@@ -483,11 +517,15 @@ class ODLEncoder(PVLEncoder):
         * symbol_value: str
 
         """
-        if isinstance(value, Units):
-            if isinstance(value.value, (int, float)):
-                return True
-        elif isinstance(value, (int, float, datetime.date, datetime.datetime,
-                                datetime.time, str)):
+        for quant in self.quantities:
+            if isinstance(value, quant[0]):
+                if isinstance(getattr(value, quant[1]), (int, float)):
+                    return True
+
+        if isinstance(
+                value, (int, float, datetime.date, datetime.datetime,
+                        datetime.time, str)
+        ):
             return True
 
         return False
@@ -518,10 +556,11 @@ class ODLEncoder(PVLEncoder):
         else:
             return False
 
-    def is_identifier(self, value):
+    @staticmethod
+    def is_identifier(value):
         """Returns true if *value* is an ODL Identifier, false otherwise.
 
-        An ODL Identifier is compsed of letters, digits, and underscores.
+        An ODL Identifier is composed of letters, digits, and underscores.
         The first character must be a letter, and the last must not
         be an underscore.
         """
@@ -547,8 +586,6 @@ class ODLEncoder(PVLEncoder):
                 return False
         else:
             return False
-
-        return False
 
     def needs_quotes(self, s: str) -> bool:
         """Return true if *s* is an ODL Identifier, false otherwise.
@@ -587,7 +624,6 @@ class ODLEncoder(PVLEncoder):
             raise ValueError('ODL keywords must be 30 characters or less '
                              f'in length, this one is longer: {key}')
 
-        ident = ''
         if((key.startswith('^') and self.is_assignment_statement(key[1:]))
            or self.is_assignment_statement(key)):
             ident = key.upper()
@@ -595,8 +631,7 @@ class ODLEncoder(PVLEncoder):
             raise ValueError(f'The keyword "{key}" is not a valid ODL '
                              'Identifier.')
 
-        s = ''
-        s += '{} = '.format(ident.ljust(key_len))
+        s = '{} = '.format(ident.ljust(key_len))
         s += self.encode_value(value)
 
         if self.end_delimiter:
@@ -643,8 +678,14 @@ class ODLEncoder(PVLEncoder):
         """Extends parent function by only allowing Units Expressions for
         numeric values.
         """
-        if(isinstance(value, Units) and
-           not isinstance(value.value, (int, float))):
+        if isinstance(value, tuple(x[0] for x in self.quantities)):
+            for quant in self.quantities:
+                if(
+                        isinstance(value, quant[0])
+                        and isinstance(getattr(value, quant[1]),
+                                       (int, float))
+                ):
+                    return super().encode_value(value)
             raise ValueError('Unit expressions are only allowed '
                              f'following numeric values: {value}')
 
@@ -745,8 +786,7 @@ class PDSLabelEncoder(ODLEncoder):
         self.convert_group_to_object = convert_group_to_object
         self.tab_replace = tab_replace
 
-    @staticmethod
-    def count_aggs(module: dict, obj_count: int = 0,
+    def count_aggs(self, module: abc.Mapping, obj_count: int = 0,
                    grp_count: int = 0) -> tuple((int, int)):
         """Returns the count of OBJECT and GROUP aggregations
         that are contained within the *module* as a two-tuple
@@ -757,20 +797,20 @@ class PDSLabelEncoder(ODLEncoder):
         # may contain aggregations.
 
         for k, v in module.items():
-            if isinstance(v, dict):
-                if isinstance(v, PVLGroup):
+            if isinstance(v, abc.Mapping):
+                if isinstance(v, self.grpcls):
                     grp_count += 1
-                elif isinstance(v, PVLObject):
+                elif isinstance(v, self.objcls):
                     obj_count += 1
                 else:
                     # We treat other dict-like Python objects as
-                    # PVLObjects for the purposes of this count,
+                    # PVL Objects for the purposes of this count,
                     # because that is how they will be encoded.
                     obj_count += 1
 
-        return (obj_count, grp_count)
+        return obj_count, grp_count
 
-    def encode(self, module: dict) -> str:
+    def encode(self, module: abc.MutableMapping) -> str:
         """Extends the parent function, by adding a restriction.
         For PDS, if there are any GROUP elements, there must be at
         least one OBJECT element in the label.  Behavior here
@@ -784,14 +824,14 @@ class PDSLabelEncoder(ODLEncoder):
                 for k, v in module.items():
                     # First try to convert any GROUPs that would not
                     # be valid PDS GROUPs.
-                    if isinstance(v, PVLGroup) and not self.is_PDSgroup(v):
-                        module[k] = PVLObject(v)
+                    if isinstance(v, self.grpcls) and not self.is_PDSgroup(v):
+                        module[k] = self.objcls(v)
                         break
                 else:
                     # Then just convert the first GROUP
                     for k, v in module.items():
-                        if isinstance(v, PVLGroup):
-                            module[k] = PVLObject(v)
+                        if isinstance(v, self.grpcls):
+                            module[k] = self.objcls(v)
                             break
                     else:
                         raise ValueError("Couldn't convert any of the GROUPs "
@@ -810,7 +850,7 @@ class PDSLabelEncoder(ODLEncoder):
         else:
             return s
 
-    def is_PDSgroup(self, group: dict) -> bool:
+    def is_PDSgroup(self, group: abc.Mapping) -> bool:
         """Returns true if the dict-like *group* qualifies as a PDS Group,
         false otherwise.
 
@@ -856,8 +896,13 @@ class PDSLabelEncoder(ODLEncoder):
             if k.startswith('^'):
                 if isinstance(v, int):
                     return False
-                elif isinstance(v, Units) and isinstance(v.value, int):
-                    return False
+                else:
+                    for quant in self.quantities:
+                        if(
+                                isinstance(v, quant[0])
+                                and isinstance(getattr(v, quant[1]), int)
+                        ):
+                            return False
 
         # Item 2, no repeated keys:
         keys = list(group.keys())
@@ -879,9 +924,9 @@ class PDSLabelEncoder(ODLEncoder):
         # print('value at top:')
         # print(value)
 
-        if(isinstance(value, PVLGroup) and not self.is_PDSgroup(value)):
+        if isinstance(value, self.grpcls) and not self.is_PDSgroup(value):
             if self.convert_group_to_object:
-                value = PVLObject(value)
+                value = self.objcls(value)
             else:
                 raise ValueError('This GROUP element is not a valid PDS '
                                  'GROUP.  You could set '

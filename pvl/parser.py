@@ -56,6 +56,7 @@ will be thrown into the *tokens* generator iterator (via .throw()).
 import collections.abc as abc
 import re
 
+from .abc import MutableMappingSequence
 from ._collections import PVLModule, PVLGroup, PVLObject
 from .token import Token
 from .grammar import PVLGrammar, OmniGrammar
@@ -142,6 +143,7 @@ class PVLParser(object):
                  object_class=PVLObject):
 
         self.errors = []
+        self.doc = ""
 
         if lexer_fn is None:
             self.lexer = Lexer
@@ -165,23 +167,30 @@ class PVLParser(object):
         else:
             raise TypeError('The decode must be an instance of pvl.PVLDecoder.')
 
-        if issubclass(module_class, PVLModule):
+        if issubclass(module_class, MutableMappingSequence):
             self.modcls = module_class
         else:
-            raise TypeError('The module_class must be a subclass of PVLModule.')
+            raise TypeError(
+                'The module_class must be a pvl.abc.MutableMappingSequence.'
+            )
 
-        if issubclass(group_class, PVLGroup):
+        if issubclass(group_class, MutableMappingSequence):
             self.grpcls = group_class
         else:
-            raise TypeError('The group_class must be a subclass of PVLGroup.')
+            raise TypeError(
+                'The group_class must be a pvl.abc.MutableMappingSequence.'
+            )
 
-        if issubclass(object_class, PVLObject):
+        if issubclass(object_class, MutableMappingSequence):
             self.objcls = object_class
         else:
-            raise TypeError('The object_class must be a subclass of PVLObject.')
+            raise TypeError(
+                'The object_class must be a pvl.abc.MutableMappingSequence.'
+            )
 
     def parse(self, s: str):
         """Converts the string, *s* to a PVLModule."""
+        self.doc = s
         tokens = self.lexer(s, g=self.grammar, d=self.decoder)
         module = self.parse_module(tokens)
         module.errors = sorted(self.errors)
@@ -255,7 +264,9 @@ class PVLParser(object):
                      'Statement, or an End Statement, but found '
                      f'"{t}" ')
 
-    def parse_module_post_hook(self, module, tokens: abc.Generator):
+    def parse_module_post_hook(
+            self, module: MutableMappingSequence, tokens: abc.Generator
+    ):
         """This function is meant to be overridden by subclasses
         that may want to perform some extra processing if
         'normal' parse_module() operations fail to complete.
@@ -313,7 +324,7 @@ class PVLParser(object):
                     self.parse_end_aggregation(begin, block_name, tokens)
                     break
 
-        return (block_name, agg)
+        return block_name, agg
 
     def parse_around_equals(self, tokens: abc.Generator) -> None:
         """Parses white space and comments on either side
@@ -375,7 +386,7 @@ class PVLParser(object):
 
         self.parse_statement_delimiter(tokens)
 
-        return(begin, str(block_name))
+        return begin, str(block_name)
 
     def parse_end_aggregation(self, begin_agg: str, block_name: str,
                               tokens: abc.Generator) -> None:
@@ -460,7 +471,6 @@ class PVLParser(object):
                                      <Value> [<Statement-Delimiter>]
 
         """
-        parameter_name = None
         try:
             t = next(tokens)
             if t.is_parameter_name():
@@ -473,12 +483,11 @@ class PVLParser(object):
             raise ValueError('Ran out of tokens before starting to parse '
                              'an Assignment-Statement.')
 
-        Value = None
         self.parse_around_equals(tokens)
 
         try:
             # print(f'parameter name: {parameter_name}')
-            Value = self.parse_value(tokens)
+            value = self.parse_value(tokens)
         except StopIteration:
             raise ParseError('Ran out of tokens to parse after the equals '
                              'sign in an Assignment-Statement: '
@@ -486,9 +495,10 @@ class PVLParser(object):
 
         self.parse_statement_delimiter(tokens)
 
-        return(parameter_name, Value)
+        return parameter_name, value
 
-    def parse_WSC_until(self, token: str, tokens: abc.Generator) -> bool:
+    @staticmethod
+    def parse_WSC_until(token: str, tokens: abc.Generator) -> bool:
         """Consumes objects from *tokens*, if the object's *.is_WSC()*
         function returns *True*, it will continue until *token* is
         encountered and will return *True*.  If it encounters an object
@@ -544,7 +554,7 @@ class PVLParser(object):
                              'While parsing, expected a comma (,)'
                              f'but found: "{t}"')
 
-    def parse_set(self, tokens: abc.Generator) -> set:
+    def parse_set(self, tokens: abc.Generator) -> frozenset:
         """Parses a PVL Set.
 
          <Set> ::= "{" <WSC>*
@@ -576,7 +586,8 @@ class PVLParser(object):
         """
         return self._parse_set_seq(self.grammar.sequence_delimiters, tokens)
 
-    def parse_statement_delimiter(self, tokens: abc.Generator) -> bool:
+    @staticmethod
+    def parse_statement_delimiter(tokens: abc.Generator) -> bool:
         """Parses the tokens for a Statement Delimiter.
 
         *tokens* is expected to be a *generator iterator* which
@@ -763,7 +774,9 @@ class OmniParser(PVLParser):
 
         return super().parse(nodash)
 
-    def parse_module_post_hook(self, module, tokens: abc.Generator):
+    def parse_module_post_hook(
+            self, module: MutableMappingSequence, tokens: abc.Generator
+    ):
         """Overrides the parent function to allow for more
         permissive parsing.  If an Assignment-Statement
         is blank, then the value will be assigned an
@@ -794,9 +807,9 @@ class OmniParser(PVLParser):
                     try:
                         # print(f'parameter name: {last_token}')
                         self.parse_WSC_until(None, tokens)
-                        Value = self.parse_value(tokens)
+                        value = self.parse_value(tokens)
                         self.parse_statement_delimiter(tokens)
-                        module.append(str(last_token), Value)
+                        module.append(str(last_token), value)
                     except StopIteration:
                         module.append(str(last_token),
                                       self._empty_value(t.pos + 1))
@@ -814,10 +827,10 @@ class OmniParser(PVLParser):
             # see if we're at the end of tokens, which we want to handle.
             t = next(tokens)
             tokens.send(t)
-            return (module, True)  # keep parsing
+            return module, True  # keep parsing
         except StopIteration:
             # If we're out of tokens, that's okay.
-            return (module, False)  # return through parse_module()
+            return module, False  # return through parse_module()
 
     def parse_assignment_statement(self, tokens: abc.Generator) -> tuple:
         """Extends the parent function to allow for more
@@ -830,7 +843,7 @@ class OmniParser(PVLParser):
         except ParseError as err:
             if err.token is not None:
                 after_eq = self.doc.find('=', err.token.pos) + 1
-                return (str(err.token), self._empty_value(after_eq))
+                return str(err.token), self._empty_value(after_eq)
             else:
                 raise
 

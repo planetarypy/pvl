@@ -9,6 +9,7 @@ import pprint
 from collections import namedtuple
 from collections.abc import Mapping, MutableMapping
 
+from .abc import MutableMappingSequence
 
 dict_setitem = dict.__setitem__
 dict_getitem = dict.__getitem__
@@ -92,7 +93,7 @@ class ValuesView(MappingView):
         return values.index(value)
 
 
-class OrderedMultiDict(dict, MutableMapping):
+class OrderedMultiDict(dict, MutableMappingSequence):
     """A ``dict`` like container.
 
     This container preserves the original ordering as well as
