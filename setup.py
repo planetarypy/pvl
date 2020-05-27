@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 try:
-    from setuptools import setup
+    from setuptools import setup, find_packages
 except ImportError:
     from distutils.core import setup
 
@@ -18,11 +18,8 @@ setup(
     author='The PlanetaryPy Developers',
     author_email='trevor@heytrevor.com',
     url='https://github.com/planetarypy/pvl',
-    packages=[
-        'pvl',
-    ],
-    package_dir={'pvl':
-                 'pvl'},
+    packages=find_packages('src', exclude=['tests']),
+    package_dir={'': 'src'},
     include_package_data=True,
     license="BSD",
     zip_safe=False,
