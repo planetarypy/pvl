@@ -106,8 +106,8 @@ an example::
  >>> import pvl
  >>> pvl_text = "length = 42 <m/s>"
  >>> regular = pvl.loads(pvl_text)
- >>> print(regular['length'])  #doctest: +ELLIPSIS
- Units(value=42, units=Token('m/s', '<pvl.grammar.OmniGrammar object at ...
+ >>> print(regular['length'])
+ Units(value=42, units='m/s')
  >>> print(type(regular['length']))
  <class 'pvl._collections.Units'>
 

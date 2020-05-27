@@ -3,6 +3,11 @@
 History
 -------
 
+1.0.0-alpha.3 (2020-05-28)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Implemented tests in tox and Travis for Python 3.8, and discovered a bug
+  that we fixed (#54).
+
 1.0.0-alpha.2 (2020-04-18)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * The ability to deal with 3rd-party 'quantity' objects like astropy.units.Quantity

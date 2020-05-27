@@ -49,7 +49,10 @@ class Token(str):
                 f'\'{self.grammar}\')')
 
     def __index__(self):
-        return self.decoder.decode_non_decimal(self)
+        return self.decoder.decode_non_decimal(str(self))
+
+    def __float__(self):
+        return self.decoder.decode_decimal(str(self))
 
     def split(self, sep=None, maxsplit=-1) -> list:
         """Extends ``str.split()`` that calling split() on a Token
