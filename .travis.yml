@@ -17,7 +17,7 @@ install:
 
 # lint before running tests
 before_script:
-  flake8 pvl tests
+  flake8 src/pvl tests
 
 # command to run tests
 script:
