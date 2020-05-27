@@ -9,10 +9,16 @@ python:
   - "pypy3"
 
 # command to install dependencies
-install: pip install -r requirements.txt
+before_install:
+  pip install -r requirements.txt
+
+install:
+  python setup.py install
 
 # lint before running tests
-before_script: flake8 pvl tests
+before_script:
+  flake8 pvl tests
 
 # command to run tests
-script: py.test tests
+script:
+  py.test tests
