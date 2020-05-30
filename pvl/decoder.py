@@ -193,6 +193,13 @@ class PVLDecoder(object):
         seconds.  However, the Python ``datetime`` classes don't
         support second values for more than 59 seconds.
 
+        Since the PVL Blue Book says that all PVl Date/Time Values
+        are represented in Universal Coordinated Time, then all
+        datetime objects that are returned datetime Python objects
+        should be "aware."  A datetime.date object is always "naive"
+        but any datetime.time or datetime.datetime objects returned
+        from this function will be "aware."
+
         If a time with 60 seconds is encountered, it will not be
         returned as a datetime object, but simply as a string.
 
@@ -212,21 +219,29 @@ class PVLDecoder(object):
         numerical types, and do something useful with them.
         """
         try:
+            # datetime.date objects will always be naive, so just return:
             return for_try_except(ValueError, datetime.strptime,
                                   repeat(value),
                                   self.grammar.date_formats).date()
         except ValueError:
+            # datetime.time and datetime.datetime might be either:
+            d = None
             try:
-                return for_try_except(ValueError, datetime.strptime,
-                                      repeat(value),
-                                      self.grammar.time_formats).time()
+                d = for_try_except(ValueError, datetime.strptime,
+                                   repeat(value),
+                                   self.grammar.time_formats).time()
             except ValueError:
                 try:
-                    return for_try_except(ValueError, datetime.strptime,
-                                          repeat(value),
-                                          self.grammar.datetime_formats)
+                    d = for_try_except(ValueError, datetime.strptime,
+                                       repeat(value),
+                                       self.grammar.datetime_formats)
                 except ValueError:
                     pass
+            if d is not None:
+                if d.utcoffset() is None:
+                    return d.replace(tzinfo=timezone.utc)
+                else:
+                    return d
 
         # if we can regex a 60-second time, return str
         for r in (self.grammar.leap_second_Ymd_re,
