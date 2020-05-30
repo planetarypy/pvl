@@ -526,6 +526,7 @@ def test_dates():
     label = pvl.loads(some_pvl)
 
     tz_plus_7 = datetime.timezone(datetime.timedelta(hours=7))
+    utc = datetime.timezone.utc
 
     assert isinstance(label['date1'], datetime.date)
     assert label['date1'] == datetime.date(1990, 7, 4)
@@ -540,25 +541,26 @@ def test_dates():
     assert label['date4'] == datetime.date(2001, 1, 1)
 
     assert isinstance(label['time1'], datetime.time)
-    assert label['time1'] == datetime.time(12)
+    assert label['time1'] == datetime.time(12, tzinfo=utc)
 
     assert isinstance(label['time_s'], datetime.time)
-    assert label['time_s'] == datetime.time(12, 0, 45)
+    assert label['time_s'] == datetime.time(12, 0, 45, tzinfo=utc)
 
     assert isinstance(label['time_s_float'], datetime.time)
-    assert label['time_s_float'] == datetime.time(12, 0, 45, 457100)
+    assert label['time_s_float'] == datetime.time(12, 0, 45, 457100, tzinfo=utc)
 
     assert isinstance(label['time_tz1'], datetime.time)
-    assert label['time_tz1'] == datetime.time(15, 24, 12)
+    assert label['time_tz1'] == datetime.time(15, 24, 12, tzinfo=utc)
 
     assert isinstance(label['time_tz2'], datetime.time)
     assert label['time_tz2'] == datetime.time(1, 12, 22, tzinfo=tz_plus_7)
 
     assert isinstance(label['datetime1'], datetime.datetime)
-    assert label['datetime1'] == datetime.datetime(1990, 7, 4, 12)
+    assert label['datetime1'] == datetime.datetime(1990, 7, 4, 12, tzinfo=utc)
 
     assert isinstance(label['datetime2'], datetime.datetime)
-    assert label['datetime2'] == datetime.datetime(1990, 6, 7, 15, 24, 12)
+    assert label['datetime2'] == datetime.datetime(1990, 6, 7, 15, 24, 12,
+                                                   tzinfo=utc)
 
     assert isinstance(label['time_tz3'], datetime.time)
     assert label['time_tz3'] == datetime.time(1, 12, 22, tzinfo=tz_plus_7)
