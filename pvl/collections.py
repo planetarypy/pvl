@@ -1,4 +1,23 @@
 # -*- coding: utf-8 -*-
+"""Parameter Value Language container datatypes providing enhancements
+to Python general purpose built-in containers.
+
+To enable efficient operations on parsed PVL text, we need an object
+that acts as both a dict-like Mapping container and a list-like
+Sequence container, essentially an ordered multi-dict.  There is
+no existing object or even an Abstract Base Class in the Python
+Standard Library for such an object.  So we define the
+MutableMappingSequence ABC here, which is (as the name implies) an
+abstract base class that implements both the Python MutableMapping
+and Mutable Sequence ABCs. We also provide an implementation, the
+OrderedMultiDict.
+
+Additionally, for PVL Values which also have an associated PVL Units
+Expression, they need to be returned as a quantity object which contains
+both a notion of a value and the units for that value.  Again, there
+is no fundamental Python type for a quantity, so we define the Quantity
+class (formerly the Units class).
+"""
 # Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
@@ -6,10 +25,19 @@
 # top level of this library.
 
 import pprint
+import warnings
 from collections import namedtuple
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Mapping, MutableMapping, MutableSequence
 
-from .abc import MutableMappingSequence
+
+class MutableMappingSequence(
+    MutableMapping, MutableSequence
+):
+    """ABC for a mutable object that has both mapping and
+    sequence characteristics.
+    """
+    pass
+
 
 dict_setitem = dict.__setitem__
 dict_getitem = dict.__getitem__
@@ -336,5 +364,21 @@ class PVLObject(PVLAggregation):
     pass
 
 
-class Units(namedtuple('Units', ['value', 'units'])):
+class Quantity(namedtuple('Quantity', ['value', 'units'])):
+    """A simple collections.namedtuple object to contain
+    a value and units parameter.
+
+    If you need more comprehensive units handling, you
+    may want to use the astropy.units.Quantity object,
+    the pint.Quantity object, or some other 3rd party
+    object.  Please see the documentation on :doc:`quantities`
+    for how to use 3rd party Quantity objects with pvl.
+    """
     pass
+
+class Units(Quantity):
+    warnings.warn(
+        "The pvl.collections.Units object is deprecated, and may be removed at "
+        "the next major patch. Please use pvl.collections.Quantity instead.",
+        DeprecationWarning
+    )

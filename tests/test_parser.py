@@ -21,7 +21,7 @@ import unittest
 from pvl.parser import PVLParser, ParseError, OmniParser, EmptyValueAtLine
 from pvl.lexer import lexer as Lexer
 from pvl.lexer import LexerError
-from pvl._collections import Units, PVLModule, PVLGroup, PVLObject
+from pvl.collections import Quantity, PVLModule, PVLGroup, PVLObject
 
 
 class TestParse(unittest.TestCase):
@@ -119,10 +119,10 @@ class TestParse(unittest.TestCase):
         self.assertEqual(f, 'f')
 
     def test_parse_units(self):
-        pairs = ((Units(5, 'm'), '<m>'),
-                 (Units(5, 'm'), '< m >'),
-                 (Units(5, 'm /* comment */'), '< m /* comment */>'),
-                 (Units(5, 'm\nfoo'), '< m\nfoo >'))
+        pairs = ((Quantity(5, 'm'), '<m>'),
+                 (Quantity(5, 'm'), '< m >'),
+                 (Quantity(5, 'm /* comment */'), '< m /* comment */>'),
+                 (Quantity(5, 'm\nfoo'), '< m\nfoo >'))
         for p in pairs:
             with self.subTest(pairs=p):
                 tokens = Lexer(p[1])
@@ -166,7 +166,7 @@ class TestParse(unittest.TestCase):
                  ('Null', None),
                  ('TRUE', True),
                  ('false', False),
-                 ('9 <planets>', Units(9, 'planets')))
+                 ('9 <planets>', Quantity(9, 'planets')))
         for p in pairs:
             with self.subTest(pairs=p):
                 tokens = Lexer(p[0])

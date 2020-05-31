@@ -14,10 +14,11 @@ from pathlib import Path
 
 from .encoder import PDSLabelEncoder, PVLEncoder
 from .parser import PVLParser, OmniParser
-from ._collections import (
+from .collections import (
     PVLModule,
     PVLGroup,
     PVLObject,
+    Quantity,
     Units,
 )
 
@@ -32,6 +33,7 @@ __all__ = [
     'PVLModule',
     'PVLGroup',
     'PVLObject',
+    'Quantity',
     'Units',
 ]
 

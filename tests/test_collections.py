@@ -342,15 +342,15 @@ def test_repr():
 def test_py3_items():
     module = pvl.PVLModule()
 
-    assert isinstance(module.items(), pvl._collections.ItemsView)
+    assert isinstance(module.items(), pvl.collections.ItemsView)
     with pytest.raises(IndexError):
         module.items()[0]
 
-    assert isinstance(module.keys(), pvl._collections.KeysView)
+    assert isinstance(module.keys(), pvl.collections.KeysView)
     with pytest.raises(IndexError):
         module.keys()[0]
 
-    assert isinstance(module.values(), pvl._collections.ValuesView)
+    assert isinstance(module.values(), pvl.collections.ValuesView)
     with pytest.raises(IndexError):
         module.values()[0]
 
@@ -360,7 +360,7 @@ def test_py3_items():
         ('a', 3),
     ])
 
-    assert isinstance(module.items(), pvl._collections.ItemsView)
+    assert isinstance(module.items(), pvl.collections.ItemsView)
     items = module.items()
     assert items[0] == ('a', 1)
     assert items[1] == ('b', 2)
@@ -369,7 +369,7 @@ def test_py3_items():
     assert items.index(('b', 2)) == 1
     assert items.index(('a', 3)) == 2
 
-    assert isinstance(module.keys(), pvl._collections.KeysView)
+    assert isinstance(module.keys(), pvl.collections.KeysView)
     keys = module.keys()
     assert keys[0] == 'a'
     assert keys[1] == 'b'
@@ -377,7 +377,7 @@ def test_py3_items():
     assert keys.index('a') == 0
     assert keys.index('b') == 1
 
-    assert isinstance(module.values(), pvl._collections.ValuesView)
+    assert isinstance(module.values(), pvl.collections.ValuesView)
     values = module.values()
     assert values[0] == 1
     assert values[1] == 2
@@ -402,19 +402,19 @@ def itervalues(module):
 def test_iterators():
     module = pvl.PVLModule()
 
-    assert isinstance(iteritems(module), pvl._collections.MappingView)
+    assert isinstance(iteritems(module), pvl.collections.MappingView)
     assert list(iteritems(module)) == []
     assert len(iteritems(module)) == 0
     assert isinstance(repr(iteritems(module)), str)
     assert ('a', 1) not in iteritems(module)
 
-    assert isinstance(iterkeys(module), pvl._collections.MappingView)
+    assert isinstance(iterkeys(module), pvl.collections.MappingView)
     assert list(iterkeys(module)) == []
     assert len(iterkeys(module)) == 0
     assert isinstance(repr(iterkeys(module)), str)
     assert 'a' not in iterkeys(module)
 
-    assert isinstance(itervalues(module), pvl._collections.MappingView)
+    assert isinstance(itervalues(module), pvl.collections.MappingView)
     assert list(itervalues(module)) == []
     assert len(itervalues(module)) == 0
     assert isinstance(repr(itervalues(module)), str)
@@ -426,7 +426,7 @@ def test_iterators():
         ('a', 3),
     ])
 
-    assert isinstance(iteritems(module), pvl._collections.MappingView)
+    assert isinstance(iteritems(module), pvl.collections.MappingView)
     assert list(iteritems(module)) == [('a', 1), ('b', 2), ('a', 3)]
     assert len(iteritems(module)) == 3
     assert isinstance(repr(iteritems(module)), str)
@@ -435,7 +435,7 @@ def test_iterators():
     assert ('a', 3) in iteritems(module)
     assert ('c', 4) not in iteritems(module)
 
-    assert isinstance(iterkeys(module), pvl._collections.MappingView)
+    assert isinstance(iterkeys(module), pvl.collections.MappingView)
     assert list(iterkeys(module)) == ['a', 'b', 'a']
     assert len(iterkeys(module)) == 3
     assert isinstance(repr(iterkeys(module)), str)
@@ -443,7 +443,7 @@ def test_iterators():
     assert 'b' in iterkeys(module)
     assert 'c' not in iterkeys(module)
 
-    assert isinstance(itervalues(module), pvl._collections.MappingView)
+    assert isinstance(itervalues(module), pvl.collections.MappingView)
     assert list(itervalues(module)) == [1, 2, 3]
     assert len(itervalues(module)) == 3
     assert isinstance(repr(itervalues(module)), str)

@@ -18,7 +18,7 @@ import textwrap
 from collections import abc
 from warnings import warn
 
-from ._collections import PVLObject, PVLGroup, Units
+from .collections import PVLObject, PVLGroup, Quantity
 from .grammar import PVLGrammar, ODLGrammar, ISISGrammar
 from .token import Token
 from .decoder import PVLDecoder, ODLDecoder
@@ -91,7 +91,7 @@ class PVLEncoder(object):
 
         # This list of 3-tuples *always* has our own pvl quantity object,
         # and should *only* be added to with self.add_quantity_cls().
-        self.quantities = [(Units, 'value', 'units')]
+        self.quantities = [(Quantity, 'value', 'units')]
 
         try:
             from astropy import units as u
@@ -510,7 +510,7 @@ class ODLEncoder(PVLEncoder):
 
         For Python, these correspond to the following:
 
-        * numeric_value: int, float, and Units() whose value
+        * numeric_value: int, float, and Quantity whose value
           is int or float
         * date_time_string: datetime objects
         * text_string_value: str

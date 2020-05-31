@@ -21,7 +21,7 @@ from itertools import repeat, chain
 from warnings import warn
 
 from .grammar import PVLGrammar, ODLGrammar
-from ._collections import Units
+from .collections import Quantity
 from .exceptions import QuantityError
 
 
@@ -53,9 +53,9 @@ class PVLDecoder(object):
     :param grammar: defaults to a :class:`pvl.grammar.PVLGrammar`, but can
         be any object that implements the :class:`pvl.grammar` interface.
 
-    :param quantity_cls: defaults to :class:`pvl._collections.Units`, but
+    :param quantity_cls: defaults to :class:`pvl.collections.Quantity`, but
         could be any class object that takes two arguments, where the
-        first is the value, and the second is the units type.
+        first is the value, and the second is the units value.
     """
 
     def __init__(self, grammar=None, quantity_cls=None):
@@ -69,7 +69,7 @@ class PVLDecoder(object):
             raise Exception
 
         if quantity_cls is None:
-            self.quantity_cls = Units
+            self.quantity_cls = Quantity
         else:
             self.quantity_cls = quantity_cls
 

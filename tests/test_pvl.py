@@ -11,7 +11,7 @@ import pvl
 from pvl import (PVLModule as Label,
                  PVLObject as LabelObject,
                  PVLGroup as LabelGroup)
-from pvl import Units
+from pvl import Quantity, Units
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data/')
@@ -717,20 +717,20 @@ def test_units():
         cool = (1 <number>)
         End
     """)
-    assert isinstance(label['foo'], Units)
+    assert isinstance(label['foo'], Quantity)
     assert label['foo'].value == 42
     assert label['foo'].units == 'beards'
 
-    assert isinstance(label['g'], Units)
+    assert isinstance(label['g'], Quantity)
     assert label['g'].value == 9.8
     assert label['g'].units == 'm/s'
 
-    assert isinstance(label['list'], Units)
+    assert isinstance(label['list'], Quantity)
     assert isinstance(label['list'].value, list)
     assert label['list'].units == 'numbers'
 
     assert isinstance(label['cool'], list)
-    assert isinstance(label['cool'][0], Units)
+    assert isinstance(label['cool'][0], Quantity)
     assert label['cool'][0].value == 1
     assert label['cool'][0].units == 'number'
 

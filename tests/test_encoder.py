@@ -4,7 +4,7 @@ import datetime
 import unittest
 
 from pvl.encoder import PVLEncoder, ODLEncoder, PDSLabelEncoder
-from pvl._collections import Units, PVLModule, PVLGroup, PVLObject
+from pvl.collections import Quantity, PVLModule, PVLGroup, PVLObject
 
 
 class TestDecoder(unittest.TestCase):
@@ -90,7 +90,7 @@ class TestDecoder(unittest.TestCase):
 
     def test_encode_value(self):
         pairs = ((42, '42'),
-                 (Units(34, 'm/s'), '34 <m/s>'))
+                 (Quantity(34, 'm/s'), '34 <m/s>'))
         for p in pairs:
             with self.subTest(pair=p):
                 self.assertEqual(p[1], self.e.encode_value(p[0]))
@@ -129,7 +129,7 @@ END;'''
         self.assertEqual(s, self.e.encode(m))
 
     def test_encode_quantity(self):
-        q, s = Units(34, 'm/s'), '34 <m/s>'
+        q, s = Quantity(34, 'm/s'), '34 <m/s>'
         self.assertEqual(s, self.e.encode_quantity(q))
 
         self.assertRaises(ValueError, self.e.encode_quantity, 'not a quant')
@@ -165,8 +165,8 @@ class TestODLDecoder(unittest.TestCase):
     def test_is_scalar(self):
         self.assertTrue(self.e.is_scalar(5))
         self.assertTrue(self.e.is_scalar('scalar'))
-        self.assertTrue(self.e.is_scalar(Units(5, 'm')))
-        self.assertFalse(self.e.is_scalar(Units('five', 'm')))
+        self.assertTrue(self.e.is_scalar(Quantity(5, 'm')))
+        self.assertFalse(self.e.is_scalar(Quantity('five', 'm')))
 
     def test_encode_quantity(self):
         try:

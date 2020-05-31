@@ -56,8 +56,7 @@ will be thrown into the *tokens* generator iterator (via .throw()).
 import collections.abc as abc
 import re
 
-from .abc import MutableMappingSequence
-from ._collections import PVLModule, PVLGroup, PVLObject
+from .collections import MutableMappingSequence, PVLModule, PVLGroup, PVLObject
 from .token import Token
 from .grammar import PVLGrammar, OmniGrammar
 from .decoder import PVLDecoder, OmniDecoder
