@@ -196,12 +196,13 @@ class PVLDecoder(object):
         Since the PVL Blue Book says that all PVl Date/Time Values
         are represented in Universal Coordinated Time, then all
         datetime objects that are returned datetime Python objects
-        should be "aware."  A datetime.date object is always "naive"
-        but any datetime.time or datetime.datetime objects returned
-        from this function will be "aware."
+        should be timezone "aware."  A datetime.date object is always
+        "naive" but any datetime.time or datetime.datetime objects
+        returned from this function will be "aware."
 
         If a time with 60 seconds is encountered, it will not be
-        returned as a datetime object, but simply as a string.
+        returned as a datetime object (since that is not representable
+        via Python datetime objects), but simply as a string.
 
         The user can then then try and use the ``time`` module
         to parse this string into a ``time.struct_time``.  We
@@ -244,12 +245,21 @@ class PVLDecoder(object):
                     return d
 
         # if we can regex a 60-second time, return str
+        if self.is_leap_seconds(value):
+            return str(value)
+        else:
+            raise ValueError
+
+    def is_leap_seconds(self, value: str) -> bool:
+        """Returns True if *value* is a time that matches the
+        grammar's definition of a leap seconds time (a time string with
+        a value of 60 for the seconds value).  False otherwise."""
         for r in (self.grammar.leap_second_Ymd_re,
                   self.grammar.leap_second_Yj_re):
             if r is not None and r.fullmatch(value) is not None:
-                return str(value)
-
-        raise ValueError
+                return True
+        else:
+            return False
 
     def decode_quantity(self, value, unit):
         """Returns a Python object that represents a value with
