@@ -65,3 +65,8 @@ class ParseError(Exception):
     def __init__(self, msg, token=None):
         super().__init__(self, msg)
         self.token = token
+
+
+class QuantityError(Exception):
+    """A simple exception to distinguish errors from Quantity classes."""
+    pass
