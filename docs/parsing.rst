@@ -238,7 +238,7 @@ Stricter parsing can be accomplished by passing a different grammar object
   >>> pvl.loads(some_pvl, grammar=pvl.grammar.PVLGrammar())
   Traceback (most recent call last):
     ...
-  pvl.lexer.LexerError: (LexerError(...), 'Expecting an Aggregation Block, an Assignment Statement, or an End Statement, but found "#" : line 3 column 1 (char 67)')
+  pvl.exceptions.LexerError: (LexerError(...), 'Expecting an Aggregation Block, an Assignment Statement, or an End Statement, but found "#" : line 3 column 1 (char 67)')
 
 ----------
 From a URL

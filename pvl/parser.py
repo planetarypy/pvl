@@ -61,7 +61,7 @@ from .token import Token
 from .grammar import PVLGrammar, OmniGrammar
 from .decoder import PVLDecoder, OmniDecoder
 from .lexer import lexer as Lexer
-from .lexer import LexerError, linecount
+from .exceptions import LexerError, linecount
 
 
 class ParseError(Exception):
