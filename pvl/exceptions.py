@@ -47,7 +47,14 @@ class LexerError(ValueError):
         # lineno = doc.count('\n', 0, self.pos) + 1
         lineno = linecount(doc, self.pos)
         colno = self.pos - doc.rfind('\n', 0, self.pos)
-        errmsg = f'{msg}: line {lineno} column {colno} (char {pos})'
+        # Assemble a context string that consists of whole
+        # words, using fragments is hard to read.
+        context_tokens = doc[self.pos - 15: self.pos + 15].split(" ")
+        context = " ".join(context_tokens[1:-1])
+        errmsg = (
+            f'{msg}: line {lineno} column {colno} (char {pos}) '
+            f'near "{context}"'
+        )
         super().__init__(self, errmsg)
         self.msg = msg
         self.doc = doc
