@@ -764,6 +764,9 @@ def test_isis_output():
     label = pvl.load(os.path.join(DATA_DIR, 'isis_output.txt'))
     assert label['Results']['TotalPixels'] == 2048000
 
+    naif = pvl.load(os.path.join(DATA_DIR, 'isis_naif.txt'))
+    assert naif["NaifKeywords"]['INS-143400_LIGHTTIME_CORRECTION'] == "LT+S"
+
 
 def test_cube_label():
     with open(os.path.join(DATA_DIR, 'pattern.cub'), 'rb') as fp:
