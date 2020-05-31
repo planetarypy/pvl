@@ -57,3 +57,11 @@ class LexerError(ValueError):
 
     def __reduce__(self):
         return self.__class__, (self.msg, self.doc, self.pos, self.lexeme)
+
+
+class ParseError(Exception):
+    """An exception to signal errors in the pvl parser."""
+
+    def __init__(self, msg, token=None):
+        super().__init__(self, msg)
+        self.token = token
