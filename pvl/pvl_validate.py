@@ -30,32 +30,57 @@ from .parser import ParseError, PVLParser, ODLParser, OmniParser
 from .decoder import PVLDecoder, ODLDecoder, OmniDecoder
 from .encoder import PVLEncoder, ODLEncoder, ISISEncoder, PDSLabelEncoder
 
-dialects = OrderedDict(PDS3=dict(parser=ODLParser(),
-                                 grammar=ODLGrammar(),
-                                 decoder=ODLDecoder(),
-                                 encoder=PDSLabelEncoder()),
-                       ODL=dict(parser=ODLParser(),
-                                grammar=ODLGrammar(),
-                                decoder=ODLDecoder(),
-                                encoder=ODLEncoder()),
-                       PVL=dict(parser=PVLParser(),
-                                grammar=PVLGrammar(),
-                                decoder=PVLDecoder(),
-                                encoder=PVLEncoder()),
-                       ISIS=dict(parser=OmniParser(),
-                                 grammar=ISISGrammar(),
-                                 decoder=OmniDecoder(),
-                                 encoder=ISISEncoder()),
-                       Omni=dict(parser=OmniParser(),
-                                 grammar=OmniGrammar(),
-                                 decoder=OmniDecoder(),
-                                 encoder=PVLEncoder()))
+# Some assembly required for the dialects.
+# We are going to be explicit here, because these arguments are
+# are different than the defaults for these classes, especially for the
+# parsers and decoders, as we want to be strict and not permissive here.
+_pvl_g = PVLGrammar()
+_pvl_d = PVLDecoder(grammar=_pvl_g)
+_odl_g = ODLGrammar()
+_odl_d = ODLDecoder(grammar=_odl_g)
+_odl_p = ODLParser(grammar=_odl_g, decoder=_odl_d)
+_isis_g = ISISGrammar()
+_isis_d = OmniDecoder(grammar=_isis_g)
+_omni_g = OmniGrammar()
+_omni_d = OmniDecoder(grammar=_omni_g)
+
+dialects = OrderedDict(
+    PDS3=dict(
+        parser=_odl_p,
+        grammar=_odl_g,
+        decoder=_odl_d,
+        encoder=PDSLabelEncoder(grammar=_odl_g, decoder=_odl_d)
+    ),
+    ODL=dict(
+        parser=_odl_p,
+        grammar=_odl_g,
+        decoder=_odl_d,
+        encoder=ODLEncoder(grammar=_odl_g, decoder=_odl_d)
+    ),
+    PVL=dict(
+        parser=PVLParser(grammar=_pvl_g, decoder=_pvl_d),
+        grammar=_pvl_g,
+        decoder=_pvl_d,
+        encoder=PVLEncoder(grammar=_pvl_g, decoder=_pvl_d)
+    ),
+    ISIS=dict(
+        parser=OmniParser(grammar=_isis_g, decoder=_isis_d),
+        grammar=_isis_g,
+        decoder=_isis_d,
+        encoder=ISISEncoder(grammar=_isis_g, decoder=_isis_d)
+    ),
+    Omni=dict(
+        parser=OmniParser(grammar=_omni_g, decoder=_omni_d),
+        grammar=_omni_g,
+        decoder=_omni_d,
+        encoder=PVLEncoder(grammar=_omni_g, decoder=_omni_d)))
 
 
 def arg_parser():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('-v', '--verbose', action='count', default=0,
                    help='Will report the errors that are encountered.')
+    p.add_argument("--version", action="version", version=pvl.__version__)
     p.add_argument('file', nargs='+',
                    help='file containing PVL text to validate.')
     return p
@@ -79,6 +104,8 @@ def main():
         results_list.append((f, results))
 
     # Writing the flavors out again to preserve order.
+    if args.verbose > 0:
+        print(f"pvl library version: {pvl.__version__}")
     print(report(results_list, list(dialects.keys())))
     return
 

@@ -28,6 +28,9 @@ class PVLEncoder(object):
     """An encoder based on the rules in the CCSDS-641.0-B-2 'Blue Book'
     which defines the PVL language.
 
+    :param grammar: A pvl.grammar object, if None or not specified, it will
+                    be set to the grammar parameter of *decoder* (if
+                    *decoder* is not None) or will default to PVLGrammar().
     :param grammar: defaults to pvl.grammar.PVLGrammar().
     :param decoder: defaults to pvl.decoder.PVLDecoder().
     :param indent: specifies the number of spaces that will be used to
@@ -53,7 +56,10 @@ class PVLEncoder(object):
                  newline: str = '\n'):
 
         if grammar is None:
-            self.grammar = PVLGrammar()
+            if decoder is not None:
+                self.grammar = decoder.grammar
+            else:
+                self.grammar = PVLGrammar()
         elif isinstance(grammar, PVLGrammar):
             self.grammar = grammar
         else:

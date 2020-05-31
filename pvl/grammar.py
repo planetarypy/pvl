@@ -8,6 +8,7 @@
 # top level of this library.
 
 import re
+from collections import abc
 
 
 class PVLGrammar():
@@ -217,6 +218,21 @@ class ISISGrammar(PVLGrammar):
     object_pref_keywords = ('Object', 'End_Object')
     object_keywords = {'OBJECT': 'END_OBJECT'}
 
+    def __init__(self):
+        # ISIS allows for + characters in Unquoted String values.
+        self.reserved_characters = tuple(
+            self.adjust_reserved_characters(self.reserved_characters)
+        )
+
+    @staticmethod
+    def adjust_reserved_characters(chars: abc.Iterable):
+        # ISIS allows for + characters in Unquoted String values.
+        # Removing the plus from the reserved characters allows for
+        # that, but might lead to other parsing errors, so be on the lookout.
+        rc = list(chars)
+        rc.remove("+")
+        return rc
+
 
 class OmniGrammar(PVLGrammar):
     """A broadly permissive grammar.
@@ -243,3 +259,10 @@ class OmniGrammar(PVLGrammar):
                                    fr'(?P<radix>[2-9]|1[0-6])#{_ss}')
     nondecimal_re = re.compile(nondecimal_pre_re.pattern +
                                r'(?P<non_decimal>[0-9|A-F|a-f]+)#')
+
+    def __init__(self):
+        # Handle the fact that ISIS writes out unquoted plus signs.
+        # See ISISGrammar for details.
+        self.reserved_characters = tuple(
+            ISISGrammar.adjust_reserved_characters(self.reserved_characters)
+        )
