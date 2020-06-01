@@ -252,8 +252,8 @@ This is very similar to parsing PVL text from a file, but you use
 :func:`pvl.loadu()` instead::
 
  >>> import pvl
- >>> url = 'https://raw.githubusercontent.com/planetarypy/pvl/master/tests/data/pds3/simple_image_1.lbl'
- >>> pvl.loadu(url)['RECORD_TYPE']
- 'FIXED_LENGTH'
+ >>> url = 'https://hirise-pds.lpl.arizona.edu/PDS/RDR/ESP/ORB_017100_017199/ESP_017173_1715/ESP_017173_1715_RED.LBL'
+ >>> pvl.loadu(url)['VIEWING_PARAMETERS']['PHASE_ANGLE']
+ Units(value=50.784875, units='DEG')
 
 Of course, other kinds of URLs, like file, ftp, rsync, sftp and more can be used.
