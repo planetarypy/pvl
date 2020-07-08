@@ -52,26 +52,28 @@ Ready to contribute? Here's how to set up `pvl` for local development.
     $ git clone git@github.com:your_name_here/pvl.git
 
 3. Install your local copy into a virtual environment like virtualenv
-or conda. Assuming you have virtualenvwrapper installed, this is
-how you set up your fork for local development::
+   or conda. Assuming you have virtualenvwrapper installed, this is
+   how you set up your fork for local development::
 
     $ mkvirtualenv pvl
     $ cd pvl/
     $ pip install -r requirements.txt
 
-If you are a conda user::
+   If you are a conda user::
 
     $ cd pvl/
     $ conda env create -n pvl -f environment.yml
 
 
-4. Create a branch for local development::
+4. Create a branch for local 
+   development::
 
     $ git checkout -b name-of-your-bugfix-or-feature
 
    Now you can make your changes locally.
 
-5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox::
+5. When you're done making changes, check that your changes pass flake8 and the tests,
+   including testing other Python versions with tox::
 
     $ make lint
     $ make test
@@ -107,7 +109,7 @@ Tips
 
 To run a subset of tests::
 
-	$ py.test tests/test_pvl.py
+	$ pytest tests/test_pvl.py
 
 
 What to expect
@@ -175,11 +177,11 @@ PVL People
 ----------
 
 - A PVL **Contributor** is any individual creating or commenting
-on an issue or pull request.  Anyone who has authored a PR that was
-merged should be listed in the AUTHORS.rst file.  
+  on an issue or pull request.  Anyone who has authored a PR that was
+  merged should be listed in the AUTHORS.rst file.  
 
 - A PVL **Committer** is a subset of contributors who have been
-given write access to the repository.
+  given write access to the repository.
 
 All contributors who get a non-trivial contribution merged can
 become Committers.  Individuals who wish to be considered for
