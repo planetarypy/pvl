@@ -101,7 +101,7 @@ Before you submit a pull request, check that it meets these guidelines:
    feature to the list in HISTORY.rst and potentially update the README.rst 
    or other documentation files.
 3. The pull request should work for Python 3.6, 3.7, and 3.8. Check
-   https://travis-ci.org/planetarypy/pvl/pull_requests
+   https://travis-ci.org/github/planetarypy/pvl
    and make sure that the tests pass for all supported Python versions.
 
 Tips
