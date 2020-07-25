@@ -1,0 +1,21 @@
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - bump2version
+  - cookiecutter
+  - flake8
+  - pypy3.6
+  - python=3.6
+  - pytest
+  - pytest-cov
+  - sphinx
+  - sphinxcontrib
+  - sphinxcontrib-apidoc
+  - sphinxcontrib-autoprogram
+  - tox
+  - twine
+# These are optional dependencies, and pvl should pass all its tests without them.
+  - python-dateutil
+  - astropy
+  - pint
