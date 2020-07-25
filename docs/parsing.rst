@@ -239,3 +239,21 @@ Stricter parsing can be accomplished by passing a different grammar object
   Traceback (most recent call last):
     ...
   pvl.lexer.LexerError: (LexerError(...), 'Expecting an Aggregation Block, an Assignment Statement, or an End Statement, but found "#" : line 3 column 1 (char 67)')
+
+----------
+From a URL
+----------
+
+The :func:`pvl.loadu()` function returns a Python object (typically a
+:class:`pvl.PVLModule` object which is :class:`dict`-like) based on
+parsing the PVL text in the data returned from a URL.
+
+This is very similar to parsing PVL text from a file, but you use
+:func:`pvl.loadu()` instead::
+
+ >>> import pvl
+ >>> url = 'https://hirise-pds.lpl.arizona.edu/PDS/RDR/ESP/ORB_017100_017199/ESP_017173_1715/ESP_017173_1715_RED.LBL'
+ >>> pvl.loadu(url)['VIEWING_PARAMETERS']['PHASE_ANGLE']
+ Units(value=50.784875, units='DEG')
+
+Of course, other kinds of URLs, like file, ftp, rsync, sftp and more can be used.

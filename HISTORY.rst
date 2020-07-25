@@ -3,6 +3,11 @@
 History
 -------
 
+1.0.0.-alpha.4 (2020-05-29)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Added the pvl.loadu() function as a convenience function to load PVL text from
+  URLs.
+
 1.0.0-alpha.3 (2020-05-28)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Implemented tests in tox and Travis for Python 3.8, and discovered a bug

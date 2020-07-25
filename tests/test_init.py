@@ -45,6 +45,8 @@ class TestLoad(unittest.TestCase):
 
     def setUp(self):
         self.simple = data_dir / 'pds3' / 'simple_image_1.lbl'
+        rawurl = 'https://raw.githubusercontent.com/planetarypy/pvl/master/'
+        self.url = rawurl + str(self.simple)
         self.simplePVL = pvl.PVLModule(
             {'PDS_VERSION_ID': 'PDS3',
              'RECORD_TYPE': 'FIXED_LENGTH',
@@ -73,6 +75,21 @@ class TestLoad(unittest.TestCase):
     def test_load_w_string_path(self):
         string_path = str(self.simple)
         self.assertEqual(self.simplePVL, pvl.load(string_path))
+
+    def test_loadu(self):
+        self.assertEqual(self.simplePVL, pvl.loadu(self.url))
+        self.assertEqual(
+            self.simplePVL, pvl.loadu(self.simple.resolve().as_uri())
+        )
+
+    @patch("pvl.loads")
+    @patch("pvl.decode_by_char")
+    def test_loadu_args(self, m_decode, m_loads):
+        pvl.loadu(self.url, data=None)
+        pvl.loadu(self.url, noturlopen="should be passed to loads")
+        m_decode.assert_called()
+        self.assertNotIn("data", m_loads.call_args_list[0][1])
+        self.assertIn("noturlopen", m_loads.call_args_list[1][1])
 
     def test_load_w_quantity(self):
         try:
