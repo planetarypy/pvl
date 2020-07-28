@@ -3,6 +3,18 @@
 History
 -------
 
+1.0.0-alpha.5 (2020-05-30)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* ISIS creates PVL text with unquoted plus signs ("+"), needed to adjust
+  the ISISGrammar and OmniGrammar objects to parse this properly (#59).
+* In the process of doing so, realized that we have some classes that
+  optionally take a grammar and a decoder, and if they aren't given, to default.
+  However, a decoder *has* a grammar object, so if a grammar isn't provided, but
+  a decoder is, the grammar should be taken from the decoder, otherwise you
+  could get confusing behavior.
+* Updated pvl_validate to be explicit about these arguments.
+* Added a --version argument to both pvl_translate and pvl_validate.
+
 1.0.0.-alpha.4 (2020-05-29)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Added the pvl.loadu() function as a convenience function to load PVL text from

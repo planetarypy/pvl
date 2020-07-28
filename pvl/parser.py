@@ -124,7 +124,10 @@ class PVLParser(object):
     """A parser based on the rules in the CCSDS-641.0-B-2 'Blue Book'
     which defines the PVL language.
 
-    :param grammar: defaults to :class:`pvl.grammar.OmniGrammar()`.
+    :param grammar: A pvl.grammar object, if None or not specified, it will
+                    be set to the grammar parameter of *decoder* (if
+                    *decoder* is not None) or will default to
+                    :class:`pvl.grammar.OmniGrammar()`.
     :param decoder: defaults to :class:`pvl.decoder.OmniDecoder()`.
     :param lexer_fn: must be a lexer function that takes a ``str``,
         a grammar, and a decoder, as :func:`pvl.lexer.lexer()` does,
@@ -154,7 +157,10 @@ class PVLParser(object):
             self.lexer = lexer_fn
 
         if grammar is None:
-            self.grammar = OmniGrammar()
+            if decoder is not None:
+                self.grammar = decoder.grammar
+            else:
+                self.grammar = OmniGrammar()
         elif isinstance(grammar, PVLGrammar):
             self.grammar = grammar
         else:

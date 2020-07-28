@@ -66,6 +66,7 @@ def arg_parser(formats):
                         default=sys.stdout,
                         help='file to write translated PVL to, defaults '
                         'to STDOUT.')
+    parser.add_argument("--version", action="version", version=pvl.__version__)
     return parser
 
 

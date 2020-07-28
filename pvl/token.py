@@ -16,9 +16,12 @@ class Token(str):
 
     :var content: A string that is the Token text.
 
-    :var grammar: A pvl.grammar object, defaults to PVLGrammar().
+    :var grammar: A pvl.grammar object, if None or not specified, it will
+                  be set to the grammar parameter of *decoder* (if
+                  *decoder* is not None) or will default to PVLGrammar().
 
-    :var decoder: A pvl.decoder object, defaults to PVLDecoder().
+    :var decoder: A pvl.decoder object, defaults to
+                  PVLDecoder(grammar=*grammar*).
 
     :var pos: Integer that describes the starting position of this
               Token in the source string, defaults to zero.
@@ -29,18 +32,21 @@ class Token(str):
 
     def __init__(self, content, grammar=None, decoder=None, pos=0):
         if grammar is None:
-            self.grammar = PVLGrammar()
+            if decoder is not None:
+                self.grammar = decoder.grammar
+            else:
+                self.grammar = PVLGrammar()
         elif isinstance(grammar, PVLGrammar):
             self.grammar = grammar
         else:
-            raise Exception
+            raise TypeError("The grammar object is not of type PVLGrammar.")
 
         if decoder is None:
-            self.decoder = PVLDecoder(self.grammar)
+            self.decoder = PVLDecoder(grammar=self.grammar)
         elif isinstance(decoder, PVLDecoder):
             self.decoder = decoder
         else:
-            raise Exception
+            raise TypeError("The decoder object is not of type PVLDecoder.")
 
         self.pos = pos
 
@@ -128,9 +134,9 @@ class Token(str):
             return True
 
         for ws in reversed(self.grammar.whitespace):
-            self = self.replace(ws, ' ')
+            temp = self.replace(ws, ' ')
 
-        return all(t.is_comment() for t in self.split())
+        return all(t.is_comment() for t in temp.split())
 
     def is_comment(self) -> bool:
         """Return true if the Token is a comment according to the
