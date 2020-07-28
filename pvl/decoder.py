@@ -305,7 +305,7 @@ class ODLDecoder(PVLDecoder):
             # Otherwise ...
             match = re.fullmatch(r'(?P<dt>.+?)'  # the part before the sign
                                  r'(?P<sign>[+-])'  # required sign
-                                 r'(?P<hour>0?[1-9]|1[0-2])'  # 1 to 12
+                                 r'(?P<hour>0?[0-9]|1[0-2])'  # 0 to 12
                                  fr'(?:{self.grammar._M_frag})?',  # Minutes
                                  value)
             if match is not None:

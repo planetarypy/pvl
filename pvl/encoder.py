@@ -669,7 +669,7 @@ class ODLEncoder(PVLEncoder):
 
         t = super().encode_time(value)
 
-        if value.tzinfo is None:
+        if value.tzinfo is None or value.tzinfo == 0:
             return t + 'Z'
         else:
             td_str = str(value.utcoffset())
