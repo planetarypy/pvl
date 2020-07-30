@@ -3,6 +3,14 @@
 History
 -------
 
+1.0.0-alpha.7 (2020-07-29)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Created a new exceptions.py module and grouped all pvl Exceptions
+  there.  Addresses #58
+* Altered the message that LexerError emits to provide context
+  around the character that caused the error.
+* Added bump2version configuration file.
+
 1.0.0-alpha.6 (2020-07-27)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Enforced that all datetime.time and datetime.datetime objects
