@@ -193,8 +193,16 @@ class PVLDecoder(object):
         seconds.  However, the Python ``datetime`` classes don't
         support second values for more than 59 seconds.
 
+        Since the PVL Blue Book says that all PVl Date/Time Values
+        are represented in Universal Coordinated Time, then all
+        datetime objects that are returned datetime Python objects
+        should be timezone "aware."  A datetime.date object is always
+        "naive" but any datetime.time or datetime.datetime objects
+        returned from this function will be "aware."
+
         If a time with 60 seconds is encountered, it will not be
-        returned as a datetime object, but simply as a string.
+        returned as a datetime object (since that is not representable
+        via Python datetime objects), but simply as a string.
 
         The user can then then try and use the ``time`` module
         to parse this string into a ``time.struct_time``.  We
@@ -212,29 +220,46 @@ class PVLDecoder(object):
         numerical types, and do something useful with them.
         """
         try:
+            # datetime.date objects will always be naive, so just return:
             return for_try_except(ValueError, datetime.strptime,
                                   repeat(value),
                                   self.grammar.date_formats).date()
         except ValueError:
+            # datetime.time and datetime.datetime might be either:
+            d = None
             try:
-                return for_try_except(ValueError, datetime.strptime,
-                                      repeat(value),
-                                      self.grammar.time_formats).time()
+                d = for_try_except(ValueError, datetime.strptime,
+                                   repeat(value),
+                                   self.grammar.time_formats).time()
             except ValueError:
                 try:
-                    return for_try_except(ValueError, datetime.strptime,
-                                          repeat(value),
-                                          self.grammar.datetime_formats)
+                    d = for_try_except(ValueError, datetime.strptime,
+                                       repeat(value),
+                                       self.grammar.datetime_formats)
                 except ValueError:
                     pass
+            if d is not None:
+                if d.utcoffset() is None:
+                    return d.replace(tzinfo=timezone.utc)
+                else:
+                    return d
 
         # if we can regex a 60-second time, return str
+        if self.is_leap_seconds(value):
+            return str(value)
+        else:
+            raise ValueError
+
+    def is_leap_seconds(self, value: str) -> bool:
+        """Returns True if *value* is a time that matches the
+        grammar's definition of a leap seconds time (a time string with
+        a value of 60 for the seconds value).  False otherwise."""
         for r in (self.grammar.leap_second_Ymd_re,
                   self.grammar.leap_second_Yj_re):
             if r is not None and r.fullmatch(value) is not None:
-                return str(value)
-
-        raise ValueError
+                return True
+        else:
+            return False
 
     def decode_quantity(self, value, unit):
         """Returns a Python object that represents a value with
@@ -280,7 +305,7 @@ class ODLDecoder(PVLDecoder):
             # Otherwise ...
             match = re.fullmatch(r'(?P<dt>.+?)'  # the part before the sign
                                  r'(?P<sign>[+-])'  # required sign
-                                 r'(?P<hour>0?[1-9]|1[0-2])'  # 1 to 12
+                                 r'(?P<hour>0?[0-9]|1[0-2])'  # 0 to 12
                                  fr'(?:{self.grammar._M_frag})?',  # Minutes
                                  value)
             if match is not None:

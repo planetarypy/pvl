@@ -3,6 +3,13 @@
 History
 -------
 
+1.0.0-alpha.6 (2020-07-27)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Enforced that all datetime.time and datetime.datetime objects
+  returned should be timezone "aware."  This breaks 0.x functionality
+  where some were and some weren't.  Addresses #57.
+
+
 1.0.0-alpha.5 (2020-05-30)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * ISIS creates PVL text with unquoted plus signs ("+"), needed to adjust
