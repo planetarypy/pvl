@@ -44,7 +44,6 @@ class LexerError(ValueError):
 
     def __init__(self, msg, doc, pos, lexeme):
         self.pos = firstpos(lexeme, pos)
-        # lineno = doc.count('\n', 0, self.pos) + 1
         lineno = linecount(doc, self.pos)
         colno = self.pos - doc.rfind('\n', 0, self.pos)
         # Assemble a context string that consists of whole
