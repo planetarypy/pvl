@@ -23,7 +23,7 @@ from ._collections import (
 
 __author__ = 'The pvl Developers'
 __email__ = 'trevor@heytrevor.com'
-__version__ = '1.0.0-alpha.6'
+__version__ = '1.0.0-alpha.7'
 __all__ = [
     'load',
     'loads',

@@ -100,7 +100,6 @@ class TestLexComments(unittest.TestCase):
         self.assertEqual(('', pfn),
                          Lexer.lex_comment('a', 'b', 'c',
                                            '', pfn,
-                                           (('/*', '*/'),),
                                            dict(single_comments={'k': 'v'},
                                                 multi_comments=(('/*', '*/'),),
                                                 multi_chars=set(('/', '*')))))
@@ -108,7 +107,6 @@ class TestLexComments(unittest.TestCase):
         self.assertEqual(('/*', pcom),
                          Lexer.lex_comment('*', '/', 'c',
                                            '', pfn,
-                                           (('/*', '*/'),),
                                            dict(single_comments={'k': 'v'},
                                                 multi_comments=(('/*', '*/'),),
                                                 multi_chars=set(('/', '*')))))

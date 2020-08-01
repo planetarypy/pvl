@@ -22,6 +22,7 @@ from warnings import warn
 
 from .grammar import PVLGrammar, ODLGrammar
 from ._collections import Units
+from .exceptions import QuantityError
 
 
 def for_try_except(exception, function, *iterable):
@@ -43,11 +44,6 @@ def for_try_except(exception, function, *iterable):
             pass
 
     raise exception
-
-
-class QuantityError(Exception):
-    """A simple exception to distinguish errors from Quantity classes."""
-    pass
 
 
 class PVLDecoder(object):

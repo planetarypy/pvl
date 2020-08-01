@@ -14,33 +14,7 @@ from enum import Enum, auto
 from .grammar import PVLGrammar
 from .token import Token
 from .decoder import PVLDecoder
-
-
-class LexerError(ValueError):
-    """Subclass of ValueError with the following additional properties:
-
-    msg: The unformatted error message
-    doc: The PVL document being parsed
-    pos: The start index in doc where parsing failed
-    lineno: The line corresponding to pos
-    colno: The column corresponding to pos
-    """
-
-    def __init__(self, msg, doc, pos, lexeme):
-        self.pos = firstpos(lexeme, pos)
-        # lineno = doc.count('\n', 0, self.pos) + 1
-        lineno = linecount(doc, self.pos)
-        colno = self.pos - doc.rfind('\n', 0, self.pos)
-        errmsg = f'{msg}: line {lineno} column {colno} (char {pos})'
-        super().__init__(self, errmsg)
-        self.msg = msg
-        self.doc = doc
-        self.lineno = lineno
-        self.colno = colno
-        self.lexeme = lexeme
-
-    def __reduce__(self):
-        return self.__class__, (self.msg, self.doc, self.pos, self.lexeme)
+from .exceptions import LexerError, firstpos
 
 
 class Preserve(Enum):
@@ -49,28 +23,6 @@ class Preserve(Enum):
     UNIT = auto()
     QUOTE = auto()
     NONDECIMAL = auto()
-
-
-def linecount(doc: str, end: int, start: int = 0):
-    """Returns the number of lines (by counting the
-    number of newline characters \\n, with the first line
-    being line number one) in the string *doc* between the
-    positions *start* and *end*.
-    """
-    return (doc.count('\n', start, end) + 1)
-
-
-def firstpos(sub: str, pos: int):
-    """On the assumption that *sub* is a substring contained in a longer
-    string, and *pos* is the index in that longer string of the final
-    character in sub, returns the position of the first character of
-    sub in that longer string.
-
-    This is useful in the PVL library when we know the position of the
-    final character of a token, but want the position of the first
-    character.
-    """
-    return (pos - len(sub) + 1)
 
 
 def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple((str, dict)):
@@ -89,9 +41,9 @@ def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple((str, dict)):
     """
     # print(f'in preserve: char "{char}", lexeme "{lexeme}, p {preserve}"')
     if char == preserve['end']:
-        return (lexeme + char, dict(state=Preserve.FALSE, end=None))
+        return lexeme + char, dict(state=Preserve.FALSE, end=None)
     else:
-        return (lexeme + char, preserve)
+        return lexeme + char, preserve
 
 
 def lex_singlechar_comments(char: str, lexeme: str, preserve: dict,
@@ -121,7 +73,7 @@ def lex_singlechar_comments(char: str, lexeme: str, preserve: dict,
         return (lexeme + char, dict(state=Preserve.COMMENT,
                                     end=comments[char]))
 
-    return (lexeme, preserve)
+    return lexeme, preserve
 
 
 def lex_multichar_comments(char: str, prev_char: str, next_char: str,
@@ -160,23 +112,22 @@ def lex_multichar_comments(char: str, prev_char: str, next_char: str,
     if ('/*', '*/') in comments:
         if char == '*':
             if prev_char == '/':
-                return (lexeme + '/*', dict(state=Preserve.COMMENT, end='*/'))
+                return lexeme + '/*', dict(state=Preserve.COMMENT, end='*/')
             elif next_char == '/':
-                return (lexeme + '*/', dict(state=Preserve.FALSE, end=None))
+                return lexeme + '*/', dict(state=Preserve.FALSE, end=None)
             else:
-                return (lexeme + '*', preserve)
+                return lexeme + '*', preserve
         elif char == '/':
             # If part of a comment ignore, and let the char == '*' handler
             # above deal with it, otherwise add it to the lexeme.
             if prev_char != '*' and next_char != '*':
-                return (lexeme + '/', preserve)
+                return lexeme + '/', preserve
 
-    return (lexeme, preserve)
+    return lexeme, preserve
 
 
 def lex_comment(char: str, prev_char: str, next_char: str,
                 lexeme: str, preserve: dict,
-                comments: tuple(tuple((str, str))),
                 c_info: dict) -> tuple((str, dict)):
     """Returns a modified *lexeme* string and a modified *preserve*
     dict in a two-tuple.
@@ -274,7 +225,7 @@ def lex_char(char: str, prev_char: str, next_char: str,
         if preserve['state'] == Preserve.COMMENT:
             (lexeme,
              preserve) = lex_comment(char, prev_char, next_char,
-                                     lexeme, preserve, g.comments, c_info)
+                                     lexeme, preserve, c_info)
         elif preserve['state'] in (Preserve.UNIT, Preserve.QUOTE,
                                    Preserve.NONDECIMAL):
             (lexeme,
@@ -289,8 +240,7 @@ def lex_char(char: str, prev_char: str, next_char: str,
     elif char in c_info['chars']:
         (lexeme,
          preserve) = lex_comment(char, prev_char, next_char,
-                                 lexeme, preserve,
-                                 g.comments, c_info)
+                                 lexeme, preserve, c_info)
     elif char in g.units_delimiters[0]:
         lexeme += char
         preserve = dict(state=Preserve.UNIT, end=g.units_delimiters[1])
@@ -302,7 +252,7 @@ def lex_char(char: str, prev_char: str, next_char: str,
             lexeme += char  # adding a char each time
 
     # print(f'lex_char end: char "{char}", lexeme "{lexeme}", "{preserve}"')
-    return (lexeme, preserve)
+    return lexeme, preserve
 
 
 def lex_continue(char: str, next_char: str, lexeme: str,
@@ -343,7 +293,7 @@ def lex_continue(char: str, next_char: str, lexeme: str,
     # Some datetimes can have trailing numeric tz offsets,
     # if the decoder allows it, this means there could be
     # a '+' that splits the lexeme that we don't want.
-    if (next_char in g.numeric_start_chars and token.is_datetime()):
+    if next_char in g.numeric_start_chars and token.is_datetime():
         return True
 
     return False
@@ -424,10 +374,10 @@ def lexer(s: str, g=PVLGrammar(), d=PVLDecoder()):
                  or lexeme in g.reserved_characters
                  or tok.is_quoted_string()):
                 # print(f'yielding {tok}')
-                t = yield(tok)
+                t = yield tok
                 while t is not None:
                     yield None
-                    t = yield(t)
+                    t = yield t
                 lexeme = ''
             else:
                 continue

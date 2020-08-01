@@ -61,15 +61,7 @@ from .token import Token
 from .grammar import PVLGrammar, OmniGrammar
 from .decoder import PVLDecoder, OmniDecoder
 from .lexer import lexer as Lexer
-from .lexer import LexerError, linecount
-
-
-class ParseError(Exception):
-    """A simple parser exception."""
-
-    def __init__(self, msg, token=None):
-        super().__init__(self, msg)
-        self.token = token
+from .exceptions import LexerError, ParseError, linecount
 
 
 class EmptyValueAtLine(str):
