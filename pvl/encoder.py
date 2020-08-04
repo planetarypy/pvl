@@ -678,16 +678,15 @@ class ODLEncoder(PVLEncoder):
         """Extends parent function by only allowing Units Expressions for
         numeric values.
         """
-        if isinstance(value, tuple(x[0] for x in self.quantities)):
-            for quant in self.quantities:
-                if(
-                        isinstance(value, quant[0])
-                        and isinstance(getattr(value, quant[1]),
-                                       (int, float))
-                ):
+        for quant in self.quantities:
+            if isinstance(value, quant[0]):
+                if isinstance(getattr(value, quant[1]), (int, float)):
                     return super().encode_value(value)
-            raise ValueError('Unit expressions are only allowed '
-                             f'following numeric values: {value}')
+                else:
+                    raise ValueError(
+                        'Unit expressions are only allowed '
+                        f'following numeric values: {value}'
+                    )
 
         return super().encode_value(value)
 
