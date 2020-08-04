@@ -15,13 +15,22 @@ import datetime
 import re
 import textwrap
 
-from collections import abc
+from collections import abc, namedtuple
 from warnings import warn
 
 from .collections import PVLObject, PVLGroup, Quantity
 from .grammar import PVLGrammar, ODLGrammar, ISISGrammar
 from .token import Token
 from .decoder import PVLDecoder, ODLDecoder
+
+
+class QuantTup(namedtuple('QuantTup', ['cls', 'value_prop', 'units_prop'])):
+    """
+    This class is just a convenient namedtuple for internally keeping track
+    of quantity classes that encoders can deal with.  In general, users
+    should not be instantiating this, instead use your encoder's
+    add_quantity_cls() function.
+    """
 
 
 class PVLEncoder(object):
@@ -91,7 +100,7 @@ class PVLEncoder(object):
 
         # This list of 3-tuples *always* has our own pvl quantity object,
         # and should *only* be added to with self.add_quantity_cls().
-        self.quantities = [(Quantity, 'value', 'units')]
+        self.quantities = [QuantTup(Quantity, 'value', 'units')]
         self._import_quantities()
 
         if issubclass(group_class, abc.Mapping):
@@ -158,7 +167,7 @@ class PVLEncoder(object):
                 raise AttributeError(f"The class ({cls}) does not have an "
                                      f" attribute named {prop}.")
 
-        self.quantities.append((cls, value_prop, units_prop))
+        self.quantities.append(QuantTup(cls, value_prop, units_prop))
 
     def format(self, s: str, level: int = 0) -> str:
         """Returns a string derived from *s*, which
@@ -518,8 +527,8 @@ class ODLEncoder(PVLEncoder):
 
         """
         for quant in self.quantities:
-            if isinstance(value, quant[0]):
-                if isinstance(getattr(value, quant[1]), (int, float)):
+            if isinstance(value, quant.cls):
+                if isinstance(getattr(value, quant.value_prop), (int, float)):
                     return True
 
         if isinstance(
@@ -679,8 +688,8 @@ class ODLEncoder(PVLEncoder):
         numeric values.
         """
         for quant in self.quantities:
-            if isinstance(value, quant[0]):
-                if isinstance(getattr(value, quant[1]), (int, float)):
+            if isinstance(value, quant.cls):
+                if isinstance(getattr(value, quant.value_prop), (int, float)):
                     return super().encode_value(value)
                 else:
                     raise ValueError(
@@ -898,8 +907,8 @@ class PDSLabelEncoder(ODLEncoder):
                 else:
                     for quant in self.quantities:
                         if(
-                                isinstance(v, quant[0])
-                                and isinstance(getattr(v, quant[1]), int)
+                            isinstance(v, quant.cls)
+                            and isinstance(getattr(v, quant.value_prop), int)
                         ):
                             return False
 
