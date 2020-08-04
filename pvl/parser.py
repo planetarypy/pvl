@@ -805,7 +805,6 @@ class OmniParser(PVLParser):
                     # Now use last_token as the parameter name
                     # for the next assignment, and we must
                     # reproduce the last part of parse-assignment:
-                    Value = None
                     try:
                         # print(f'parameter name: {last_token}')
                         self.parse_WSC_until(None, tokens)

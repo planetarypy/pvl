@@ -62,8 +62,8 @@ class PVLEncoder(object):
                  aggregation_end: bool = True,
                  end_delimiter: bool = True,
                  newline: str = '\n',
-                 group_class=None,
-                 object_class=None
+                 group_class=PVLGroup,
+                 object_class=PVLObject
                  ):
 
         if grammar is None:
@@ -92,38 +92,17 @@ class PVLEncoder(object):
         # This list of 3-tuples *always* has our own pvl quantity object,
         # and should *only* be added to with self.add_quantity_cls().
         self.quantities = [(Quantity, 'value', 'units')]
+        self._import_quantities()
 
-        try:
-            from astropy import units as u
-            self.add_quantity_cls(u.Quantity, 'value', 'unit')
-        except ImportError:
-            warn("The astropy library is not present, so "
-                 "astropy.units.Quantity objects will not "
-                 "be properly encoded.", ImportWarning)
-
-        try:
-            from pint import Quantity as q
-            self.add_quantity_cls(q, 'magnitude', 'units')
-        except ImportError:
-            warn("The pint library is not present, so "
-                 "pint.Quantity objects will not "
-                 "be properly encoded.", ImportWarning)
-
-        if group_class is None:
-            self.grpcls = PVLGroup
+        if issubclass(group_class, abc.Mapping):
+            self.grpcls = group_class
         else:
-            if issubclass(group_class, abc.Mapping):
-                self.grpcls = group_class
-            else:
-                raise TypeError("The group_class must be a Mapping type.")
+            raise TypeError("The group_class must be a Mapping type.")
 
-        if object_class is None:
-            self.objcls = PVLObject
+        if issubclass(object_class, abc.Mapping):
+            self.objcls = object_class
         else:
-            if issubclass(object_class, abc.Mapping):
-                self.objcls = object_class
-            else:
-                raise TypeError('The object_class must be a Mapping type.')
+            raise TypeError('The object_class must be a Mapping type.')
 
         try:
             self.objcls(self.grpcls())
@@ -132,6 +111,27 @@ class PVLEncoder(object):
                 f"The object_class type ({object_class}) cannot be "
                 f"instantiated with an argument that is of type "
                 f"group_class ({group_class})."
+            )
+
+    def _import_quantities(self):
+        warn_str = ("The {} library is not present, so {} objects will "
+                    "not be properly encoded.")
+        try:
+            from astropy import units as u
+            self.add_quantity_cls(u.Quantity, 'value', 'unit')
+        except ImportError:
+            warn(
+                warn_str.format("astropy", "astropy.units.Quantity"),
+                ImportWarning
+            )
+
+        try:
+            from pint import Quantity as q
+            self.add_quantity_cls(q, 'magnitude', 'units')
+        except ImportError:
+            warn(
+                warn_str.format("pint", "pint.Quantity"),
+                ImportWarning
             )
 
     def add_quantity_cls(self, cls, value_prop: str, units_prop: str):
