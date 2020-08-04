@@ -3,6 +3,13 @@
 History
 -------
 
+1.0.0-alpha.8 (2020-08-01)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Renamed the _collections module to just collections.
+* Renamed the Units class to Quantity (Units remains, but has a deprecation warning).
+* Defined a new ABC: pvl.collections.MutableMappingSequence
+* More detail for these changes can be found in Issue #62.
+
 1.0.0-alpha.7 (2020-07-29)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Created a new exceptions.py module and grouped all pvl Exceptions

@@ -170,21 +170,24 @@ class PVLParser(object):
             self.modcls = module_class
         else:
             raise TypeError(
-                'The module_class must be a pvl.abc.MutableMappingSequence.'
+                'The module_class must be a '
+                'pvl.collections.MutableMappingSequence.'
             )
 
         if issubclass(group_class, MutableMappingSequence):
             self.grpcls = group_class
         else:
             raise TypeError(
-                'The group_class must be a pvl.abc.MutableMappingSequence.'
+                'The group_class must be a '
+                'pvl.collections.MutableMappingSequence.'
             )
 
         if issubclass(object_class, MutableMappingSequence):
             self.objcls = object_class
         else:
             raise TypeError(
-                'The object_class must be a pvl.abc.MutableMappingSequence.'
+                'The object_class must be a '
+                'pvl.collections.MutableMappingSequence.'
             )
 
     def parse(self, s: str):
