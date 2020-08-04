@@ -294,7 +294,21 @@ class OrderedMultiDict(dict, MutableMappingSequence):
     # a concept of multiple keys, clears out multiple elements with the key,
     # probably because of how __delitem__ is defined:
     popall = abc.MutableMapping.pop
-    pop = abc.MutableMapping.pop
+
+    def pop(self, *args, **kwargs):
+        """Removes all items with the specified *key*."""
+
+        warnings.warn(
+            "The pvl.collections.OrderedMultiDict.pop(k) function removes "
+            "all keys with value k to be backwards compatible with the "
+            "pvl 0.x architecture, despite the new concept in "
+            "pvl.collections.MutableMappingSequence, this concept of "
+            "operations for .pop(k) may change in future versions."
+            "Consider using .popall(k) instead.",
+            FutureWarning
+        )
+
+        return self.popall(*args, *kwargs)
 
     def popitem(self):
         if not self:
