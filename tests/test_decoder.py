@@ -20,7 +20,7 @@ import itertools
 import unittest
 
 from pvl.decoder import PVLDecoder, ODLDecoder, for_try_except
-from pvl._collections import Units
+from pvl.collections import Quantity
 
 
 class TestForTryExcept(unittest.TestCase):
@@ -127,7 +127,7 @@ class TestDecoder(unittest.TestCase):
 
     def test_decode_quantity(self):
         q = self.d.decode_quantity('15', 'm/s')
-        self.assertEqual(q, Units('15', 'm/s'))
+        self.assertEqual(q, Quantity('15', 'm/s'))
 
         try:
             from astropy import units as u

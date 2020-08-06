@@ -14,16 +14,17 @@ from pathlib import Path
 
 from .encoder import PDSLabelEncoder, PVLEncoder
 from .parser import PVLParser, OmniParser
-from ._collections import (
+from .collections import (
     PVLModule,
     PVLGroup,
     PVLObject,
+    Quantity,
     Units,
 )
 
 __author__ = 'The pvl Developers'
 __email__ = 'trevor@heytrevor.com'
-__version__ = '1.0.0-alpha.7'
+__version__ = '1.0.0-alpha.8'
 __all__ = [
     'load',
     'loads',
@@ -32,6 +33,7 @@ __all__ = [
     'PVLModule',
     'PVLGroup',
     'PVLObject',
+    'Quantity',
     'Units',
 ]
 
@@ -71,13 +73,13 @@ def get_text_from(path) -> str:
         # fails.  So open the file as a bytestream, and read until
         # we can't decode.  We don't want to just run the .read_bytes()
         # method of Path, because this could be a giant file.
-        with open(p, mode='rb') as f:
+        with open(path, mode='rb') as f:
             return decode_by_char(f)
     except TypeError:
         # Not an os.PathLike, maybe it is an already-opened file object
         if path.readable():
+            position = path.tell()
             try:
-                position = path.tell()
                 s = path.read()
                 if isinstance(s, bytes):
                     # Oh, it was opened in 'b' mode, need to rewind and

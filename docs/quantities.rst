@@ -12,7 +12,7 @@ and the units of that value. However, libraries like ``astropy``
 and ``pint`` have implemented "quantity" objects (and managed to
 name them both Quantity, but they have slightly different interfaces).
 In order to avoid optional dependencies, the ``pvl`` library provides
-the :class:`pvl._collections.Units` class, implemented as a
+the :class:`pvl.collections.Quantity` class, implemented as a
 :class:`collections.namedtuple` with a ``value`` and a ``unit``
 parameter.  However, the ``unit`` parameter is just a string and
 so the ``pvl`` quantity objects doesn't have the super-powers that
@@ -20,11 +20,11 @@ the ``astropy`` and ``pint`` quntity objects do.
 
 By default, this means that when PVL text is parsed by :func:`pvl.load`
 or :func:`pvl.loads` and when a PVL Value followed by a PVL Units
-Expression is encountered, a :class:`pvl._collections.Units` object
+Expression is encountered, a :class:`pvl.collections.Quantity` object
 will be placed in the returned dict-like.
 
 Likewise when :func:`pvl.dump` or :func:`pvl.dumps` encounters a
-:class:`pvl._collections.Units` its value and units will be serialized
+:class:`pvl.collections.Quantity` its value and units will be serialized
 with the right PVL syntax.
 
 However, the ``pvl`` library also supports the use of other quantity
@@ -61,7 +61,7 @@ In order to get the encoding side of the ``pvl`` library to write out the
 correct kind of PVL text based on some quantity object is more difficult 
 due to the wide variety of ways that quantity objects are written in 3rd 
 party libaries.  At this time, the ``pvl`` library can properly encode
-:class:`pvl._collecitons.Units`, :class:`astropy.units.Quantity`, and
+:class:`pvl.collecitons.Quantity`, :class:`astropy.units.Quantity`, and
 :class:`pint.Quantity` objects (or objects that pass an ``isinstance()``
 test for those objects).  Any other kind of quantity object in the 
 data structure passed to :func:`pvl.dump` or :func:`pvl.dumps` will
@@ -107,9 +107,9 @@ an example::
  >>> pvl_text = "length = 42 <m/s>"
  >>> regular = pvl.loads(pvl_text)
  >>> print(regular['length'])
- Units(value=42, units='m/s')
+ Quantity(value=42, units='m/s')
  >>> print(type(regular['length']))
- <class 'pvl._collections.Units'>
+ <class 'pvl.collections.Quantity'>
 
  >>> from pvl.decoder import OmniDecoder
  >>> from astropy import units as u

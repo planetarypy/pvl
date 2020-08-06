@@ -1,4 +1,23 @@
 # -*- coding: utf-8 -*-
+"""Parameter Value Language container datatypes providing enhancements
+to Python general purpose built-in containers.
+
+To enable efficient operations on parsed PVL text, we need an object
+that acts as both a dict-like Mapping container and a list-like
+Sequence container, essentially an ordered multi-dict.  There is
+no existing object or even an Abstract Base Class in the Python
+Standard Library for such an object.  So we define the
+MutableMappingSequence ABC here, which is (as the name implies) an
+abstract base class that implements both the Python MutableMapping
+and Mutable Sequence ABCs. We also provide an implementation, the
+OrderedMultiDict.
+
+Additionally, for PVL Values which also have an associated PVL Units
+Expression, they need to be returned as a quantity object which contains
+both a notion of a value and the units for that value.  Again, there
+is no fundamental Python type for a quantity, so we define the Quantity
+class (formerly the Units class).
+"""
 # Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
@@ -6,8 +25,31 @@
 # top level of this library.
 
 import pprint
-from collections import namedtuple
-from collections.abc import Mapping, MutableMapping
+import warnings
+from abc import abstractmethod
+from collections import namedtuple, abc
+
+
+class MutableMappingSequence(
+    abc.MutableMapping, abc.MutableSequence
+):
+    """ABC for a mutable object that has both mapping and
+    sequence characteristics.
+
+    Must implement `.getall()` and `.popall()` since MutableMappingSequence
+    can have many values for a single key, while `.get(k)` and
+    `.pop(k)` return and operate on a single value, the *all*
+    versions return and operate on all values in the MutableMappingSequence
+    with the key `k`.
+    """
+
+    @abstractmethod
+    def getall(self, key):
+        pass
+
+    @abstractmethod
+    def popall(self, key):
+        pass
 
 
 dict_setitem = dict.__setitem__
@@ -92,7 +134,7 @@ class ValuesView(MappingView):
         return values.index(value)
 
 
-class OrderedMultiDict(dict, MutableMapping):
+class OrderedMultiDict(dict, MutableMappingSequence):
     """A ``dict`` like container.
 
     This container preserves the original ordering as well as
@@ -173,9 +215,8 @@ class OrderedMultiDict(dict, MutableMapping):
 
         return "{!s}([\n{!s}\n])".format(type(self).__name__, '\n'.join(lines))
 
-    get = MutableMapping.get
-    update = MutableMapping.update
-    pop = MutableMapping.pop
+    get = abc.MutableMapping.get
+    update = abc.MutableMapping.update
 
     def keys(self):
         return KeysView(self)
@@ -214,7 +255,7 @@ class OrderedMultiDict(dict, MutableMapping):
 
         iterable = args[0] if args else None
         if iterable:
-            if isinstance(iterable, Mapping) or hasattr(iterable, 'items'):
+            if isinstance(iterable, abc.Mapping) or hasattr(iterable, 'items'):
                 for key, value in iterable.items():
                     self.append(key, value)
             elif hasattr(iterable, 'keys'):
@@ -227,14 +268,47 @@ class OrderedMultiDict(dict, MutableMapping):
         for key, value in kwargs.items():
             self.append(key, value)
 
-    def getlist(self, key):
+    def getall(self, key) -> abc.Sequence:
+        """Returns a list of all the values for a named field.
+        Returns KeyError if the key doesn't exist.
+        """
+        return list(dict_getitem(self, key))
+
+    def getlist(self, key) -> abc.Sequence:
         """Returns a list of all the values for the named field.
         Returns an empty list if the key doesn't exist.
         """
+        warnings.warn(
+            "The pvl.collections.OrderedMultiDict.getlist(k) function is "
+            "deprecated in favor of .getall(), please begin using it, as "
+            ".getlist() may be removed in the next major patch.",
+            PendingDeprecationWarning
+        )
+
         try:
-            return list(dict_getitem(self, key))
+            return self.getall(key)
         except KeyError:
             return []
+
+    # Turns out that this super-class function, even though it doesn't have
+    # a concept of multiple keys, clears out multiple elements with the key,
+    # probably because of how __delitem__ is defined:
+    popall = abc.MutableMapping.pop
+
+    def pop(self, *args, **kwargs):
+        """Removes all items with the specified *key*."""
+
+        warnings.warn(
+            "The pvl.collections.OrderedMultiDict.pop(k) function removes "
+            "all keys with value k to be backwards compatible with the "
+            "pvl 0.x architecture, despite the new concept in "
+            "pvl.collections.MutableMappingSequence, this concept of "
+            "operations for .pop(k) may change in future versions."
+            "Consider using .popall(k) instead.",
+            FutureWarning
+        )
+
+        return self.popall(*args, *kwargs)
 
     def popitem(self):
         if not self:
@@ -253,6 +327,45 @@ class OrderedMultiDict(dict, MutableMapping):
     def copy(self):
         return type(self)(self)
 
+    def insert(self, index: int, *args) -> None:
+        """Inserts at the index given by *index*.
+
+        The first positional argument will be taken as the
+        *index*. If three arguments are given, the second will be taken
+        as the *key*, and the third as the *value*.  If only two arguments are
+        given, the second must be a two-element sequence, where the first will
+        be the *key* and the second the *value*.
+        """
+        if len(args) == 1:
+            if len(args[0]) == 2:
+                key, value = args[0]
+            else:
+                raise IndexError(
+                    "If a sequence is provided to the second positional "
+                    f"argument of pvl.OrderedMultiDict.insert() it must have "
+                    f"exactly 2 elements, but it is {args[0]}"
+                )
+        elif len(args) == 2:
+            self.__items.insert(index, args)
+            key, value = args
+        else:
+            raise TypeError(
+                f"{self.__name__}.insert() takes 2 or 3 positional arguments, "
+                f"but {len(args)} were given."
+            )
+
+        self.__items.insert(index, (key, value))
+
+        # Make sure indexing works with the new item
+        if key in self:
+            value_list = [val for k, val in self.__items if
+                          k == key]
+            dict_setitem(self, key, value_list)
+        else:
+            dict_setitem(self, key, [value])
+
+        return
+
     def __insert_wrapper(func):
         """Make sure the arguments given to the insert methods are correct."""
 
@@ -266,10 +379,10 @@ class OrderedMultiDict(dict, MutableMapping):
             return func(self, key, new_item, instance)
         return check_func
 
-    def _get_index_for_insert(self, key, instance):
+    def _get_index_for_insert(self, key, instance: int) -> int:
         """Get the index of the key to insert before or after."""
         if instance == 0:
-            # Index method will return the first occurence of the key
+            # Index method will return the first occurrence of the key
             index = self.keys().index(key)
         else:
             occurrence = -1
@@ -277,37 +390,38 @@ class OrderedMultiDict(dict, MutableMapping):
                 if k == key:
                     occurrence += 1
                     if occurrence == instance:
-                        # Found the key and the correct occurence of the key
+                        # Found the key and the correct occurrence of the key
                         break
 
             if occurrence != instance:
                 # Gone through the entire list of keys and the instance number
-                # given is too high for the number of occurences of the key
+                # given is too high for the number of occurrences of the key
                 raise ValueError(f"Cannot insert before/after the {instance} "
                                  f"instance of the key '{key}' since there are "
-                                 f"only {occurrence} occurences of the key")
+                                 f"only {occurrence} occurrences of the key")
         return index
 
-    def _insert_item(self, key, new_item, instance, is_after):
+    def _insert_item(
+            self, key, new_item: abc.Iterable, instance: int, is_after: bool
+    ):
         """Insert a new item before or after another item."""
         index = self._get_index_for_insert(key, instance)
         index = index + 1 if is_after else index
-        self.__items = self.__items[:index] + new_item + self.__items[index:]
-        # Make sure indexing works with new items
-        for new_key, new_value in new_item:
-            if new_key in self:
-                value_list = [val for k, val in self.__items if k == new_key]
-                dict_setitem(self, new_key, value_list)
-            else:
-                dict_setitem(self, new_key, [new_value])
+
+        # But new_item is always a list of two-tuples, even if only one, and
+        # all should be inserted, so despite the singular "an item"
+        # in the doc strings, this could be a whole bunch.
+        for pair in new_item:
+            self.insert(index, pair)
+            index += 1
 
     @__insert_wrapper
-    def insert_after(self, key, new_item, instance=0):
+    def insert_after(self, key, new_item: abc.Iterable, instance=0):
         """Insert an item after a key"""
         self._insert_item(key, new_item, instance, True)
 
     @__insert_wrapper
-    def insert_before(self, key, new_item, instance=0):
+    def insert_before(self, key, new_item: abc.Iterable, instance=0):
         """Insert an item before a key"""
         self._insert_item(key, new_item, instance, False)
 
@@ -335,5 +449,22 @@ class PVLObject(PVLAggregation):
     pass
 
 
-class Units(namedtuple('Units', ['value', 'units'])):
+class Quantity(namedtuple('Quantity', ['value', 'units'])):
+    """A simple collections.namedtuple object to contain
+    a value and units parameter.
+
+    If you need more comprehensive units handling, you
+    may want to use the astropy.units.Quantity object,
+    the pint.Quantity object, or some other 3rd party
+    object.  Please see the documentation on :doc:`quantities`
+    for how to use 3rd party Quantity objects with pvl.
+    """
     pass
+
+
+class Units(Quantity):
+    warnings.warn(
+        "The pvl.collections.Units object is deprecated, and may be removed at "
+        "the next major patch. Please use pvl.collections.Quantity instead.",
+        PendingDeprecationWarning
+    )
