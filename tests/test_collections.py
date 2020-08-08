@@ -708,8 +708,8 @@ def test_insert_raises():
     with pytest.raises(TypeError):
         module.insert_after('a', ('foo', 'bar'))
 
-    with pytest.raises(IndexError):
+    with pytest.raises(KeyError):
         module.insert_before('a', [('foo', 'bar')], 2)
 
-    with pytest.raises(IndexError):
+    with pytest.raises(KeyError):
         module.insert_after('a', [('foo', 'bar')], 2)

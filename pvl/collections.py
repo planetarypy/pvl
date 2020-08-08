@@ -385,13 +385,13 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             return func(self, key, new_item, instance)
         return check_func
 
-    def _get_index_for_insert(self, key, instance: int) -> int:
+    def _get_index(self, key, instance: int) -> int:
         """Get the index of the key to insert before or after."""
         if instance == 0:
             # Index method will return the first occurrence of the key
             index = self.keys().index(key)
         else:
-            occurrence = -1
+            occurrence = -1  # This is a count, but starting at -1
             for index, k in enumerate(self.keys()):
                 if k == key:
                     occurrence += 1
@@ -402,16 +402,18 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             if occurrence != instance:
                 # Gone through the entire list of keys and the instance number
                 # given is too high for the number of occurrences of the key
-                raise ValueError(f"Cannot insert before/after the {instance} "
-                                 f"instance of the key '{key}' since there are "
-                                 f"only {occurrence} occurrences of the key")
+                raise KeyError(
+                    f"Cannot insert before/after the {instance} instance of "
+                    f"the key '{key}' since there are only "
+                    f"{occurrence + 1} occurrences of the key."
+                )
         return index
 
     def _insert_item(
             self, key, new_item: abc.Iterable, instance: int, is_after: bool
     ):
         """Insert a new item before or after another item."""
-        index = self._get_index_for_insert(key, instance)
+        index = self._get_index(key, instance)
         index = index + 1 if is_after else index
 
         # But new_item is always a list of two-tuples, even if only one, and
