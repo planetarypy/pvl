@@ -686,7 +686,7 @@ def test_get_index_for_insert(key, instance, expected_index):
         ('a', 3),
     ])
 
-    assert module._get_index(key, instance) == expected_index
+    assert module.key_index(key, instance) == expected_index
 
 
 def test_insert_raises():

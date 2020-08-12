@@ -29,7 +29,9 @@ import warnings
 from abc import abstractmethod
 from collections import namedtuple, abc
 
-from multidict import MultiDict
+# In order to access super class attributes for our derived class, we must
+# import the native Python version, instead of the default Cython version.
+from multidict._multidict_py import MultiDict
 
 
 class MutableMappingSequence(
@@ -385,7 +387,7 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             return func(self, key, new_item, instance)
         return check_func
 
-    def _get_index(self, key, instance: int) -> int:
+    def key_index(self, key, instance: int =0) -> int:
         """Get the index of the key to insert before or after."""
         if instance == 0:
             # Index method will return the first occurrence of the key
@@ -413,7 +415,7 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             self, key, new_item: abc.Iterable, instance: int, is_after: bool
     ):
         """Insert a new item before or after another item."""
-        index = self._get_index(key, instance)
+        index = self.key_index(key, instance)
         index = index + 1 if is_after else index
 
         # But new_item is always a list of two-tuples, even if only one, and
@@ -442,13 +444,13 @@ def _insert_check(func):
     def check_func(self, key, new_item, instance=0):
         if key not in self.keys():
             raise KeyError(f"'{key}' not not found.")
-        if not isinstance(new_item, Sized):
+        if not isinstance(new_item, abc.Sized):
             raise TypeError("The new item must be Sized.")
         return func(self, key, new_item, instance)
     return check_func
 
 
-class PVLMultiDict(MultiDict):
+class PVLMultiDict(MultiDict, MutableMappingSequence):
     """Core data structure returned from the pvl loaders.
 
     For now, this is just going to document the changes in going
@@ -460,10 +462,9 @@ class PVLMultiDict(MultiDict):
         alias multiduct.MultiDict as MultiDict
 
     Differences:
-    - PVLModule.getlist() is now MultiDict.getall() - could put in an alias
+    - PVLModule.getlist() is now MultiDict.getall()
     - PVLModule.getlist('k') where k is not in the structure returns
         an empty list, MultiDict.getall() properly returns a KeyError.
-    - PVLModule.append() is now MultiDict.add(), made an alias.
     - The .items(), .keys(), and .values() are now proper iterators
         and don't return sequences like PVLModule did.
     - The PVLModule.insert_before() and PVLModule.insert_after() functionality
@@ -482,12 +483,18 @@ class PVLMultiDict(MultiDict):
     - PVLModule.pop(k) removed all keys that matched k, MultiDict.pop(k) now
         just removes the first occurrence.  MultiDict.popall(k) would pop
         and return all.
-        test_pop()
+        test_pop(),
     - PVLModule.popitem() used to remove the last item from the underlying list,
         MultiDict.popitem() removes an arbitrary key, value pair.
-        test_popitem
-    - MultiDict.__repr__() returns something different, need to evaluate.
+        test_popitem,
+        test_pvl::test_broken_labels() -> OmniParser.parse_module_post_hook()
+    - MultiDict.__repr__() returns "<PVLModule()>" whereas the existing
+        returns "PVLModule([])".  I think MultiDict is better, but should
+        probably remove the angle brackets?
         test_repr
+    - ItemsView, MappingView, and KeysView are proper Python 3 iterators, but
+        the old system returned them as lists.
+        test_p3_items, test_iterators
     - equality is different.  PVLModule has an isinstance()
         check in the __eq__() operator, which I don't think was right,
         since equality is about values, not about type.  MultiDict
@@ -496,28 +503,27 @@ class PVLMultiDict(MultiDict):
         test_equality
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def __getitem__(self, key):
         # Allow list-like access of the underlying structure
-        if isinstance(key, int):
-            i, k, v = self._impl._items[key]
-            return k, v
-        elif isinstance(key, slice):
-            return list(map((lambda t: (t[1], t[2])), self._impl._items[key]))
+        if isinstance(key, (int, slice)):
+            return list(self.items())[key]
         return super().__getitem__(key)
 
-    def _get_index(self, key, ith: int) -> int:
+    def key_index(self, key, ith: int =0) -> int:
         """Returns the index of the item in the underlying list implementation
         that is the *ith* value of that *key*.
 
         Effectively creates a list of all indexes that match *key*, and then
-        returns the index of the *ith* element of that list.  The *ith*
+        returns the original index of the *ith* element of that list.  The *ith*
         integer can be any positive or negative integer and follows the
         rules for list indexes.
         """
-        identity = self._title(key)
         idxs = list()
-        for idx, (i, k, v) in enumerate(self._impl._items):
-            if i == identity:
+        for idx, (k, v) in enumerate(self.items()):
+            if key == k:
                 idxs.append(idx)
 
         try:
@@ -528,34 +534,60 @@ class PVLMultiDict(MultiDict):
                 f"the provided index ({ith}) is out of bounds."
             )
 
-    def _insert_item(self, key, new_item, instance: int, is_after: bool):
+    def _insert_item(
+            self, key, new_item: abc.Iterable, instance: int, is_after: bool
+    ):
         """Insert a new item before or after another item."""
-        index = self._get_index(key, instance)
+        index = self.key_index(key, instance)
         index = index + 1 if is_after else index
-        if len(new_item) == 2 and isinstance(new_item[0], str):
-            identity = self._title(new_item[0])
-            self._impl._items.insert(index,
-                                     (identity, self._key(new_item[0]), new_item[1]))
-            self._impl.incr_version()
+
+        # But new_item is always an Iterable of two-tuples or a Mapping,
+        # sometimes only one, sometimes multiple.
+        # So despite the singular "an item" in the insert_before() and _after()
+        # doc strings, this could be a whole bunch.
+        if isinstance(new_item, abc.Mapping):
+            tuple_iter = new_item.items()
         else:
-            triplets = list()
-            if isinstance(new_item, Mapping):
-                for k, v in new_item.items():
-                    identity = self._title(k)
-                    triplets.append((identity, self._key(k), v))
+            tuple_iter = new_item
+        for pair in tuple_iter:
+            self.insert(index, pair)
+            index += 1
+
+    def insert(self, index: int, *args) -> None:
+        """Inserts at the index given by *index*.
+
+        The first positional argument will be taken as the
+        *index*. If three arguments are given, the second will be taken
+        as the *key*, and the third as the *value*.  If only two arguments are
+        given, the second must be a two-element sequence, where the first will
+        be the *key* and the second the *value*.
+        """
+        if not isinstance(index, int):
+            raise TypeError(
+                "The first positional argument to pvl.MultiDict.insert()"
+                "must be an int."
+            )
+
+        if len(args) == 1:
+            if len(args[0]) == 2:
+                key, value = args[0]
             else:
-                # Maybe a sequence containing pairs?
-                for pair in new_item:
-                    if len(pair) != 2:
-                        raise ValueError(
-                            "Items to insert must be key, value pairs, and "
-                            f"{pair} is not."
-                        )
-                    identity = self._title(pair[0])
-                    triplets.append((identity, self._key(pair[0]), pair[1]))
-            # Now insert the list
-            self._impl._items = self._impl._items[:index] + triplets + self._impl._items[index:]
-            self._impl.incr_version()
+                raise IndexError(
+                    "If a sequence is provided to the second positional "
+                    f"argument of pvl.MultiDict.insert() it must have "
+                    f"exactly 2 elements, but it is {args[0]}"
+                )
+        elif len(args) == 2:
+            key, value = args
+        else:
+            raise TypeError(
+                f"{self.__name__}.insert() takes 2 or 3 positional arguments, "
+                f"but {1 + len(args)} were given."
+            )
+
+        identity = self._title(key)
+        self._impl._items.insert(index, (identity, self._key(key), value))
+        self._impl.incr_version()
         return
 
     @_insert_check
@@ -569,6 +601,8 @@ class PVLMultiDict(MultiDict):
         self._insert_item(key, new_item, instance, False)
 
     def append(self, key, value):
+        # Not sure why super decided to go with the set-like add() instead
+        # of the more appropriate list-like append().  Fixed it for them.
         self.add(key, value)
 
     def discard(self, key):
@@ -580,10 +614,9 @@ class PVLMultiDict(MultiDict):
             pass
 
 
-# class PVLModule(PVLMultiDict):
-class PVLModule(OrderedMultiDict):
-
-        pass
+# class PVLModule(OrderedMultiDict):
+class PVLModule(PVLMultiDict):
+    pass
     # def __init__(self, *args, **kwargs):
     #     super(PVLModule, self).__init__(*args, **kwargs)
     #     self.errors = []
@@ -593,7 +626,7 @@ class PVLModule(OrderedMultiDict):
     #     return not self.errors
 
 
-class PVLAggregation(OrderedMultiDict):
+class PVLAggregation(PVLMultiDict):
     pass
 
 
