@@ -40,11 +40,15 @@ class MutableMappingSequence(
     """ABC for a mutable object that has both mapping and
     sequence characteristics.
 
-    Must implement `.getall()` and `.popall()` since MutableMappingSequence
+    Must implement `.getall(k)` and `.popall(k)` since a MutableMappingSequence
     can have many values for a single key, while `.get(k)` and
     `.pop(k)` return and operate on a single value, the *all*
     versions return and operate on all values in the MutableMappingSequence
     with the key `k`.
+
+    Furthermore, `.pop()` without an argument should function as the
+    MutableSequence pop() function and pop the last value when considering
+    the MutableMappingSequence in a list-like manner.
     """
 
     @abstractmethod
@@ -308,17 +312,31 @@ class OrderedMultiDict(dict, MutableMappingSequence):
 
         warnings.warn(
             "The pvl.collections.OrderedMultiDict.pop(k) function removes "
-            "all keys with value k to be backwards compatible with the "
-            "pvl 0.x architecture, despite the new concept in "
-            "pvl.collections.MutableMappingSequence, this concept of "
+            "all keys with value k to remain backwards compatible with the "
+            "pvl 0.x architecture, this concept of "
             "operations for .pop(k) may change in future versions."
             "Consider using .popall(k) instead.",
             FutureWarning
         )
 
+        if len(args) == 0 and len(kwargs) == 0:
+            return self.popitem()
+
         return self.popall(*args, *kwargs)
 
     def popitem(self):
+
+        warnings.warn(
+            "The pvl.collections.OrderedMultiDict.popitem() function removes "
+            "and returns the last key, value pair to remain backwards "
+            "compatible with the pvl 0.x architecture, this concept of "
+            "operations for .popitem() may change in future versions."
+            "Consider using the list-like .pop(), without an argument instead.",
+            FutureWarning
+        )
+        # Yes, I know .pop() without an argument just redirects here, but it
+        # won't always.
+
         if not self:
             raise KeyError('popitem(): {!s} '.format(type(self).__name__) +
                            'is empty')
@@ -486,8 +504,7 @@ class PVLMultiDict(MultiDict, MutableMappingSequence):
         test_pop(),
     - PVLModule.popitem() used to remove the last item from the underlying list,
         MultiDict.popitem() removes an arbitrary key, value pair.
-        test_popitem,
-        test_pvl::test_broken_labels() -> OmniParser.parse_module_post_hook()
+        test_popitem
     - MultiDict.__repr__() returns "<PVLModule()>" whereas the existing
         returns "PVLModule([])".  I think MultiDict is better, but should
         probably remove the angle brackets?
@@ -600,20 +617,32 @@ class PVLMultiDict(MultiDict, MutableMappingSequence):
         """Insert an item before a key"""
         self._insert_item(key, new_item, instance, False)
 
+    def pop(self, *args, **kwargs):
+        """Returns a two-tuple or a single value, depending on how it is called.
+
+        If no arguments are given, it removes and returns the last key, value
+        pair (list-like behavior).
+
+        If a *key* is given, the first instance of key is found and its value
+        is removed and returned.  If *default* is not given and *key*
+        is not in the dictionary, a KeyError is raised, otherwise *default* is
+        returned (dict-like behavior).
+        """
+        if len(args) == 0 and len(kwargs) == 0:
+            i, k, v = self._impl._items.pop()
+            self._impl.incr_version()
+            return i, v
+        else:
+            return super().pop(*args, **kwargs)
+
+
     def append(self, key, value):
-        # Not sure why super decided to go with the set-like add() instead
+        # Not sure why super() decided to go with the set-like add() instead
         # of the more appropriate list-like append().  Fixed it for them.
         self.add(key, value)
 
-    def discard(self, key):
-        # This should probably be deprecated, it is just
-        # version of del that swallows the exception
-        try:
-            del self[key]
-        except KeyError:
-            pass
 
-
+# class PVLModule(PVLMultiDict):
 # class PVLModule(OrderedMultiDict):
 class PVLModule(PVLMultiDict):
     pass
