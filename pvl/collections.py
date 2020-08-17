@@ -495,50 +495,37 @@ try:
     from multidict._multidict_py import MultiDict
 
     class PVLMultiDict(MultiDict, MutableMappingSequence):
-        """Core data structure returned from the pvl loaders.
+        """This is a new class that may be implemented as the default
+        structure to be returned from the pvl loaders in the future (replacing
+        OrderedMultiDict).
 
-        For now, this is just going to document the changes in going
-        from the old custom pvl.OrderedMultiDict to the multidict.MultiDict
-        object. Also evaluated the boltons.OrderedMultiDict, but its
-        semantics were too different #52
-
-        Will alias pvl.OrderedMultiDict as PVLModule and
-            alias multiduct.MultiDict as MultiDict
-
-        Differences:
-        - PVLModule.getlist() is now MultiDict.getall()
-        - PVLModule.getlist('k') where k is not in the structure returns
-            an empty list, MultiDict.getall() properly returns a KeyError.
-        - The .items(), .keys(), and .values() are now proper iterators
-            and don't return sequences like PVLModule did.
-        - The PVLModule.insert_before() and PVLModule.insert_after() functionality
-            had an edge case where if you had a k, v pair, you had to
-            pass it to those functions as a sequence that contained a
-            single element that had two elements in it, now you can
-            also just pass a two-tuple or whatever, and as long as the
-            first thing is a string, it'll get inserted.
-
-        Potential changes:
-        - Calling list() on a PVLModule returns a list of tuples, which
+        Here is a summary of the differences:
+        - OrderedMultiDict.getall('k') where k is not in the structure returns
+            an empty list, PVLMultiDict.getall('k') properly returns a KeyError.
+        - The .items(), .keys(), and .values() are proper iterators
+            and don't return sequences like OrderedMultiDict did.
+        - Calling list() on an OrderedMultiDict returns a list of tuples, which
             is like calling list() on the results of a dict.items() iterator.
-            Calling list() on a MultiDict would return just a list of keys,
+            Calling list() on a PVLMultiDict returns just a list of keys,
             which is semantically identical to calling list() on a dict.
-        - PVLModule.pop(k) removed all keys that matched k, MultiDict.pop(k) now
-            just removes the first occurrence.  MultiDict.popall(k) would pop
-            and return all.
-        - PVLModule.popitem() used to remove the last item from the underlying list,
-            MultiDict.popitem() removes an arbitrary key, value pair.
+        - OrderedMultiDict.pop(k) removed all keys that matched k,
+            PVLMultiDict.pop(k) just removes the first occurrence.
+            PVLMultiDict.popall(k) would pop all.
+        - OrderedMultiDict.popitem() removes the last item from the underlying
+            list, PVLMultiDict.popitem() removes an arbitrary key, value pair,
+            semantically identical to .popitem() on a dict.
         - MultiDict.__repr__() returns "<PVLModule()>" whereas the existing
             returns "PVLModule([])".  I think MultiDict is better, but should
             probably remove the angle brackets?
-        - ItemsView, MappingView, and KeysView are proper Python 3 iterators, but
-            the old system returned them as lists.
-        - equality is different.  PVLModule has an isinstance()
+        - equality is different:  OrderedMultiDict has an isinstance()
             check in the __eq__() operator, which I don't think was right,
-            since equality is about values, not about type.  MultiDict
+            since equality is about values, not about type.  PVLMultiDict
             has a value-based notion of equality.  So an empty PVLGroup and an
-            empty PVLObject could test equal, but would fail an isinstance() check.
+            empty PVLObject derived from PVLMultiDict could test equal,
+            but would fail an isinstance() check.
         """
+        # Also evaluated the boltons.OrderedMultiDict, but its semantics were
+        # too different #52
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -550,13 +537,13 @@ try:
             return super().__getitem__(key)
 
         def key_index(self, key, ith: int = 0) -> int:
-            """Returns the index of the item in the underlying list implementation
-            that is the *ith* value of that *key*.
+            """Returns the index of the item in the underlying list
+            implementation that is the *ith* value of that *key*.
 
             Effectively creates a list of all indexes that match *key*, and then
-            returns the original index of the *ith* element of that list.  The *ith*
-            integer can be any positive or negative integer and follows the
-            rules for list indexes.
+            returns the original index of the *ith* element of that list.  The
+            *ith* integer can be any positive or negative integer and follows
+            the rules for list indexes.
             """
             if key not in self:
                 raise KeyError(str(key))
@@ -597,8 +584,8 @@ try:
 
             If only two arguments are given, the second must be a sequence.
 
-            If it is a sequence of pairs (such that every item in the sequence is
-            itself a sequence of length two), that sequence will be inserted
+            If it is a sequence of pairs (such that every item in the sequence
+            is itself a sequence of length two), that sequence will be inserted
             as key, value pairs.
 
             If it happens to be a sequence of two items (the first of which is
@@ -615,7 +602,9 @@ try:
 
             for (key, value) in kvlist:
                 identity = self._title(key)
-                self._impl._items.insert(index, (identity, self._key(key), value))
+                self._impl._items.insert(
+                    index, (identity, self._key(key), value)
+                )
                 self._impl.incr_version()
                 index += 1
             return
@@ -629,15 +618,16 @@ try:
             self._insert_item(key, new_item, instance, False)
 
         def pop(self, *args, **kwargs):
-            """Returns a two-tuple or a single value, depending on how it is called.
+            """Returns a two-tuple or a single value, depending on how it is
+            called.
 
-            If no arguments are given, it removes and returns the last key, value
-            pair (list-like behavior).
+            If no arguments are given, it removes and returns the last key,
+            value pair (list-like behavior).
 
-            If a *key* is given, the first instance of key is found and its value
-            is removed and returned.  If *default* is not given and *key*
-            is not in the dictionary, a KeyError is raised, otherwise *default* is
-            returned (dict-like behavior).
+            If a *key* is given, the first instance of key is found and its
+            value is removed and returned.  If *default* is not given and
+            *key* is not in the dictionary, a KeyError is raised, otherwise
+            *default* is returned (dict-like behavior).
             """
             if len(args) == 0 and len(kwargs) == 0:
                 i, k, v = self._impl._items.pop()
