@@ -8,11 +8,10 @@
 # top level of this library.
 
 from collections import abc
-import pytest
 import unittest
 
 import pvl
-from pvl.collections import OrderedMultiDict, PVLMultiDict
+from pvl.collections import OrderedMultiDict
 
 class DictLike(abc.Mapping):
 
@@ -32,7 +31,11 @@ class DictLike(abc.Mapping):
 class TestMultiDicts(unittest.TestCase):
 
     def setUp(self):
-        self.classes = (OrderedMultiDict, PVLMultiDict)
+        try:
+            from pvl.collections import PVLMultiDict
+            self.classes = (OrderedMultiDict, PVLMultiDict)
+        except ImportError:
+            self.classes = (OrderedMultiDict,)
 
     def test_empty(self):
         for cls in self.classes:
@@ -470,10 +473,14 @@ class TestDifferences(unittest.TestCase):
         old = OrderedMultiDict(the_list)
         self.assertListEqual(list(old), [('a', 1), ('b', 2)])
 
-        # Returns list of keys, which is semantically identical to calling
-        # list() on a dict.
-        new = PVLMultiDict(the_list)
-        self.assertListEqual(list(new), ['a', 'b'])
+        try:
+            from pvl.collections import PVLMultiDict
+            # Returns list of keys, which is semantically identical to calling
+            # list() on a dict.
+            new = PVLMultiDict(the_list)
+            self.assertListEqual(list(new), ['a', 'b'])
+        except ImportError:
+            pass
 
     def test_discard(self):
         the_list = [('a', 1), ('b', 2), ('a', 3)]
@@ -493,9 +500,14 @@ class TestDifferences(unittest.TestCase):
         old.discard('c')
         self.assertEqual(len(old), 0)
 
-        # Does not have a set-like .discard() function, because it isn't a set!
-        new = PVLMultiDict(the_list)
-        self.assertRaises(AttributeError, getattr, new, "discard")
+        try:
+            from pvl.collections import PVLMultiDict
+            # Does not have a set-like .discard() function,
+            # because it isn't a set!
+            new = PVLMultiDict(the_list)
+            self.assertRaises(AttributeError, getattr, new, "discard")
+        except ImportError:
+            pass
 
     def test_pop(self):
         the_list = [('a', 1), ('b', 2), ('a', 3)]
@@ -517,21 +529,25 @@ class TestDifferences(unittest.TestCase):
         self.assertRaises(KeyError, old.pop, 'c')
         self.assertEqual(old.pop('c', 42), 42)
 
-        # Removes only the first key
-        new = PVLMultiDict(the_list)
-        self.assertEqual(new.pop('a'), 1)
-        self.assertEqual(len(new), 2)
-        self.assertListEqual(new.getall('a'), [3,])
-        self.assertEqual(new.pop('a'), 3)
-        self.assertEqual(new.pop('a', 42), 42)
+        try:
+            from pvl.collections import PVLMultiDict
+            # Removes only the first key
+            new = PVLMultiDict(the_list)
+            self.assertEqual(new.pop('a'), 1)
+            self.assertEqual(len(new), 2)
+            self.assertListEqual(new.getall('a'), [3,])
+            self.assertEqual(new.pop('a'), 3)
+            self.assertEqual(new.pop('a', 42), 42)
 
-        self.assertEqual(new.pop('b'), 2)
-        self.assertEqual(len(new), 0)
-        self.assertRaises(KeyError, new.pop, 'b')
-        self.assertRaises(KeyError, new.__getitem__, 'b')
+            self.assertEqual(new.pop('b'), 2)
+            self.assertEqual(len(new), 0)
+            self.assertRaises(KeyError, new.pop, 'b')
+            self.assertRaises(KeyError, new.__getitem__, 'b')
 
-        self.assertRaises(KeyError, new.pop, 'c')
-        self.assertEqual(new.pop('c', 42), 42)
+            self.assertRaises(KeyError, new.pop, 'c')
+            self.assertEqual(new.pop('c', 42), 42)
+        except ImportError:
+            pass
 
     def test_popitem(self):
         the_list = [('a', 1), ('b', 2), ('a', 3)]
@@ -546,22 +562,30 @@ class TestDifferences(unittest.TestCase):
         self.assertEqual(len(old), 0)
         self.assertRaises(KeyError, old.popitem)
 
-        # Removes a random item, in proper dict-like fashion
-        new = PVLMultiDict(the_list)
-        self.assertIn(new.popitem(), the_list)
-        self.assertEqual(len(new), 2)
-        new.popitem()
-        new.popitem()
-        self.assertRaises(KeyError, new.popitem)
+        try:
+            from pvl.collections import PVLMultiDict
+            # Removes a random item, in proper dict-like fashion
+            new = PVLMultiDict(the_list)
+            self.assertIn(new.popitem(), the_list)
+            self.assertEqual(len(new), 2)
+            new.popitem()
+            new.popitem()
+            self.assertRaises(KeyError, new.popitem)
+        except ImportError:
+            pass
 
     def test_repr(self):
         # Original repr
         old = OrderedMultiDict()
         self.assertEqual(repr(old), 'OrderedMultiDict([])')
 
-        # MultiDict repr
-        new = PVLMultiDict()
-        self.assertEqual(repr(new), '<PVLMultiDict()>')
+        try:
+            from pvl.collections import PVLMultiDict
+            # MultiDict repr
+            new = PVLMultiDict()
+            self.assertEqual(repr(new), '<PVLMultiDict()>')
+        except ImportError:
+            pass
 
     def test_py3_items(self):
         the_list = [('a', 1), ('b', 2), ('a', 3)]
@@ -571,18 +595,24 @@ class TestDifferences(unittest.TestCase):
         self.assertIsInstance(old.items(), pvl.collections.ItemsView)
         self.assertIsInstance(old.keys(), pvl.collections.KeysView)
         self.assertIsInstance(old.values(), pvl.collections.ValuesView)
+        views = [(old.items(), old.keys(), old.values()),]
 
-        # These are proper Python 3 views:
-        new = PVLMultiDict(the_list)
-        self.assertIsInstance(new.items(), abc.ItemsView)
-        self.assertIsInstance(new.keys(), abc.KeysView)
-        self.assertIsInstance(new.values(), abc.ValuesView)
-
-        # However, if you wrap the new in a list, this is the same:
-        for items, keys, values in (
-                (old.items(), old.keys(), old.values()),
+        try:
+            from pvl.collections import PVLMultiDict
+            # These are proper Python 3 views:
+            new = PVLMultiDict(the_list)
+            self.assertIsInstance(new.items(), abc.ItemsView)
+            self.assertIsInstance(new.keys(), abc.KeysView)
+            self.assertIsInstance(new.values(), abc.ValuesView)
+            views.append(
                 (list(new.items()), list(new.keys()), list(new.values()))
-        ):
+            )
+        except ImportError:
+            pass
+
+        # However, if you wrap the new items in a list (as above), this is
+        # the same:
+        for items, keys, values in views:
             self.assertTupleEqual(items[0], ('a', 1))
             self.assertTupleEqual(items[1], ('b', 2))
             self.assertTupleEqual(items[2], ('a', 3))
@@ -610,11 +640,6 @@ class TestDifferences(unittest.TestCase):
         old = OrderedMultiDict(the_list)
         self.assertListEqual(list(old), the_list)
 
-        # This returns the same thing that calling list() on a dict would,
-        # the list of keys
-        new = PVLMultiDict(the_list)
-        self.assertListEqual(list(new), ['a', 'b', 'a'])
-
         # This is the one failing test commited in pvl 0.3:
         # I'm not sure why it was expected to work, as there is no code
         # that does this.
@@ -628,7 +653,16 @@ class TestDifferences(unittest.TestCase):
         # loosing the double value of 'a'.  There does not seem to be any
         # functionality within the pvl library that requires this test to pass.
         self.assertEqual(dict(old), {'a': 1, 'b': 2})
-        self.assertEqual(dict(new), {'a': 1, 'b': 2})
+
+        try:
+            from pvl.collections import PVLMultiDict
+            # This returns the same thing that calling list() on a dict would,
+            # the list of keys
+            new = PVLMultiDict(the_list)
+            self.assertListEqual(list(new), ['a', 'b', 'a'])
+            self.assertEqual(dict(new), {'a': 1, 'b': 2})
+        except ImportError:
+            pass
 
     def test_equality(self):
 
@@ -649,10 +683,14 @@ class TestDifferences(unittest.TestCase):
         self.assertNotEqual(oldobj, oldgrp)
         self.assertEqual(oldobj, oldobj)
 
-        # Value-based notion of equality
-        newmod = pvl.collections.PVLModuleNew()
-        newgrp = pvl.collections.PVLGroupNew()
-        newobj = pvl.collections.PVLObjectNew()
+        try:
+            from pvl.collections import PVLMultiDict
+            # Value-based notion of equality
+            newmod = pvl.collections.PVLModuleNew()
+            newgrp = pvl.collections.PVLGroupNew()
+            newobj = pvl.collections.PVLObjectNew()
 
-        self.assertEqual(newmod, newgrp)
-        self.assertEqual(newmod, newobj)
+            self.assertEqual(newmod, newgrp)
+            self.assertEqual(newmod, newobj)
+        except ImportError:
+            pass
