@@ -648,19 +648,51 @@ class TestDifferences(unittest.TestCase):
         old = OrderedMultiDict(the_list)
         self.assertListEqual(list(old), the_list)
 
-        # This is the one failing test commited in pvl 0.3:
-        # I'm not sure why it was expected to work, as there is no code
-        # that does this.
+        # === Callling dict(old) ===
+        # This is the one test that I could not get to pass from
+        # pvl 0.3, and now I know why: it is because the
+        # OrderedMultiDict inherently carries two copies of the
+        # information added to it: one in the default dict that
+        # it inherits from being directly subclassed from dict,
+        # and the other is an internal list of key, value tuples.
+        #
+        # When I tried to run this test using the regular Python
+        # interpreters, I got
+        # self.assertEqual(dict(old), {'a': 1, 'b': 2})
+        # This is because when it is passed to the dict constructor,
+        # Python makes it into a regular Mapping object with unique
+        # keys, inevitably loosing the double value of 'a'.
+        #
+        # I could not understand why pvl 0.3 had this test that it
+        # expected to pass:
         # expected_dict = {
         #     'a': [1, 3],
         #     'b': [2],
         # }
-        # assert dict(module) == expected_dict
-        # Since the OrderedMultiDict subclasses from dict, it is a 'mapping
-        # object' and Python makes it into a dict with unique keys, inevitably
-        # loosing the double value of 'a'.  There does not seem to be any
-        # functionality within the pvl library that requires this test to pass.
-        self.assertEqual(dict(old), {'a': 1, 'b': 2})
+        #
+        # That was until Travis ran the tests using both the regular
+        # python interpreter and pypy (I don't usually run pypy tests locally).
+        # If you run the test with a regular python interpreter, you get the
+        # first result, with the second value of 'a' being lost.  If you run
+        # the test with the pypy3 interpreter, you get the second result, with
+        # the values for the keys being lists!
+        #
+        # This scared the heck out of me.
+        #
+        # This is what I think is happening:
+        # When you run dict() on an OrderedMultiDict, the python interpreter
+        # uses the fact that it is a Mapping item, and internally runs its
+        # .items() function to get the (key, value) pairs and builds a new
+        # dict from them (it encounters a second value for the key 'a', and
+        # looses it).  The pypy3 interpreter, must not use the .items()
+        # function on the passed-in Mapping object, but notices that this
+        # object derives from a dict, and so just grabs the internal dict
+        # representation, which OrderedMultiDict hides from the user, but
+        # is implemented as single keys with lists as the values.
+        #
+        # And that's why the same code produces different results with
+        # different interpreters.
+
 
         try:
             from pvl.collections import PVLMultiDict
