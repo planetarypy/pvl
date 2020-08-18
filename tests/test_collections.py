@@ -583,7 +583,7 @@ class TestDifferences(unittest.TestCase):
             from pvl.collections import PVLMultiDict
             # MultiDict repr
             new = PVLMultiDict()
-            self.assertEqual(repr(new), '<PVLMultiDict()>')
+            self.assertEqual(repr(new), 'PVLMultiDict()')
         except ImportError:
             pass
 

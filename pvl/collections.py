@@ -514,9 +514,10 @@ try:
         - OrderedMultiDict.popitem() removes the last item from the underlying
             list, PVLMultiDict.popitem() removes an arbitrary key, value pair,
             semantically identical to .popitem() on a dict.
-        - MultiDict.__repr__() returns "<PVLModule()>" whereas the existing
-            returns "PVLModule([])".  I think MultiDict is better, but should
-            probably remove the angle brackets?
+        - OrderedMultiDict.__repr__() and .__str__() return identical strings,
+            PVLMultiDict provides a .__str__() that is pretty-printed similar
+            to OrderedMultiDict, but also a .__repr__() with a more compact
+            representation.
         - equality is different:  OrderedMultiDict has an isinstance()
             check in the __eq__() operator, which I don't think was right,
             since equality is about values, not about type.  PVLMultiDict
@@ -535,6 +536,29 @@ try:
             if isinstance(key, (int, slice)):
                 return list(self.items())[key]
             return super().__getitem__(key)
+
+        def __repr__(self):
+            if len(self) == 0:
+                return f"{self.__class__.__name__}()"
+
+            return (
+                    f"{self.__class__.__name__}(" +
+                    str(list(self.items())) + ")"
+            )
+
+        def __str__(self):
+            if len(self) == 0:
+                return self.__repr__()
+
+            lines = []
+            for item in self.items():
+                for line in pprint.pformat(item).splitlines():
+                    lines.append('  ' + line)
+
+            return (
+                    f"{self.__class__.__name__}([\n" +
+                    "\n".join(lines) + "\n])"
+            )
 
         def key_index(self, key, ith: int = 0) -> int:
             """Returns the index of the item in the underlying list
