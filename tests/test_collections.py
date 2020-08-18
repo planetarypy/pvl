@@ -278,18 +278,26 @@ class TestMultiDicts(unittest.TestCase):
                 self.assertNotEqual(module, copy)
 
     def test_equality(self):
-        for modcls, grpcls, objcls in (
+        classes = [
             (
                 pvl.collections.PVLModule,
                 pvl.collections.PVLGroup,
                 pvl.collections.PVLObject
-            ),
-            (
-                pvl.collections.PVLModuleNew,
-                pvl.collections.PVLGroupNew,
-                pvl.collections.PVLObjectNew
             )
-        ):
+        ]
+        try:
+            from pvl.collections import PVLMultiDict
+            classes.append(
+                (
+                    pvl.collections.PVLModuleNew,
+                    pvl.collections.PVLGroupNew,
+                    pvl.collections.PVLObjectNew
+                )
+            )
+        except ImportError:
+            pass
+
+        for modcls, grpcls, objcls in classes:
             module = modcls()
             group = grpcls()
             obj = objcls()

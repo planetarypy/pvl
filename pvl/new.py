@@ -24,7 +24,7 @@ objects.
 import inspect
 import urllib.request
 
-from pvl import *
+from pvl import *  # noqa: F401,F403
 from pvl import get_text_from, decode_by_char
 
 from .parser import PVLParser, OmniParser

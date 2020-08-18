@@ -3,11 +3,21 @@
 History
 -------
 
-???
-~~~
-* Worked to switch out the custom OrderedMultiDict with the 3rd party
-  multidict.MultiDict.  Still in-process, have identified issues in
-  the docstring for pvl._collections.PVLMultiDict, not all tests passing.
+1.0.0-alpha.9 (2020-08-18)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Minor addition to pvl.collections.MutableMappingSequence.
+* Implemented PVLMultiDict which is based on the 3rd Party
+  `multidict.MultiDict` object as an option to use instead
+  of the default OrderedMultiDict.  The new PVLMultiDict
+  is better aligned with the Python 3 way that Mapping
+  objects behave.
+* Enhanced the existing OrderedMultiDict with some functionality
+  that extends its behavior closer to the Python 3 ideal, and
+  inserted warnings about how the retained non-Python-3
+  behaviors might be removed at the next major patch.
+* Implemented pvl.new that can be included for those that wish
+  to try out what getting the new PVLMultiDict returned from
+  the loaders might be like by just changing an import statement.
 
 1.0.0-alpha.8 (2020-08-01)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

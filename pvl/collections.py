@@ -489,7 +489,8 @@ def _insert_arg_helper(args):
 
     return kvlist
 
-try:
+
+try:  # noqa: C901
     # In order to access super class attributes for our derived class, we must
     # import the native Python version, instead of the default Cython version.
     from multidict._multidict_py import MultiDict
@@ -500,30 +501,31 @@ try:
         OrderedMultiDict).
 
         Here is a summary of the differences:
-        - OrderedMultiDict.getall('k') where k is not in the structure returns
-            an empty list, PVLMultiDict.getall('k') properly returns a KeyError.
-        - The .items(), .keys(), and .values() are proper iterators
-            and don't return sequences like OrderedMultiDict did.
-        - Calling list() on an OrderedMultiDict returns a list of tuples, which
-            is like calling list() on the results of a dict.items() iterator.
-            Calling list() on a PVLMultiDict returns just a list of keys,
-            which is semantically identical to calling list() on a dict.
-        - OrderedMultiDict.pop(k) removed all keys that matched k,
-            PVLMultiDict.pop(k) just removes the first occurrence.
-            PVLMultiDict.popall(k) would pop all.
-        - OrderedMultiDict.popitem() removes the last item from the underlying
-            list, PVLMultiDict.popitem() removes an arbitrary key, value pair,
-            semantically identical to .popitem() on a dict.
-        - OrderedMultiDict.__repr__() and .__str__() return identical strings,
-            PVLMultiDict provides a .__str__() that is pretty-printed similar
-            to OrderedMultiDict, but also a .__repr__() with a more compact
-            representation.
-        - equality is different:  OrderedMultiDict has an isinstance()
-            check in the __eq__() operator, which I don't think was right,
-            since equality is about values, not about type.  PVLMultiDict
-            has a value-based notion of equality.  So an empty PVLGroup and an
-            empty PVLObject derived from PVLMultiDict could test equal,
-            but would fail an isinstance() check.
+
+        * OrderedMultiDict.getall('k') where k is not in the structure returns
+          an empty list, PVLMultiDict.getall('k') properly returns a KeyError.
+        * The .items(), .keys(), and .values() are proper iterators
+          and don't return sequences like OrderedMultiDict did.
+        * Calling list() on an OrderedMultiDict returns a list of tuples, which
+          is like calling list() on the results of a dict.items() iterator.
+          Calling list() on a PVLMultiDict returns just a list of keys,
+          which is semantically identical to calling list() on a dict.
+        * OrderedMultiDict.pop(k) removed all keys that matched k,
+          PVLMultiDict.pop(k) just removes the first occurrence.
+          PVLMultiDict.popall(k) would pop all.
+        * OrderedMultiDict.popitem() removes the last item from the underlying
+          list, PVLMultiDict.popitem() removes an arbitrary key, value pair,
+          semantically identical to .popitem() on a dict.
+        * OrderedMultiDict.__repr__() and .__str__() return identical strings,
+          PVLMultiDict provides a .__str__() that is pretty-printed similar
+          to OrderedMultiDict, but also a .__repr__() with a more compact
+          representation.
+        * Equality is different:  OrderedMultiDict has an isinstance()
+          check in the __eq__() operator, which I don't think was right,
+          since equality is about values, not about type.  PVLMultiDict
+          has a value-based notion of equality.  So an empty PVLGroup and an
+          empty PVLObject derived from PVLMultiDict could test equal,
+          but would fail an isinstance() check.
         """
         # Also evaluated the boltons.OrderedMultiDict, but its semantics were
         # too different #52
@@ -669,14 +671,11 @@ try:
     class PVLModuleNew(PVLMultiDict):
         pass
 
-
     class PVLAggregationNew(PVLMultiDict):
         pass
 
-
     class PVLGroupNew(PVLAggregationNew):
         pass
-
 
     class PVLObjectNew(PVLAggregationNew):
         pass

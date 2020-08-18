@@ -990,7 +990,6 @@ def test_broken_labels(label, expected, expected_errors):
     # But this should compare the 'line numbers' of the EmptyValueAtLine
     # objects.
     assert module.errors == expected_errors
-    # assert not module.valid
 
 
 @pytest.mark.parametrize(
