@@ -800,7 +800,7 @@ class OmniParser(PVLParser):
                                    decoder=self.decoder)
                 if last_token.is_parameter_name():
                     # Fix the previous entry
-                    module.popitem()
+                    module.pop()
                     module.append(last_k, self._empty_value(t.pos))
                     # Now use last_token as the parameter name
                     # for the next assignment, and we must

@@ -19,3 +19,4 @@ dependencies:
   - python-dateutil
   - astropy
   - pint
+  - multidict

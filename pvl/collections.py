@@ -9,8 +9,8 @@ no existing object or even an Abstract Base Class in the Python
 Standard Library for such an object.  So we define the
 MutableMappingSequence ABC here, which is (as the name implies) an
 abstract base class that implements both the Python MutableMapping
-and Mutable Sequence ABCs. We also provide an implementation, the
-OrderedMultiDict.
+and Mutable Sequence ABCs. We also provide two implementations, the
+OrderedMultiDict, and the newer PVLMultiDict.
 
 Additionally, for PVL Values which also have an associated PVL Units
 Expression, they need to be returned as a quantity object which contains
@@ -36,12 +36,20 @@ class MutableMappingSequence(
     """ABC for a mutable object that has both mapping and
     sequence characteristics.
 
-    Must implement `.getall()` and `.popall()` since MutableMappingSequence
+    Must implement `.getall(k)` and `.popall(k)` since a MutableMappingSequence
     can have many values for a single key, while `.get(k)` and
     `.pop(k)` return and operate on a single value, the *all*
     versions return and operate on all values in the MutableMappingSequence
     with the key `k`.
+
+    Furthermore, `.pop()` without an argument should function as the
+    MutableSequence pop() function and pop the last value when considering
+    the MutableMappingSequence in a list-like manner.
     """
+
+    @abstractmethod
+    def append(self, key, value):
+        pass
 
     @abstractmethod
     def getall(self, key):
@@ -232,6 +240,14 @@ class OrderedMultiDict(dict, MutableMappingSequence):
         self.__items = []
 
     def discard(self, key):
+
+        warnings.warn(
+            "The discard(k) function is deprecated in favor of .popall(k), "
+            "please begin using it, as .discard(k) may be removed in the "
+            "next major patch.",
+            PendingDeprecationWarning
+        )
+
         try:
             del self[key]
         except KeyError:
@@ -279,9 +295,9 @@ class OrderedMultiDict(dict, MutableMappingSequence):
         Returns an empty list if the key doesn't exist.
         """
         warnings.warn(
-            "The pvl.collections.OrderedMultiDict.getlist(k) function is "
-            "deprecated in favor of .getall(), please begin using it, as "
-            ".getlist() may be removed in the next major patch.",
+            "The getlist() function is deprecated in favor of .getall(), "
+            "please begin using it, as .getlist() may be removed in the "
+            "next major patch.",
             PendingDeprecationWarning
         )
 
@@ -299,18 +315,32 @@ class OrderedMultiDict(dict, MutableMappingSequence):
         """Removes all items with the specified *key*."""
 
         warnings.warn(
-            "The pvl.collections.OrderedMultiDict.pop(k) function removes "
-            "all keys with value k to be backwards compatible with the "
-            "pvl 0.x architecture, despite the new concept in "
-            "pvl.collections.MutableMappingSequence, this concept of "
-            "operations for .pop(k) may change in future versions."
+            "The pop(k) function removes "
+            "all keys with value k to remain backwards compatible with the "
+            "pvl 0.x architecture, this concept of "
+            "operations for .pop(k) may change in future versions. "
             "Consider using .popall(k) instead.",
             FutureWarning
         )
 
+        if len(args) == 0 and len(kwargs) == 0:
+            return self.popitem()
+
         return self.popall(*args, *kwargs)
 
     def popitem(self):
+
+        warnings.warn(
+            "The popitem() function removes "
+            "and returns the last key, value pair to remain backwards "
+            "compatible with the pvl 0.x architecture, this concept of "
+            "operations for .popitem() may change in future versions. "
+            "Consider using the list-like .pop(), without an argument instead.",
+            FutureWarning
+        )
+        # Yes, I know .pop() without an argument just redirects here, but it
+        # won't always.
+
         if not self:
             raise KeyError('popitem(): {!s} '.format(type(self).__name__) +
                            'is empty')
@@ -330,39 +360,42 @@ class OrderedMultiDict(dict, MutableMappingSequence):
     def insert(self, index: int, *args) -> None:
         """Inserts at the index given by *index*.
 
-        The first positional argument will be taken as the
-        *index*. If three arguments are given, the second will be taken
-        as the *key*, and the third as the *value*.  If only two arguments are
-        given, the second must be a two-element sequence, where the first will
-        be the *key* and the second the *value*.
+        The first positional argument will always be taken as the
+        *index* for insertion.
+
+        If three arguments are given, the second will be taken
+        as the *key*, and the third as the *value* to insert.
+
+        If only two arguments are given, the second must be a sequence.
+
+        If it is a sequence of pairs (such that every item in the sequence is
+        itself a sequence of length two), that sequence will be inserted
+        as key, value pairs.
+
+        If it happens to be a sequence of two items (the first of which is
+        not a sequence), the first will be taken as the *key* and the
+        second the *value* to insert.
         """
-        if len(args) == 1:
-            if len(args[0]) == 2:
-                key, value = args[0]
-            else:
-                raise IndexError(
-                    "If a sequence is provided to the second positional "
-                    f"argument of pvl.OrderedMultiDict.insert() it must have "
-                    f"exactly 2 elements, but it is {args[0]}"
-                )
-        elif len(args) == 2:
-            self.__items.insert(index, args)
-            key, value = args
-        else:
+
+        if not isinstance(index, int):
             raise TypeError(
-                f"{self.__name__}.insert() takes 2 or 3 positional arguments, "
-                f"but {len(args)} were given."
+                "The first positional argument to pvl.MultiDict.insert()"
+                "must be an int."
             )
 
-        self.__items.insert(index, (key, value))
+        kvlist = _insert_arg_helper(args)
 
-        # Make sure indexing works with the new item
-        if key in self:
-            value_list = [val for k, val in self.__items if
-                          k == key]
-            dict_setitem(self, key, value_list)
-        else:
-            dict_setitem(self, key, [value])
+        for (key, value) in kvlist:
+            self.__items.insert(index, (key, value))
+            index += 1
+
+            # Make sure indexing works with the new item
+            if key in self:
+                value_list = [val for k, val in self.__items if
+                              k == key]
+                dict_setitem(self, key, value_list)
+            else:
+                dict_setitem(self, key, [value])
 
         return
 
@@ -379,62 +412,285 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             return func(self, key, new_item, instance)
         return check_func
 
-    def _get_index_for_insert(self, key, instance: int) -> int:
+    def key_index(self, key, instance: int = 0) -> int:
         """Get the index of the key to insert before or after."""
-        if instance == 0:
-            # Index method will return the first occurrence of the key
-            index = self.keys().index(key)
-        else:
-            occurrence = -1
-            for index, k in enumerate(self.keys()):
-                if k == key:
-                    occurrence += 1
-                    if occurrence == instance:
-                        # Found the key and the correct occurrence of the key
-                        break
+        if key not in self:
+            raise KeyError(str(key))
 
-            if occurrence != instance:
-                # Gone through the entire list of keys and the instance number
-                # given is too high for the number of occurrences of the key
-                raise ValueError(f"Cannot insert before/after the {instance} "
-                                 f"instance of the key '{key}' since there are "
-                                 f"only {occurrence} occurrences of the key")
-        return index
+        idxs = list()
+        for idx, k in enumerate(self.keys()):
+            if key == k:
+                idxs.append(idx)
 
-    def _insert_item(
-            self, key, new_item: abc.Iterable, instance: int, is_after: bool
-    ):
-        """Insert a new item before or after another item."""
-        index = self._get_index_for_insert(key, instance)
-        index = index + 1 if is_after else index
+        try:
+            return idxs[instance]
+        except IndexError:
+            raise IndexError(
+                f"There are only {len(idxs)} elements with the key {key}, "
+                f"the provided index ({instance}) is out of bounds."
+            )
 
-        # But new_item is always a list of two-tuples, even if only one, and
-        # all should be inserted, so despite the singular "an item"
-        # in the doc strings, this could be a whole bunch.
-        for pair in new_item:
-            self.insert(index, pair)
-            index += 1
-
-    @__insert_wrapper
     def insert_after(self, key, new_item: abc.Iterable, instance=0):
         """Insert an item after a key"""
-        self._insert_item(key, new_item, instance, True)
+        index = self.key_index(key, instance)
+        self.insert(index + 1, new_item)
 
-    @__insert_wrapper
     def insert_before(self, key, new_item: abc.Iterable, instance=0):
         """Insert an item before a key"""
-        self._insert_item(key, new_item, instance, False)
+        index = self.key_index(key, instance)
+        self.insert(index, new_item)
+
+
+def _insert_arg_helper(args):
+    # Helper function to un-mangle the many and various ways that
+    # key, value pairs could be provided to the .insert() functions.
+    # Takes all of them, and returns a list of key, value pairs, even
+    # if there is only one.
+    if len(args) == 1:
+        if not isinstance(args, (abc.Sequence, abc.Mapping)):
+            raise TypeError(
+                "If a single argument is provided to the second positional "
+                "argument of insert(), it must have a Sequence or Mapping "
+                f"interface. Instead it was {type(args)}: {args}"
+            )
+
+        if isinstance(args[0], abc.Mapping):
+            return list(args[0].items())
+
+        else:
+            if len(args[0]) == 2 and (
+                    isinstance(args[0][0], str) or
+                    not isinstance(args[0][0], abc.Sequence)
+            ):
+                kvlist = (args[0],)
+            else:
+                for pair in args[0]:
+                    msg = (
+                        "One of the elements in the sequence passed to the "
+                        "second argument of insert() "
+                    )
+                    if not isinstance(pair, abc.Sequence):
+                        raise TypeError(
+                            msg + f"was not itself a sequence, it is: {pair}"
+                        )
+                    if not len(pair) == 2:
+                        raise TypeError(
+                            msg + f"was not a pair of values, it is: {pair}"
+                        )
+
+                kvlist = args[0]
+
+    elif len(args) == 2:
+        kvlist = (args,)
+    else:
+        raise TypeError(
+            f"insert() takes 2 or 3 positional arguments ({len(args)} given)."
+        )
+
+    return kvlist
+
+
+try:  # noqa: C901
+    # In order to access super class attributes for our derived class, we must
+    # import the native Python version, instead of the default Cython version.
+    from multidict._multidict_py import MultiDict
+
+    class PVLMultiDict(MultiDict, MutableMappingSequence):
+        """This is a new class that may be implemented as the default
+        structure to be returned from the pvl loaders in the future (replacing
+        OrderedMultiDict).
+
+        Here is a summary of the differences:
+
+        * OrderedMultiDict.getall('k') where k is not in the structure returns
+          an empty list, PVLMultiDict.getall('k') properly returns a KeyError.
+        * The .items(), .keys(), and .values() are proper iterators
+          and don't return sequences like OrderedMultiDict did.
+        * Calling list() on an OrderedMultiDict returns a list of tuples, which
+          is like calling list() on the results of a dict.items() iterator.
+          Calling list() on a PVLMultiDict returns just a list of keys,
+          which is semantically identical to calling list() on a dict.
+        * OrderedMultiDict.pop(k) removed all keys that matched k,
+          PVLMultiDict.pop(k) just removes the first occurrence.
+          PVLMultiDict.popall(k) would pop all.
+        * OrderedMultiDict.popitem() removes the last item from the underlying
+          list, PVLMultiDict.popitem() removes an arbitrary key, value pair,
+          semantically identical to .popitem() on a dict.
+        * OrderedMultiDict.__repr__() and .__str__() return identical strings,
+          PVLMultiDict provides a .__str__() that is pretty-printed similar
+          to OrderedMultiDict, but also a .__repr__() with a more compact
+          representation.
+        * Equality is different:  OrderedMultiDict has an isinstance()
+          check in the __eq__() operator, which I don't think was right,
+          since equality is about values, not about type.  PVLMultiDict
+          has a value-based notion of equality.  So an empty PVLGroup and an
+          empty PVLObject derived from PVLMultiDict could test equal,
+          but would fail an isinstance() check.
+        """
+        # Also evaluated the boltons.OrderedMultiDict, but its semantics were
+        # too different #52
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def __getitem__(self, key):
+            # Allow list-like access of the underlying structure
+            if isinstance(key, (int, slice)):
+                return list(self.items())[key]
+            return super().__getitem__(key)
+
+        def __repr__(self):
+            if len(self) == 0:
+                return f"{self.__class__.__name__}()"
+
+            return (
+                    f"{self.__class__.__name__}(" +
+                    str(list(self.items())) + ")"
+            )
+
+        def __str__(self):
+            if len(self) == 0:
+                return self.__repr__()
+
+            lines = []
+            for item in self.items():
+                for line in pprint.pformat(item).splitlines():
+                    lines.append('  ' + line)
+
+            return (
+                    f"{self.__class__.__name__}([\n" +
+                    "\n".join(lines) + "\n])"
+            )
+
+        def key_index(self, key, ith: int = 0) -> int:
+            """Returns the index of the item in the underlying list
+            implementation that is the *ith* value of that *key*.
+
+            Effectively creates a list of all indexes that match *key*, and then
+            returns the original index of the *ith* element of that list.  The
+            *ith* integer can be any positive or negative integer and follows
+            the rules for list indexes.
+            """
+            if key not in self:
+                raise KeyError(str(key))
+            idxs = list()
+            for idx, (k, v) in enumerate(self.items()):
+                if key == k:
+                    idxs.append(idx)
+
+            try:
+                return idxs[ith]
+            except IndexError:
+                raise IndexError(
+                    f"There are only {len(idxs)} elements with the key {key}, "
+                    f"the provided index ({ith}) is out of bounds."
+                )
+
+        def _insert_item(
+                self, key, new_item: abc.Iterable, instance: int, is_after: bool
+        ):
+            """Insert a new item before or after another item."""
+            index = self.key_index(key, instance)
+            index = index + 1 if is_after else index
+
+            if isinstance(new_item, abc.Mapping):
+                tuple_iter = new_item.items()
+            else:
+                tuple_iter = new_item
+            self.insert(index, tuple_iter)
+
+        def insert(self, index: int, *args) -> None:
+            """Inserts at the index given by *index*.
+
+            The first positional argument will always be taken as the
+            *index* for insertion.
+
+            If three arguments are given, the second will be taken
+            as the *key*, and the third as the *value* to insert.
+
+            If only two arguments are given, the second must be a sequence.
+
+            If it is a sequence of pairs (such that every item in the sequence
+            is itself a sequence of length two), that sequence will be inserted
+            as key, value pairs.
+
+            If it happens to be a sequence of two items (the first of which is
+            not a sequence), the first will be taken as the *key* and the
+            second the *value* to insert.
+            """
+            if not isinstance(index, int):
+                raise TypeError(
+                    "The first positional argument to pvl.MultiDict.insert()"
+                    "must be an int."
+                )
+
+            kvlist = _insert_arg_helper(args)
+
+            for (key, value) in kvlist:
+                identity = self._title(key)
+                self._impl._items.insert(
+                    index, (identity, self._key(key), value)
+                )
+                self._impl.incr_version()
+                index += 1
+            return
+
+        def insert_after(self, key, new_item, instance=0):
+            """Insert an item after a key"""
+            self._insert_item(key, new_item, instance, True)
+
+        def insert_before(self, key, new_item, instance=0):
+            """Insert an item before a key"""
+            self._insert_item(key, new_item, instance, False)
+
+        def pop(self, *args, **kwargs):
+            """Returns a two-tuple or a single value, depending on how it is
+            called.
+
+            If no arguments are given, it removes and returns the last key,
+            value pair (list-like behavior).
+
+            If a *key* is given, the first instance of key is found and its
+            value is removed and returned.  If *default* is not given and
+            *key* is not in the dictionary, a KeyError is raised, otherwise
+            *default* is returned (dict-like behavior).
+            """
+            if len(args) == 0 and len(kwargs) == 0:
+                i, k, v = self._impl._items.pop()
+                self._impl.incr_version()
+                return i, v
+            else:
+                return super().pop(*args, **kwargs)
+
+        def append(self, key, value):
+            # Not sure why super() decided to go with the set-like add() instead
+            # of the more appropriate list-like append().  Fixed it for them.
+            self.add(key, value)
+
+    # New versions based on PVLMultiDict
+    class PVLModuleNew(PVLMultiDict):
+        pass
+
+    class PVLAggregationNew(PVLMultiDict):
+        pass
+
+    class PVLGroupNew(PVLAggregationNew):
+        pass
+
+    class PVLObjectNew(PVLAggregationNew):
+        pass
+
+except ImportError:
+    warnings.warn(
+        "The multidict library is not present, so the new PVLMultiDict "
+        "cannot be used. At this time, it is completely optional, and doesn't "
+        "impact the use of pvl.",
+        ImportWarning
+    )
 
 
 class PVLModule(OrderedMultiDict):
-
-    def __init__(self, *args, **kwargs):
-        super(PVLModule, self).__init__(*args, **kwargs)
-        self.errors = []
-
-    @property
-    def valid(self):
-        return not self.errors
+    pass
 
 
 class PVLAggregation(OrderedMultiDict):
