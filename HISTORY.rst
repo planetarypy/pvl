@@ -3,6 +3,43 @@
 History
 -------
 
+1.0.0 (2020-08-23)
+~~~~~~~~~~~~~~~~~~
+This production version of the pvl library consists of significant
+API and functionality changes from the 0.x version that has been
+in use for 5 years (a credit to Trevor Olson's skills).  The
+documentation has been significantly upgraded, and various granular
+changes over the 10 alpha versions of 1.0.0 over the last 8 months
+are detailed below.  However, here is a high-level overview of what
+changed from the 0.x version:
+
+* Only guaranteed to work with Python 3.6 and above.
+* Rigorously implemented the three dialects of PVL text: PVL itself,
+  ODL, and the PDS3 Label Standard.  There is a fourth de-facto
+  dialect, that of ISIS cube labels that is also handled.  Please see
+  the "Standards & Specifications" section of the documentation.
+* There is now a default dialect for the dump functions: the PDS3 Label Standard.
+  This is different and more strict than before, but other output dialects are
+  possible.  Please see the "Writing out PVL text" section in the documentation
+  for more information, and how to enable an output similar to the 0.x output.
+* ``pvl.load()`` and ``pvl.dump()`` take all of the arguments that they could take
+  before (string containing a filename, byte streams), but now also accept any
+  ``os.PathLike`` object, or even an already-opened file object.
+* Utility programs `pvl_validate` and `pvl_translate` were added, please see
+  the "Utility Programs" section of the documentation for more information.
+* All ``datetime.time`` and ``datetime.datetime`` objects returned from the loaders
+  are now timezone "aware." Previously some were and some were not.
+* There are now ``pvl.collections`` and ``pvl.exceptions`` modules.  There was previously
+  an internal ``pvl._collections`` module, and the exception classes were scattered through
+  the other modules.
+* Quantities: The `pvl.collections.Units` object is pending deprecation in favor of
+  the new ``pvl.collections.Quantity`` object (really a name-only change, no functionality
+  difference).  The library can now parse and encode PVL Values with Units expressions
+  with third-party quantity objects like `astropy.units.Quantity` and `pint.Quantity`.
+  Please see the "Quantities: Values and Units" section of the documentation.
+
+
+
 1.0.0-alpha.9 (2020-08-18)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Minor addition to pvl.collections.MutableMappingSequence.

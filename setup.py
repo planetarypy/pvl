@@ -12,11 +12,11 @@ history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 
 setup(
     name='pvl',
-    version='1.0.0-alpha.9',
+    version='1.0.0',
     description='Python implementation of PVL (Parameter Value Language)',
     long_description=readme + '\n\n' + history,
     author='The PlanetaryPy Developers',
-    author_email='trevor@heytrevor.com',
+    author_email='rbeyer@rossbeyer.net',
     url='https://github.com/planetarypy/pvl',
     packages=[
         'pvl',
@@ -28,13 +28,15 @@ setup(
     zip_safe=False,
     keywords='pvl',
     classifiers=[
-        'Development Status :: Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Topic :: Text Processing'
     ],
     entry_points={"console_scripts": [
         "pvl_translate = pvl.pvl_translate:main",

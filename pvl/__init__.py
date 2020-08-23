@@ -23,8 +23,8 @@ from .collections import (
 )
 
 __author__ = "The pvl Developers"
-__email__ = "trevor@heytrevor.com"
-__version__ = "1.0.0-alpha.9"
+__email__ = "rbeyer@rossbeyer.net"
+__version__ = "1.0.0"
 __all__ = [
     "load",
     "loads",
