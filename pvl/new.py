@@ -10,9 +10,11 @@ you can change to::
 
     import pvl.new as pvl
 
-And then use all of the pvl functions as you usually would.  But now, any
-objects that are returned by the load functions will be the new PVLMultiDict
-objects.
+And then use all of the pvl functions as you usually would.  You
+will also need to have the 3rd party multidict library
+(https://github.com/aio-libs/multidict, conda installable) installed.
+But then, any objects that are returned by the load functions will
+be the new PVLMultiDict objects.
 """
 
 # Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
