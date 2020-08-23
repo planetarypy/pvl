@@ -22,19 +22,19 @@ from .collections import (
     Units,
 )
 
-__author__ = 'The pvl Developers'
-__email__ = 'trevor@heytrevor.com'
-__version__ = '1.0.0-alpha.9'
+__author__ = "The pvl Developers"
+__email__ = "trevor@heytrevor.com"
+__version__ = "1.0.0-alpha.9"
 __all__ = [
-    'load',
-    'loads',
-    'dump',
-    'dumps',
-    'PVLModule',
-    'PVLGroup',
-    'PVLObject',
-    'Quantity',
-    'Units',
+    "load",
+    "loads",
+    "dump",
+    "dumps",
+    "PVLModule",
+    "PVLGroup",
+    "PVLObject",
+    "Quantity",
+    "Units",
 ]
 
 
@@ -58,8 +58,13 @@ def load(path, parser=None, grammar=None, decoder=None, **kwargs):
     cube file), that's fine, this function will just extract the
     decodable text.
     """
-    return loads(get_text_from(path), parser=parser, grammar=grammar,
-                 decoder=decoder, **kwargs)
+    return loads(
+        get_text_from(path),
+        parser=parser,
+        grammar=grammar,
+        decoder=decoder,
+        **kwargs
+    )
 
 
 def get_text_from(path) -> str:
@@ -73,7 +78,7 @@ def get_text_from(path) -> str:
         # fails.  So open the file as a bytestream, and read until
         # we can't decode.  We don't want to just run the .read_bytes()
         # method of Path, because this could be a giant file.
-        with open(path, mode='rb') as f:
+        with open(path, mode="rb") as f:
             return decode_by_char(f)
     except TypeError:
         # Not an os.PathLike, maybe it is an already-opened file object
@@ -86,8 +91,13 @@ def get_text_from(path) -> str:
                     # decode.  Since the 'catch' below already does that,
                     # we'll just emit a ... contrived ... UnicodeDecodeError
                     # so we don't have to double-write the code:
-                    raise UnicodeDecodeError('utf_8', 'dummy'.encode(), 0, 1,
-                                             'file object in byte mode')
+                    raise UnicodeDecodeError(
+                        "utf_8",
+                        "dummy".encode(),
+                        0,
+                        1,
+                        "file object in byte mode",
+                    )
             except UnicodeDecodeError:
                 # All of the bytes weren't decodeable, maybe the initial
                 # sequence is (as above)?
@@ -96,8 +106,10 @@ def get_text_from(path) -> str:
 
         else:
             # Not a path, not an already-opened file.
-            raise TypeError('Expected an os.PathLike or an already-opened '
-                            'file object, but did not get either.')
+            raise TypeError(
+                "Expected an os.PathLike or an already-opened "
+                "file object, but did not get either."
+            )
         return s
 
 
@@ -113,9 +125,9 @@ def decode_by_char(f: io.RawIOBase) -> str:
     or an element can no longer be decoded, the accumulated string will
     be returned.
     """
-    s = ''
+    s = ""
     try:
-        for elem in iter(lambda: f.read(1), b''):
+        for elem in iter(lambda: f.read(1), b""):
             if isinstance(elem, str):
                 s += elem
             else:
@@ -184,7 +196,7 @@ def loads(s: str, parser=None, grammar=None, decoder=None, **kwargs):
     if parser is None:
         parser = OmniParser(grammar=grammar, decoder=decoder, **kwargs)
     elif not isinstance(parser, PVLParser):
-        raise TypeError('The parser must be an instance of pvl.PVLParser.')
+        raise TypeError("The parser must be an instance of pvl.PVLParser.")
 
     return parser.parse(s)
 
@@ -219,8 +231,10 @@ def dump(module, path, **kwargs):
                 return path.write(dumps(module, **kwargs).encode())
         except AttributeError:
             # Not a path, not an already-opened file.
-            raise TypeError('Expected an os.PathLike or an already-opened '
-                            'file object for writing, but got neither.')
+            raise TypeError(
+                "Expected an os.PathLike or an already-opened "
+                "file object for writing, but got neither."
+            )
 
 
 def dumps(module, encoder=None, grammar=None, decoder=None, **kwargs) -> str:
@@ -237,6 +251,6 @@ def dumps(module, encoder=None, grammar=None, decoder=None, **kwargs) -> str:
     if encoder is None:
         encoder = PDSLabelEncoder(grammar=grammar, decoder=decoder, **kwargs)
     elif not isinstance(encoder, PVLEncoder):
-        raise TypeError('The encoder must be an instance of pvl.PVLEncoder.')
+        raise TypeError("The encoder must be an instance of pvl.PVLEncoder.")
 
     return encoder.encode(module)

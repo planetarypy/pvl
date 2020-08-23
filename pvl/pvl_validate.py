@@ -49,48 +49,57 @@ dialects = OrderedDict(
         parser=_odl_p,
         grammar=_odl_g,
         decoder=_odl_d,
-        encoder=PDSLabelEncoder(grammar=_odl_g, decoder=_odl_d)
+        encoder=PDSLabelEncoder(grammar=_odl_g, decoder=_odl_d),
     ),
     ODL=dict(
         parser=_odl_p,
         grammar=_odl_g,
         decoder=_odl_d,
-        encoder=ODLEncoder(grammar=_odl_g, decoder=_odl_d)
+        encoder=ODLEncoder(grammar=_odl_g, decoder=_odl_d),
     ),
     PVL=dict(
         parser=PVLParser(grammar=_pvl_g, decoder=_pvl_d),
         grammar=_pvl_g,
         decoder=_pvl_d,
-        encoder=PVLEncoder(grammar=_pvl_g, decoder=_pvl_d)
+        encoder=PVLEncoder(grammar=_pvl_g, decoder=_pvl_d),
     ),
     ISIS=dict(
         parser=OmniParser(grammar=_isis_g, decoder=_isis_d),
         grammar=_isis_g,
         decoder=_isis_d,
-        encoder=ISISEncoder(grammar=_isis_g, decoder=_isis_d)
+        encoder=ISISEncoder(grammar=_isis_g, decoder=_isis_d),
     ),
     Omni=dict(
         parser=OmniParser(grammar=_omni_g, decoder=_omni_d),
         grammar=_omni_g,
         decoder=_omni_d,
-        encoder=PVLEncoder(grammar=_omni_g, decoder=_omni_d)))
+        encoder=PVLEncoder(grammar=_omni_g, decoder=_omni_d),
+    ),
+)
 
 
 def arg_parser():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('-v', '--verbose', action='count', default=0,
-                   help='Will report the errors that are encountered.')
+    p.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Will report the errors that are encountered.",
+    )
     p.add_argument("--version", action="version", version=pvl.__version__)
-    p.add_argument('file', nargs='+',
-                   help='file containing PVL text to validate.')
+    p.add_argument(
+        "file", nargs="+", help="file containing PVL text to validate."
+    )
     return p
 
 
 def main():
     args = arg_parser().parse_args()
 
-    logging.basicConfig(format='%(levelname)s: %(message)s',
-                        level=(60 - 20 * args.verbose))
+    logging.basicConfig(
+        format="%(levelname)s: %(message)s", level=(60 - 20 * args.verbose)
+    )
 
     results_list = list()
     for f in args.file:
@@ -110,8 +119,9 @@ def main():
     return
 
 
-def pvl_flavor(text, dialect, decenc: dict, filename,
-               verbose=False) -> tuple((bool, bool)):
+def pvl_flavor(
+    text, dialect, decenc: dict, filename, verbose=False
+) -> tuple((bool, bool)):
     """Returns a two-tuple of booleans which indicate
     whether the *text* could be loaded and then encoded.
 
@@ -131,10 +141,10 @@ def pvl_flavor(text, dialect, decenc: dict, filename,
             pvl.dumps(some_pvl, **decenc)
             encodes = True
         except (LexerError, ParseError, ValueError) as err:
-            logging.error(f'{dialect} encode error {filename} {err}')
+            logging.error(f"{dialect} encode error {filename} {err}")
             encodes = False
     except (LexerError, ParseError) as err:
-        logging.error(f'{dialect} load error {filename} {err}')
+        logging.error(f"{dialect} load error {filename} {err}")
         loads = False
 
     return (loads, encodes)
@@ -146,10 +156,12 @@ def report(reports: list, flavors: list) -> str:
     *reports*.
     """
     if len(reports[0][1]) != len(flavors):
-        raise IndexError("The length of the report list keys "
-                         f"({len(reports[0][1])}) "
-                         "and the length of the flavors list "
-                         f"({len(flavors)}) aren't the same.")
+        raise IndexError(
+            "The length of the report list keys "
+            f"({len(reports[0][1])}) "
+            "and the length of the flavors list "
+            f"({len(flavors)}) aren't the same."
+        )
 
     if len(reports) > 1:
         return report_many(reports, flavors)
@@ -157,17 +169,20 @@ def report(reports: list, flavors: list) -> str:
     r = reports[0][1]
 
     lines = list()
-    loads = {True: 'Loads', False: 'does NOT load'}
-    encodes = {True: 'Encodes', False: 'does NOT encode', None: ''}
+    loads = {True: "Loads", False: "does NOT load"}
+    encodes = {True: "Encodes", False: "does NOT encode", None: ""}
 
     col1w = len(max(flavors, key=len))
     col2w = len(max(loads.values(), key=len))
     col3w = len(max(encodes.values(), key=len))
 
     for k in flavors:
-        lines.append(build_line([k, loads[r[k][0]], encodes[r[k][1]]],
-                                [col1w, col2w, col3w]))
-    return '\n'.join(lines)
+        lines.append(
+            build_line(
+                [k, loads[r[k][0]], encodes[r[k][1]]], [col1w, col2w, col3w]
+            )
+        )
+    return "\n".join(lines)
 
 
 def report_many(r_list: list, flavors: list) -> str:
@@ -176,19 +191,19 @@ def report_many(r_list: list, flavors: list) -> str:
     """
 
     lines = list()
-    loads = {True: 'L', False: 'No L'}
-    encodes = {True: 'E', False: 'No E', None: ''}
+    loads = {True: "L", False: "No L"}
+    encodes = {True: "E", False: "No E", None: ""}
 
     col1w = len(max([x[0] for x in r_list], key=len))
     col2w = len(max(loads.values(), key=len))
     col3w = len(max(encodes.values(), key=len))
     flavorw = col2w + col3w + 1
 
-    header = ['File'] + flavors
+    header = ["File"] + flavors
     headerw = [col1w] + [flavorw] * len(flavors)
-    rule = [' ' * col1w] + [' ' * flavorw] * len(flavors)
+    rule = [" " * col1w] + [" " * flavorw] * len(flavors)
 
-    rule_line = build_line(rule, headerw).replace('|', '+').replace(' ', '-')
+    rule_line = build_line(rule, headerw).replace("|", "+").replace(" ", "-")
     lines.append(rule_line)
     lines.append(build_line(header, headerw))
     lines.append(rule_line)
@@ -198,25 +213,26 @@ def report_many(r_list: list, flavors: list) -> str:
         widths = [col1w]
         for f in flavors:
             # cells.append(loads[r[1][f][0]] + ' ' + encodes[r[1][f][1]])
-            cells.append('{0:^{w2}} {1:^{w3}}'.format(loads[r[1][f][0]],
-                                                      encodes[r[1][f][1]],
-                                                      w2=col2w,
-                                                      w3=col3w))
+            cells.append(
+                "{0:^{w2}} {1:^{w3}}".format(
+                    loads[r[1][f][0]], encodes[r[1][f][1]], w2=col2w, w3=col3w
+                )
+            )
             widths.append(flavorw)
         lines.append(build_line(cells, widths))
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
-def build_line(elements: list, widths: list, sep=' | ') -> str:
+def build_line(elements: list, widths: list, sep=" | ") -> str:
     """Returns a string formatted from the *elements* and *widths*
        provided.
     """
     cells = list()
-    cells.append('{0:<{width}}'.format(elements[0], width=widths[0]))
+    cells.append("{0:<{width}}".format(elements[0], width=widths[0]))
 
     for e, w in zip(elements[1:], widths[1:]):
-        cells.append('{0:^{width}}'.format(e, width=w))
+        cells.append("{0:^{width}}".format(e, width=w))
 
     return sep.join(cells)
 

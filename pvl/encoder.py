@@ -24,7 +24,7 @@ from .token import Token
 from .decoder import PVLDecoder, ODLDecoder
 
 
-class QuantTup(namedtuple('QuantTup', ['cls', 'value_prop', 'units_prop'])):
+class QuantTup(namedtuple("QuantTup", ["cls", "value_prop", "units_prop"])):
     """
     This class is just a convenient namedtuple for internally keeping track
     of quantity classes that encoders can deal with.  In general, users
@@ -66,14 +66,18 @@ class PVLEncoder(object):
         to PVLObject.
     """
 
-    def __init__(self, grammar=None, decoder=None,
-                 indent: int = 2, width: int = 80,
-                 aggregation_end: bool = True,
-                 end_delimiter: bool = True,
-                 newline: str = '\n',
-                 group_class=PVLGroup,
-                 object_class=PVLObject
-                 ):
+    def __init__(
+        self,
+        grammar=None,
+        decoder=None,
+        indent: int = 2,
+        width: int = 80,
+        aggregation_end: bool = True,
+        end_delimiter: bool = True,
+        newline: str = "\n",
+        group_class=PVLGroup,
+        object_class=PVLObject,
+    ):
 
         if grammar is None:
             if decoder is not None:
@@ -100,7 +104,7 @@ class PVLEncoder(object):
 
         # This list of 3-tuples *always* has our own pvl quantity object,
         # and should *only* be added to with self.add_quantity_cls().
-        self.quantities = [QuantTup(Quantity, 'value', 'units')]
+        self.quantities = [QuantTup(Quantity, "value", "units")]
         self._import_quantities()
 
         if issubclass(group_class, abc.Mapping):
@@ -111,7 +115,7 @@ class PVLEncoder(object):
         if issubclass(object_class, abc.Mapping):
             self.objcls = object_class
         else:
-            raise TypeError('The object_class must be a Mapping type.')
+            raise TypeError("The object_class must be a Mapping type.")
 
         try:
             self.objcls(self.grpcls())
@@ -123,25 +127,26 @@ class PVLEncoder(object):
             )
 
     def _import_quantities(self):
-        warn_str = ("The {} library is not present, so {} objects will "
-                    "not be properly encoded.")
+        warn_str = (
+            "The {} library is not present, so {} objects will "
+            "not be properly encoded."
+        )
         try:
             from astropy import units as u
-            self.add_quantity_cls(u.Quantity, 'value', 'unit')
+
+            self.add_quantity_cls(u.Quantity, "value", "unit")
         except ImportError:
             warn(
                 warn_str.format("astropy", "astropy.units.Quantity"),
-                ImportWarning
+                ImportWarning,
             )
 
         try:
             from pint import Quantity as q
-            self.add_quantity_cls(q, 'magnitude', 'units')
+
+            self.add_quantity_cls(q, "magnitude", "units")
         except ImportError:
-            warn(
-                warn_str.format("pint", "pint.Quantity"),
-                ImportWarning
-            )
+            warn(warn_str.format("pint", "pint.Quantity"), ImportWarning)
 
     def add_quantity_cls(self, cls, value_prop: str, units_prop: str):
         """Adds a quantity class to the list of possible
@@ -161,11 +166,13 @@ class PVLEncoder(object):
 
         # If a quantity object can't encode "one meter" its probably not
         # going to work for us.
-        test_cls = cls(1, 'm')
+        test_cls = cls(1, "m")
         for prop in (value_prop, units_prop):
             if not hasattr(test_cls, prop):
-                raise AttributeError(f"The class ({cls}) does not have an "
-                                     f" attribute named {prop}.")
+                raise AttributeError(
+                    f"The class ({cls}) does not have an "
+                    f" attribute named {prop}."
+                )
 
         self.quantities.append(QuantTup(cls, value_prop, units_prop))
 
@@ -178,19 +185,21 @@ class PVLEncoder(object):
         It uses the textwrap library to wrap long lines.
         """
 
-        prefix = level * (self.indent * ' ')
+        prefix = level * (self.indent * " ")
 
-        if len(prefix + s + self.newline) > self.width and '=' in s:
-            (preq, _, posteq) = s.partition('=')
-            new_prefix = prefix + preq.strip() + ' = '
+        if len(prefix + s + self.newline) > self.width and "=" in s:
+            (preq, _, posteq) = s.partition("=")
+            new_prefix = prefix + preq.strip() + " = "
 
-            lines = textwrap.wrap(posteq.strip(),
-                                  width=(self.width - len(self.newline)),
-                                  replace_whitespace=False,
-                                  initial_indent=new_prefix,
-                                  subsequent_indent=(' ' * len(new_prefix)),
-                                  break_long_words=False,
-                                  break_on_hyphens=False)
+            lines = textwrap.wrap(
+                posteq.strip(),
+                width=(self.width - len(self.newline)),
+                replace_whitespace=False,
+                initial_indent=new_prefix,
+                subsequent_indent=(" " * len(new_prefix)),
+                break_long_words=False,
+                break_on_hyphens=False,
+            )
             return self.newline.join(lines)
         else:
             return prefix + s
@@ -214,10 +223,12 @@ class PVLEncoder(object):
 
         for i, c in enumerate(s):
             if not self.grammar.char_allowed(c):
-                raise ValueError('Encountered a character that was not '
-                                 'a valid character according to the '
-                                 'grammar: "{}", it is in: '
-                                 '"{}"'.format(c, s[i - 5, i + 5]))
+                raise ValueError(
+                    "Encountered a character that was not "
+                    "a valid character according to the "
+                    'grammar: "{}", it is in: '
+                    '"{}"'.format(c, s[i - 5, i + 5])
+                )
 
         return self.newline.join(lines)
 
@@ -242,12 +253,14 @@ class PVLEncoder(object):
             if isinstance(v, abc.Mapping):
                 lines.append(self.encode_aggregation_block(k, v, level))
             else:
-                lines.append(self.encode_assignment(k, v, level,
-                                                    longest_key_len))
+                lines.append(
+                    self.encode_assignment(k, v, level, longest_key_len)
+                )
         return self.newline.join(lines)
 
-    def encode_aggregation_block(self, key: str, value: abc.Mapping,
-                                 level: int = 0) -> str:
+    def encode_aggregation_block(
+        self, key: str, value: abc.Mapping, level: int = 0
+    ) -> str:
         """Returns a ``str`` formatted as a PVL Aggregation Block with
         *key* as its name, and its contents based on the
         dict-like *value* object according to the
@@ -261,18 +274,18 @@ class PVLEncoder(object):
         elif isinstance(value, abc.Mapping):
             agg_keywords = self.grammar.object_pref_keywords
         else:
-            raise ValueError('The value {value} is not dict-like.')
+            raise ValueError("The value {value} is not dict-like.")
 
-        agg_begin = '{} = {}'.format(agg_keywords[0], key)
+        agg_begin = "{} = {}".format(agg_keywords[0], key)
         if self.end_delimiter:
             agg_begin += self.grammar.delimiters[0]
         lines.append(self.format(agg_begin, level))
 
         lines.append(self.encode_module(value, (level + 1)))
 
-        agg_end = ''
+        agg_end = ""
         if self.aggregation_end:
-            agg_end += '{} = {}'.format(agg_keywords[1], key)
+            agg_end += "{} = {}".format(agg_keywords[1], key)
         else:
             agg_end += agg_keywords[1]
         if self.end_delimiter:
@@ -281,8 +294,9 @@ class PVLEncoder(object):
 
         return self.newline.join(lines)
 
-    def encode_assignment(self, key: str, value, level: int = 0,
-                          key_len: int = None) -> str:
+    def encode_assignment(
+        self, key: str, value, level: int = 0, key_len: int = None
+    ) -> str:
         """Returns a ``str`` formatted as a PVL Assignment Statement
         with *key* as its Parameter Name, and its value based
         on *value* object according to the rules of this encoder,
@@ -294,8 +308,8 @@ class PVLEncoder(object):
         if key_len is None:
             key_len = len(key)
 
-        s = ''
-        s += '{} = '.format(key.ljust(key_len))
+        s = ""
+        s += "{} = ".format(key.ljust(key_len))
 
         enc_val = self.encode_value(value)
 
@@ -332,19 +346,22 @@ class PVLEncoder(object):
         encoded this way, otherwise raise ValueError."""
         for (cls, v_prop, u_prop) in self.quantities:
             if isinstance(value, cls):
-                return self.encode_value_units(getattr(value, v_prop),
-                                               getattr(value, u_prop))
+                return self.encode_value_units(
+                    getattr(value, v_prop), getattr(value, u_prop)
+                )
 
-        raise ValueError(f"The value object {value} could not be "
-                         "encoded as a PVL Value followed by a PVL "
-                         f"Units Expression, it is of type {type(value)}")
+        raise ValueError(
+            f"The value object {value} could not be "
+            "encoded as a PVL Value followed by a PVL "
+            f"Units Expression, it is of type {type(value)}"
+        )
 
     def encode_value_units(self, value, units) -> str:
         """Returns a ``str`` formatted as a PVL Value from *value*
         followed by a PVL Units Expressions from *units*."""
         value_str = self.encode_simple_value(value)
         units_str = self.encode_units(str(units))
-        return f'{value_str} {units_str}'
+        return f"{value_str} {units_str}"
 
     def encode_simple_value(self, value) -> str:
         """Returns a ``str`` formatted as a PVL Simple Value based
@@ -356,8 +373,9 @@ class PVLEncoder(object):
             return self.encode_set(value)
         elif isinstance(value, list):
             return self.encode_sequence(value)
-        elif isinstance(value, (datetime.datetime, datetime.date,
-                                datetime.time)):
+        elif isinstance(
+            value, (datetime.datetime, datetime.date, datetime.time)
+        ):
             return self.encode_datetype(value)
         elif isinstance(value, bool):
             if value:
@@ -369,25 +387,25 @@ class PVLEncoder(object):
         elif isinstance(value, str):
             return self.encode_string(value)
         else:
-            raise TypeError(f'{value!r} is not serializable.')
+            raise TypeError(f"{value!r} is not serializable.")
 
     def encode_setseq(self, values: abc.Collection) -> str:
         """This function provides shared functionality for
         encode_sequence() and encode_set().
         """
-        return ', '.join([self.encode_value(v) for v in values])
+        return ", ".join([self.encode_value(v) for v in values])
 
     def encode_sequence(self, value: abc.Sequence) -> str:
         """Returns a ``str`` formatted as a PVL Sequence based
         on the *value* object according to the rules of this encoder.
         """
-        return '(' + self.encode_setseq(value) + ')'
+        return "(" + self.encode_setseq(value) + ")"
 
     def encode_set(self, value: abc.Set) -> str:
         """Returns a ``str`` formatted as a PVL Set based
         on the *value* object according to the rules of this encoder.
         """
-        return '{' + self.encode_setseq(value) + '}'
+        return "{" + self.encode_setseq(value) + "}"
 
     def encode_datetype(self, value) -> str:
         """Returns a ``str`` formatted as a PVL Date/Time based
@@ -402,26 +420,26 @@ class PVLEncoder(object):
         elif isinstance(value, datetime.time):
             return self.encode_time(value)
         else:
-            raise TypeError(f'{value!r} is not a datetime type.')
+            raise TypeError(f"{value!r} is not a datetime type.")
 
     @staticmethod
     def encode_date(value: datetime.date) -> str:
         """Returns a ``str`` formatted as a PVL Date based
         on the *value* object according to the rules of this encoder.
         """
-        return f'{value:%Y-%m-%d}'
+        return f"{value:%Y-%m-%d}"
 
     @staticmethod
     def encode_time(value: datetime.time) -> str:
         """Returns a ``str`` formatted as a PVL Time based
         on the *value* object according to the rules of this encoder.
         """
-        s = f'{value:%H:%M}'
+        s = f"{value:%H:%M}"
 
         if value.microsecond:
-            s += f':{value:%S.%f}'
+            s += f":{value:%S.%f}"
         elif value.second:
-            s += f':{value:%S}'
+            s += f":{value:%S}"
 
         return s
 
@@ -431,7 +449,7 @@ class PVLEncoder(object):
         """
         date = self.encode_date(value)
         time = self.encode_time(value)
-        return date + 'T' + time
+        return date + "T" + time
 
     def needs_quotes(self, s: str) -> bool:
         """Returns true if *s* must be quoted according to this
@@ -457,9 +475,11 @@ class PVLEncoder(object):
                 if q not in s:
                     return q + s + q
             else:
-                raise ValueError('All of the quote characters, '
-                                 f'{self.grammar.quotes}, were in the '
-                                 f'string ("{s}"), so it could not be quoted.')
+                raise ValueError(
+                    "All of the quote characters, "
+                    f"{self.grammar.quotes}, were in the "
+                    f'string ("{s}"), so it could not be quoted.'
+                )
         else:
             return s
 
@@ -467,9 +487,11 @@ class PVLEncoder(object):
         """Returns a ``str`` formatted as a PVL Units Value based
         on the *value* object according to the rules of this encoder.
         """
-        return (self.grammar.units_delimiters[0] +
-                value +
-                self.grammar.units_delimiters[1])
+        return (
+            self.grammar.units_delimiters[0]
+            + value
+            + self.grammar.units_delimiters[1]
+        )
 
 
 class ODLEncoder(PVLEncoder):
@@ -489,9 +511,16 @@ class ODLEncoder(PVLEncoder):
     :param newline: defaults to '\\\\r\\\\n'.
     """
 
-    def __init__(self, grammar=None, decoder=None,
-                 indent=2, width=80, aggregation_end=True,
-                 end_delimiter=False, newline='\r\n'):
+    def __init__(
+        self,
+        grammar=None,
+        decoder=None,
+        indent=2,
+        width=80,
+        aggregation_end=True,
+        end_delimiter=False,
+        newline="\r\n",
+    ):
 
         if grammar is None:
             grammar = ODLGrammar()
@@ -499,8 +528,15 @@ class ODLEncoder(PVLEncoder):
         if decoder is None:
             decoder = ODLDecoder(grammar)
 
-        super().__init__(grammar, decoder, indent, width, aggregation_end,
-                         end_delimiter, newline)
+        super().__init__(
+            grammar,
+            decoder,
+            indent,
+            width,
+            aggregation_end,
+            end_delimiter,
+            newline,
+        )
 
     def encode(self, module: abc.Mapping) -> str:
         """Extends parent function, but ODL requires that there must be
@@ -532,8 +568,8 @@ class ODLEncoder(PVLEncoder):
                     return True
 
         if isinstance(
-                value, (int, float, datetime.date, datetime.datetime,
-                        datetime.time, str)
+            value,
+            (int, float, datetime.date, datetime.datetime, datetime.time, str),
         ):
             return True
 
@@ -579,14 +615,14 @@ class ODLEncoder(PVLEncoder):
 
             try:
                 # Ensure we're dealing with ASCII
-                value.encode(encoding='ascii')
+                value.encode(encoding="ascii")
 
-                if(not value[0].isalpha()    # start with letter
-                   or value.endswith('_')):  # can't end with '_'
+                # value can't start with a letter or end with an underbar
+                if not value[0].isalpha() or value.endswith("_"):
                     return False
 
                 for c in value:
-                    if not (c.isalpha() or c.isdigit() or c == '_'):
+                    if not (c.isalpha() or c.isdigit() or c == "_"):
                         return False
                 else:
                     return True
@@ -613,7 +649,7 @@ class ODLEncoder(PVLEncoder):
         if self.is_identifier(s):
             return True
 
-        (ns, _, el) = s.partition(':')
+        (ns, _, el) = s.partition(":")
 
         if self.is_identifier(ns) and self.is_identifier(el):
             return True
@@ -630,17 +666,21 @@ class ODLEncoder(PVLEncoder):
             key_len = len(key)
 
         if len(key) > 30:
-            raise ValueError('ODL keywords must be 30 characters or less '
-                             f'in length, this one is longer: {key}')
+            raise ValueError(
+                "ODL keywords must be 30 characters or less "
+                f"in length, this one is longer: {key}"
+            )
 
-        if((key.startswith('^') and self.is_assignment_statement(key[1:]))
-           or self.is_assignment_statement(key)):
+        if (
+            key.startswith("^") and self.is_assignment_statement(key[1:])
+        ) or self.is_assignment_statement(key):
             ident = key.upper()
         else:
-            raise ValueError(f'The keyword "{key}" is not a valid ODL '
-                             'Identifier.')
+            raise ValueError(
+                f'The keyword "{key}" is not a valid ODL ' "Identifier."
+            )
 
-        s = '{} = '.format(ident.ljust(key_len))
+        s = "{} = ".format(ident.ljust(key_len))
         s += self.encode_value(value)
 
         if self.end_delimiter:
@@ -653,23 +693,28 @@ class ODLEncoder(PVLEncoder):
         two-dimensional sequences of ODL scalar_values.
         """
         if len(value) == 0:
-            raise ValueError('ODL does not allow empty Sequences.')
+            raise ValueError("ODL does not allow empty Sequences.")
 
         for v in value:  # check the first dimension (list of elements)
             if isinstance(v, list):
                 for i in v:  # check the second dimension (list of lists)
                     if isinstance(i, list):
                         # Shouldn't be lists of lists of lists.
-                        raise ValueError('ODL only allows one- and two- '
-                                         'dimensional Sequences, but '
-                                         f'this has more: {value}')
+                        raise ValueError(
+                            "ODL only allows one- and two- "
+                            "dimensional Sequences, but "
+                            f"this has more: {value}"
+                        )
                     elif not self.is_scalar(i):
-                        raise ValueError('ODL only allows scalar_values '
-                                         f'within sequences: {v}')
+                        raise ValueError(
+                            "ODL only allows scalar_values "
+                            f"within sequences: {v}"
+                        )
 
             elif not self.is_scalar(v):
-                raise ValueError('ODL only allows scalar_values within '
-                                 f'sequences: {v}')
+                raise ValueError(
+                    "ODL only allows scalar_values within " f"sequences: {v}"
+                )
 
         return super().encode_sequence(value)
 
@@ -679,7 +724,9 @@ class ODLEncoder(PVLEncoder):
         """
 
         if not all(map(self.is_scalar, values)):
-            raise ValueError(f'ODL only allows scalar values in sets: {values}')
+            raise ValueError(
+                f"ODL only allows scalar values in sets: {values}"
+            )
 
         return super().encode_set(values)
 
@@ -693,8 +740,8 @@ class ODLEncoder(PVLEncoder):
                     return super().encode_value(value)
                 else:
                     raise ValueError(
-                        'Unit expressions are only allowed '
-                        f'following numeric values: {value}'
+                        "Unit expressions are only allowed "
+                        f"following numeric values: {value}"
                     )
 
         return super().encode_value(value)
@@ -719,18 +766,20 @@ class ODLEncoder(PVLEncoder):
         t = super().encode_time(value)
 
         if value.tzinfo is None or value.tzinfo == 0:
-            return t + 'Z'
+            return t + "Z"
         else:
             td_str = str(value.utcoffset())
-            (h, m, s) = td_str.split(':')
-            if s != '00':
-                raise ValueError('The datetime value had a timezone offset '
-                                 f'with seconds values ({value}) which is '
-                                 'not allowed in ODL.')
-            if m == '00':
-                return t + '+' + h
+            (h, m, s) = td_str.split(":")
+            if s != "00":
+                raise ValueError(
+                    "The datetime value had a timezone offset "
+                    f"with seconds values ({value}) which is "
+                    "not allowed in ODL."
+                )
+            if m == "00":
+                return t + "+" + h
             else:
-                return t + f'+{h}:{m}'
+                return t + f"+{h}:{m}"
 
     def encode_units(self, value) -> str:
         """Overrides parent function since ODL limits what characters
@@ -738,22 +787,28 @@ class ODLEncoder(PVLEncoder):
         """
 
         # if self.is_identifier(value.strip('*/()-')):
-        if self.is_identifier(re.sub(r'[\s\*/\(\)-]', '', value)):
+        if self.is_identifier(re.sub(r"[\s*/()-]", "", value)):
 
-            if '**' in value:
-                exponents = re.findall(r'\*\*.+?', value)
+            if "**" in value:
+                exponents = re.findall(r"\*\*.+?", value)
                 for e in exponents:
-                    if re.search(r'\*\*-?\d+', e) is None:
-                        raise ValueError('The exponentiation operator (**) in '
-                                         f'this Units Expression "{value}" '
-                                         'is not a decimal integer.')
+                    if re.search(r"\*\*-?\d+", e) is None:
+                        raise ValueError(
+                            "The exponentiation operator (**) in "
+                            f'this Units Expression "{value}" '
+                            "is not a decimal integer."
+                        )
 
-            return (self.grammar.units_delimiters[0] +
-                    value +
-                    self.grammar.units_delimiters[1])
+            return (
+                self.grammar.units_delimiters[0]
+                + value
+                + self.grammar.units_delimiters[1]
+            )
         else:
-            raise ValueError(f'The value, "{value}", does not conform to '
-                             'the specification for an ODL Units Expression.')
+            raise ValueError(
+                f'The value, "{value}", does not conform to '
+                "the specification for an ODL Units Expression."
+            )
 
 
 class PDSLabelEncoder(ODLEncoder):
@@ -782,20 +837,33 @@ class PDSLabelEncoder(ODLEncoder):
     be replaced with spaces.  Defaults to 4.
     """
 
-    def __init__(self, grammar=None, decoder=None,
-                 indent=2, width=80,
-                 aggregation_end=True,
-                 convert_group_to_object=True,
-                 tab_replace=4):
+    def __init__(
+        self,
+        grammar=None,
+        decoder=None,
+        indent=2,
+        width=80,
+        aggregation_end=True,
+        convert_group_to_object=True,
+        tab_replace=4,
+    ):
 
-        super().__init__(grammar, decoder, indent, width, aggregation_end,
-                         end_delimiter=False, newline='\r\n')
+        super().__init__(
+            grammar,
+            decoder,
+            indent,
+            width,
+            aggregation_end,
+            end_delimiter=False,
+            newline="\r\n",
+        )
 
         self.convert_group_to_object = convert_group_to_object
         self.tab_replace = tab_replace
 
-    def count_aggs(self, module: abc.Mapping, obj_count: int = 0,
-                   grp_count: int = 0) -> tuple((int, int)):
+    def count_aggs(
+        self, module: abc.Mapping, obj_count: int = 0, grp_count: int = 0
+    ) -> tuple((int, int)):
         """Returns the count of OBJECT and GROUP aggregations
         that are contained within the *module* as a two-tuple
         in that order.
@@ -842,19 +910,22 @@ class PDSLabelEncoder(ODLEncoder):
                             module[k] = self.objcls(v)
                             break
                     else:
-                        raise ValueError("Couldn't convert any of the GROUPs "
-                                         "to OBJECTs.")
+                        raise ValueError(
+                            "Couldn't convert any of the GROUPs " "to OBJECTs."
+                        )
             else:
-                raise ValueError('This module has a GROUP element, but no '
-                                 'OBJECT elements, which is not allowed by '
-                                 'the PDS.  You could set '
-                                 '*convert_group_to_object* to *True* on the '
-                                 'encoder to try and convert a GROUP '
-                                 'to an OBJECT.')
+                raise ValueError(
+                    "This module has a GROUP element, but no "
+                    "OBJECT elements, which is not allowed by "
+                    "the PDS.  You could set "
+                    "*convert_group_to_object* to *True* on the "
+                    "encoder to try and convert a GROUP "
+                    "to an OBJECT."
+                )
 
         s = super().encode(module)
         if self.tab_replace > 0:
-            return s.replace('\t', (' ' * self.tab_replace))
+            return s.replace("\t", (" " * self.tab_replace))
         else:
             return s
 
@@ -901,14 +972,13 @@ class PDSLabelEncoder(ODLEncoder):
 
         # Item 2, no data location pointers:
         for k, v in group.items():
-            if k.startswith('^'):
+            if k.startswith("^"):
                 if isinstance(v, int):
                     return False
                 else:
                     for quant in self.quantities:
-                        if(
-                            isinstance(v, quant.cls)
-                            and isinstance(getattr(v, quant.value_prop), int)
+                        if isinstance(v, quant.cls) and isinstance(
+                            getattr(v, quant.value_prop), int
                         ):
                             return False
 
@@ -936,11 +1006,13 @@ class PDSLabelEncoder(ODLEncoder):
             if self.convert_group_to_object:
                 value = self.objcls(value)
             else:
-                raise ValueError('This GROUP element is not a valid PDS '
-                                 'GROUP.  You could set '
-                                 '*convert_group_to_object* to *True* on the '
-                                 'encoder to try and convert the GROUP'
-                                 'to an OBJECT.')
+                raise ValueError(
+                    "This GROUP element is not a valid PDS "
+                    "GROUP.  You could set "
+                    "*convert_group_to_object* to *True* on the "
+                    "encoder to try and convert the GROUP"
+                    "to an OBJECT."
+                )
 
         # print('value at bottom:')
         # print(value)
@@ -953,8 +1025,10 @@ class PDSLabelEncoder(ODLEncoder):
         """
         for v in values:
             if not self.is_symbol(v) and not isinstance(v, int):
-                raise ValueError('The PDS only allows integers and symbols '
-                                 f'in sets: {values}')
+                raise ValueError(
+                    "The PDS only allows integers and symbols "
+                    f"in sets: {values}"
+                )
 
         return super().encode_set(values)
 
@@ -970,10 +1044,12 @@ class PDSLabelEncoder(ODLEncoder):
         t = PVLEncoder.encode_time(value)
 
         if value.tzinfo is None or value.tzinfo.utcoffset(None) == 0:
-            return t + 'Z'
+            return t + "Z"
         else:
-            raise ValueError('PDS labels should only have UTC times, but '
-                             f'this time has a timezone: {value}')
+            raise ValueError(
+                "PDS labels should only have UTC times, but "
+                f"this time has a timezone: {value}"
+            )
 
 
 class ISISEncoder(PVLEncoder):
@@ -1000,9 +1076,16 @@ class ISISEncoder(PVLEncoder):
     :param newline: defaults to '\\\\n'.
     """
 
-    def __init__(self, grammar=None, decoder=None,
-                 indent=2, width=80, aggregation_end=True,
-                 end_delimiter=False, newline='\n'):
+    def __init__(
+        self,
+        grammar=None,
+        decoder=None,
+        indent=2,
+        width=80,
+        aggregation_end=True,
+        end_delimiter=False,
+        newline="\n",
+    ):
 
         if grammar is None:
             grammar = ISISGrammar()
@@ -1010,5 +1093,12 @@ class ISISEncoder(PVLEncoder):
         if decoder is None:
             decoder = PVLDecoder(grammar)
 
-        super().__init__(grammar, decoder, indent, width, aggregation_end,
-                         end_delimiter, newline)
+        super().__init__(
+            grammar,
+            decoder,
+            indent,
+            width,
+            aggregation_end,
+            end_delimiter,
+            newline,
+        )

@@ -32,7 +32,6 @@ class Writer(object):
 
 
 class PVLWriter(Writer):
-
     def __init__(self, encoder):
         self.encoder = encoder
 
@@ -41,31 +40,42 @@ class PVLWriter(Writer):
 
 
 class JSONWriter(Writer):
-
     def dump(self, dictlike: dict, outfile: os.PathLike):
         return json.dump(dictlike, outfile)
 
 
-formats = dict(PDS3=PVLWriter(PDSLabelEncoder()),
-               ODL=PVLWriter(ODLEncoder()),
-               ISIS=PVLWriter(ISISEncoder()),
-               PVL=PVLWriter(PVLEncoder()),
-               JSON=JSONWriter())
+formats = dict(
+    PDS3=PVLWriter(PDSLabelEncoder()),
+    ODL=PVLWriter(ODLEncoder()),
+    ISIS=PVLWriter(ISISEncoder()),
+    PVL=PVLWriter(PVLEncoder()),
+    JSON=JSONWriter(),
+)
 
 
 def arg_parser(formats):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('-of', '--output_format', required=True,
-                        choices=formats.keys(),
-                        help='Select the format to create the new file as.')
-    parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
-                        default=sys.stdin,
-                        help='file containing PVL text to translate, '
-                        'defaults to STDIN.')
-    parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'),
-                        default=sys.stdout,
-                        help='file to write translated PVL to, defaults '
-                        'to STDOUT.')
+    parser.add_argument(
+        "-of",
+        "--output_format",
+        required=True,
+        choices=formats.keys(),
+        help="Select the format to create the new file as.",
+    )
+    parser.add_argument(
+        "infile",
+        nargs="?",
+        type=argparse.FileType("r"),
+        default=sys.stdin,
+        help="file containing PVL text to translate, " "defaults to STDIN.",
+    )
+    parser.add_argument(
+        "outfile",
+        nargs="?",
+        type=argparse.FileType("w"),
+        default=sys.stdout,
+        help="file to write translated PVL to, defaults " "to STDOUT.",
+    )
     parser.add_argument("--version", action="version", version=pvl.__version__)
     return parser
 
