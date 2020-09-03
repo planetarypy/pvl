@@ -51,8 +51,7 @@ class Token(str):
         self.pos = pos
 
     def __repr__(self):
-        return (f'{self.__class__.__name__}(\'{self}\', '
-                f'\'{self.grammar}\')')
+        return f"{self.__class__.__name__}('{self}', " f"'{self.grammar}')"
 
     def __index__(self):
         return self.decoder.decode_non_decimal(str(self))
@@ -67,14 +66,16 @@ class Token(str):
         str_list = super().split(sep, maxsplit)
         tkn_list = list()
         for t in str_list:
-            tkn_list.append(Token(t, grammar=self.grammar,
-                                  decoder=self.decoder))
+            tkn_list.append(
+                Token(t, grammar=self.grammar, decoder=self.decoder)
+            )
         return tkn_list
 
     def replace(self, *args):
         """Extends ``str.replace()`` to return a Token."""
-        return Token(super().replace(*args),
-                     grammar=self.grammar, decoder=self.decoder)
+        return Token(
+            super().replace(*args), grammar=self.grammar, decoder=self.decoder
+        )
 
     def lstrip(self, chars=None):
         """Extends ``str.lstrip()`` to strip whitespace according
@@ -100,9 +101,10 @@ class Token(str):
     def _strip(self, strip_func, chars=None):
         # Shared functionality for the various strip functions.
         if chars is None:
-            chars = ''.join(self.grammar.whitespace)
-        return Token(strip_func(chars),
-                     grammar=self.grammar, decoder=self.decoder)
+            chars = "".join(self.grammar.whitespace)
+        return Token(
+            strip_func(chars), grammar=self.grammar, decoder=self.decoder
+        )
 
     def isspace(self) -> bool:
         """Overrides ``str.isspace()`` to be the same as Token's
@@ -134,7 +136,7 @@ class Token(str):
             return True
 
         for ws in reversed(self.grammar.whitespace):
-            temp = self.replace(ws, ' ')
+            temp = self.replace(ws, " ")
 
         return all(t.is_comment() for t in temp.split())
 

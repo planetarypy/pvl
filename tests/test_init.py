@@ -22,48 +22,53 @@ from pathlib import Path
 
 import pvl
 
-data_dir = Path('tests/data')
+data_dir = Path("tests/data")
 
 
 class TestLoadS(unittest.TestCase):
-
     def test_loads(self):
-        some_pvl = '''
+        some_pvl = """
 a = b
 GROUP = c
     c = d
 END_GROUP
 e =false
-END'''
-        decoded = pvl.PVLModule(a='b', c=pvl.PVLGroup(c='d'), e=False)
+END"""
+        decoded = pvl.PVLModule(a="b", c=pvl.PVLGroup(c="d"), e=False)
         self.assertEqual(decoded, pvl.loads(some_pvl))
 
-        self.assertEqual(pvl.PVLModule(a='b'), pvl.loads('a=b'))
+        self.assertEqual(pvl.PVLModule(a="b"), pvl.loads("a=b"))
 
 
 class TestLoad(unittest.TestCase):
-
     def setUp(self):
-        self.simple = data_dir / 'pds3' / 'simple_image_1.lbl'
-        rawurl = 'https://raw.githubusercontent.com/planetarypy/pvl/master/'
+        self.simple = data_dir / "pds3" / "simple_image_1.lbl"
+        rawurl = "https://raw.githubusercontent.com/planetarypy/pvl/master/"
         self.url = rawurl + str(self.simple)
         self.simplePVL = pvl.PVLModule(
-            {'PDS_VERSION_ID': 'PDS3',
-             'RECORD_TYPE': 'FIXED_LENGTH',
-             'RECORD_BYTES': 824,
-             'LABEL_RECORDS': 1,
-             'FILE_RECORDS': 601,
-             '^IMAGE': 2,
-             'IMAGE': pvl.PVLObject({'LINES': 600,
-                                     'LINE_SAMPLES': 824,
-                                     'SAMPLE_TYPE': 'MSB_INTEGER',
-                                     'SAMPLE_BITS': 8,
-                                     'MEAN': 51.67785396440129,
-                                     'MEDIAN': 50.0,
-                                     'MINIMUM': 0,
-                                     'MAXIMUM': 255,
-                                     'STANDARD_DEVIATION': 16.97019,
-                                     'CHECKSUM': 25549531})})
+            {
+                "PDS_VERSION_ID": "PDS3",
+                "RECORD_TYPE": "FIXED_LENGTH",
+                "RECORD_BYTES": 824,
+                "LABEL_RECORDS": 1,
+                "FILE_RECORDS": 601,
+                "^IMAGE": 2,
+                "IMAGE": pvl.PVLObject(
+                    {
+                        "LINES": 600,
+                        "LINE_SAMPLES": 824,
+                        "SAMPLE_TYPE": "MSB_INTEGER",
+                        "SAMPLE_BITS": 8,
+                        "MEAN": 51.67785396440129,
+                        "MEDIAN": 50.0,
+                        "MINIMUM": 0,
+                        "MAXIMUM": 255,
+                        "STANDARD_DEVIATION": 16.97019,
+                        "CHECKSUM": 25549531,
+                    }
+                ),
+            }
+        )
 
     def test_load_w_open(self):
         with open(self.simple) as f:
@@ -95,54 +100,56 @@ class TestLoad(unittest.TestCase):
         try:
             from astropy import units as u
             from pvl.decoder import OmniDecoder
-            pvl_file = 'tests/data/pds3/units1.lbl'
-            km_upper = u.def_unit('KM', u.km)
-            m_upper = u.def_unit('M', u.m)
+
+            pvl_file = "tests/data/pds3/units1.lbl"
+            km_upper = u.def_unit("KM", u.km)
+            m_upper = u.def_unit("M", u.m)
             u.add_enabled_units([km_upper, m_upper])
-            label = pvl.load(pvl_file,
-                             decoder=OmniDecoder(quantity_cls=u.Quantity))
-            self.assertEqual(label['FLOAT_UNIT'], u.Quantity(0.414, 'KM'))
+            label = pvl.load(
+                pvl_file, decoder=OmniDecoder(quantity_cls=u.Quantity)
+            )
+            self.assertEqual(label["FLOAT_UNIT"], u.Quantity(0.414, "KM"))
         except ImportError:
             pass
 
 
 class TestISIScub(unittest.TestCase):
-
     def setUp(self):
-        self.cub = data_dir / 'pattern.cub'
+        self.cub = data_dir / "pattern.cub"
         self.cubpvl = pvl.PVLModule(
             IsisCube=pvl.PVLObject(
-                Core=pvl.PVLObject(StartByte=65537,
-                                   Format='Tile',
-                                   TileSamples=128,
-                                   TileLines=128,
-                                   Dimensions=pvl.PVLGroup(Samples=90,
-                                                           Lines=90,
-                                                           Bands=1),
-                                   Pixels=pvl.PVLGroup(Type='Real',
-                                                       ByteOrder='Lsb',
-                                                       Base=0.0,
-                                                       Multiplier=1.0))),
-            Label=pvl.PVLObject(Bytes=65536))
+                Core=pvl.PVLObject(
+                    StartByte=65537,
+                    Format="Tile",
+                    TileSamples=128,
+                    TileLines=128,
+                    Dimensions=pvl.PVLGroup(Samples=90, Lines=90, Bands=1),
+                    Pixels=pvl.PVLGroup(
+                        Type="Real", ByteOrder="Lsb", Base=0.0, Multiplier=1.0
+                    ),
+                )
+            ),
+            Label=pvl.PVLObject(Bytes=65536),
+        )
 
     def test_load_cub(self):
         self.assertEqual(self.cubpvl, pvl.load(self.cub))
 
     def test_load_cub_opened(self):
-        with open(self.cub, 'rb') as f:
+        with open(self.cub, "rb") as f:
             self.assertEqual(self.cubpvl, pvl.load(f))
 
 
 class TestDumpS(unittest.TestCase):
-
     def setUp(self):
-        self.module = pvl.PVLModule(a='b',
-                                    staygroup=pvl.PVLGroup(c='d'),
-                                    obj=pvl.PVLGroup(d='e',
-                                                     f=pvl.PVLGroup(g='h')))
+        self.module = pvl.PVLModule(
+            a="b",
+            staygroup=pvl.PVLGroup(c="d"),
+            obj=pvl.PVLGroup(d="e", f=pvl.PVLGroup(g="h")),
+        )
 
     def test_dumps_PDS(self):
-        s = '''A = b\r
+        s = """A = b\r
 GROUP = staygroup\r
   C = d\r
 END_GROUP = staygroup\r
@@ -152,11 +159,11 @@ OBJECT = obj\r
     G = h\r
   END_GROUP = f\r
 END_OBJECT = obj\r
-END\r\n'''
+END\r\n"""
         self.assertEqual(s, pvl.dumps(self.module))
 
     def test_dumps_PVL(self):
-        s = '''a = b;
+        s = """a = b;
 BEGIN_GROUP = staygroup;
   c = d;
 END_GROUP = staygroup;
@@ -166,14 +173,15 @@ BEGIN_GROUP = obj;
     g = h;
   END_GROUP = f;
 END_GROUP = obj;
-END;'''
+END;"""
 
-        self.assertEqual(s, pvl.dumps(self.module,
-                                      encoder=pvl.encoder.PVLEncoder()))
+        self.assertEqual(
+            s, pvl.dumps(self.module, encoder=pvl.encoder.PVLEncoder())
+        )
 
     def test_dumps_ODL(self):
 
-        s = '''A = b\r
+        s = """A = b\r
 GROUP = staygroup\r
   C = d\r
 END_GROUP = staygroup\r
@@ -183,20 +191,21 @@ GROUP = obj\r
     G = h\r
   END_GROUP = f\r
 END_GROUP = obj\r
-END\r\n'''
+END\r\n"""
 
-        self.assertEqual(s, pvl.dumps(self.module,
-                                      encoder=pvl.encoder.ODLEncoder()))
+        self.assertEqual(
+            s, pvl.dumps(self.module, encoder=pvl.encoder.ODLEncoder())
+        )
 
 
 class TestDump(unittest.TestCase):
-
     def setUp(self):
-        self.module = pvl.PVLModule(a='b',
-                                    staygroup=pvl.PVLGroup(c='d'),
-                                    obj=pvl.PVLGroup(d='e',
-                                                     f=pvl.PVLGroup(g='h')))
-        self.string = '''A = b\r
+        self.module = pvl.PVLModule(
+            a="b",
+            staygroup=pvl.PVLGroup(c="d"),
+            obj=pvl.PVLGroup(d="e", f=pvl.PVLGroup(g="h")),
+        )
+        self.string = """A = b\r
 GROUP = staygroup\r
   C = d\r
 END_GROUP = staygroup\r
@@ -206,21 +215,23 @@ OBJECT = obj\r
     G = h\r
   END_GROUP = f\r
 END_OBJECT = obj\r
-END\r\n'''
+END\r\n"""
 
     def test_dump_Path(self):
         mock_path = create_autospec(Path)
-        with patch('pvl.Path', autospec=True, return_value=mock_path):
-            pvl.dump(self.module, Path('dummy'))
-            self.assertEqual([call.write_text(self.string)],
-                             mock_path.method_calls)
+        with patch("pvl.Path", autospec=True, return_value=mock_path):
+            pvl.dump(self.module, Path("dummy"))
+            self.assertEqual(
+                [call.write_text(self.string)], mock_path.method_calls
+            )
 
-    @patch('builtins.open', mock_open())
+    @patch("builtins.open", mock_open())
     def test_dump_file_object(self):
-        with open('dummy', 'w') as f:
+        with open("dummy", "w") as f:
             pvl.dump(self.module, f)
-            self.assertEqual([call.write(self.string.encode())],
-                             f.method_calls)
+            self.assertEqual(
+                [call.write(self.string.encode())], f.method_calls
+            )
 
     def test_not_dumpable(self):
         f = 5

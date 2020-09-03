@@ -10,9 +10,11 @@ you can change to::
 
     import pvl.new as pvl
 
-And then use all of the pvl functions as you usually would.  But now, any
-objects that are returned by the load functions will be the new PVLMultiDict
-objects.
+And then use all of the pvl functions as you usually would.  You
+will also need to have the 3rd party multidict library
+(https://github.com/aio-libs/multidict, conda installable) installed.
+But then, any objects that are returned by the load functions will
+be the new PVLMultiDict objects.
 """
 
 # Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
@@ -31,9 +33,9 @@ from .parser import PVLParser, OmniParser
 from .collections import PVLModuleNew, PVLGroupNew, PVLObjectNew
 
 __all__ = [
-    'PVLModuleNew',
-    'PVLGroupNew',
-    'PVLObjectNew',
+    "PVLModuleNew",
+    "PVLGroupNew",
+    "PVLObjectNew",
 ]
 
 
@@ -57,8 +59,13 @@ def load(path, parser=None, grammar=None, decoder=None, **kwargs):
     cube file), that's fine, this function will just extract the
     decodable text.
     """
-    return loads(get_text_from(path), parser=parser, grammar=grammar,
-                 decoder=decoder, **kwargs)
+    return loads(
+        get_text_from(path),
+        parser=parser,
+        grammar=grammar,
+        decoder=decoder,
+        **kwargs
+    )
 
 
 def loadu(url, parser=None, grammar=None, decoder=None, **kwargs):
@@ -114,13 +121,14 @@ def loads(s: str, parser=None, grammar=None, decoder=None, **kwargs):
 
     if parser is None:
         parser = OmniParser(
-            grammar=grammar, decoder=decoder,
+            grammar=grammar,
+            decoder=decoder,
             module_class=PVLModuleNew,
             group_class=PVLGroupNew,
             object_class=PVLObjectNew,
             **kwargs
         )
     elif not isinstance(parser, PVLParser):
-        raise TypeError('The parser must be an instance of pvl.PVLParser.')
+        raise TypeError("The parser must be an instance of pvl.PVLParser.")
 
     return parser.parse(s)

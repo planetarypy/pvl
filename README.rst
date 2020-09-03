@@ -62,7 +62,7 @@ Basic Usage
 ``pvl`` exposes an API familiar to users of the standard library
 ``json`` module.
 
-Decoding is primarily done through ``pvl.load()`` for file like objects and
+Decoding is primarily done through ``pvl.load()`` for file-like objects and
 ``pvl.loads()`` for strings::
 
     >>> import pvl
@@ -79,7 +79,10 @@ Decoding is primarily done through ``pvl.load()`` for file like objects and
     >>> print(module['foo'])
     bar
 
-You may also use ``pvl.load()`` to read PVL text directly from an image_::
+There is also a ``pvl.loadu()`` to which you can provide the URL of a file that you would normally provide to
+``pvl.load()``.
+
+You may also use ``pvl.load()`` to read PVL text directly from an image_ that begins with PVL text::
 
     >>> import pvl
     >>> label = pvl.load('tests/data/pattern.cub')
@@ -158,7 +161,16 @@ with ``dict``-style access::
     END
     <BLANKLINE>
 
-The intent is for the loaders (``pvl.load()`` and ``pvl.loads()``)
+However, there are some aspects to the default ``pvl.PVLModule`` that are not entirely
+aligned with the modern Python 3 expectations of a Mapping object.  If you would like
+to experiment with a more Python-3-ic object, you could instantiate a
+``pvl.collections.PVLMultiDict`` object, or ``import pvl.new as pvl`` in your code
+to have the loaders return objects of this type (and then easily switch back by just
+changing the import statement).  To learn more about how PVLMultiDict is different
+from the existing OrderedMultiDict that PVLModule is derived from, please read the
+new PVLMultiDict documentation.
+
+The intent is for the loaders (``pvl.load()``, ``pvl.loads()``, and ``pvl.loadu()``)
 to be permissive, and attempt to parse as wide a variety of PVL text as
 possible, including some kinds of 'broken' PVL text.
 

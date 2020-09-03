@@ -40,14 +40,15 @@ def lex_preserve(char: str, lexeme: str, preserve: dict) -> tuple((str, dict)):
     unchanged.
     """
     # print(f'in preserve: char "{char}", lexeme "{lexeme}, p {preserve}"')
-    if char == preserve['end']:
+    if char == preserve["end"]:
         return lexeme + char, dict(state=Preserve.FALSE, end=None)
     else:
         return lexeme + char, preserve
 
 
-def lex_singlechar_comments(char: str, lexeme: str, preserve: dict,
-                            comments: dict) -> tuple((str, dict)):
+def lex_singlechar_comments(
+    char: str, lexeme: str, preserve: dict, comments: dict
+) -> tuple((str, dict)):
     """Returns a modified *lexeme* string and a modified *preserve*
     dict in a two-tuple.
 
@@ -67,19 +68,25 @@ def lex_singlechar_comments(char: str, lexeme: str, preserve: dict,
     Otherwise return *lexeme* and *preserve* unchanged in the
     two-tuple.
     """
-    if preserve['state'] == Preserve.COMMENT:
+    if preserve["state"] == Preserve.COMMENT:
         return lex_preserve(char, lexeme, preserve)
     elif char in comments:
-        return (lexeme + char, dict(state=Preserve.COMMENT,
-                                    end=comments[char]))
+        return (
+            lexeme + char,
+            dict(state=Preserve.COMMENT, end=comments[char]),
+        )
 
     return lexeme, preserve
 
 
-def lex_multichar_comments(char: str, prev_char: str, next_char: str,
-                           lexeme: str, preserve: dict,
-                           comments: tuple(tuple((str, str))) =
-                           PVLGrammar().comments) -> tuple((str, dict)):
+def lex_multichar_comments(
+    char: str,
+    prev_char: str,
+    next_char: str,
+    lexeme: str,
+    preserve: dict,
+    comments: tuple(tuple((str, str))) = PVLGrammar().comments,
+) -> tuple((str, dict)):
     """Returns a modified *lexeme* string and a modified *preserve*
     dict in a two-tuple.
 
@@ -99,36 +106,43 @@ def lex_multichar_comments(char: str, prev_char: str, next_char: str,
     """
     # print(f'lex_multichar got these comments: {comments}')
     if len(comments) == 0:
-        raise ValueError('The variable provided to comments is empty.')
+        raise ValueError("The variable provided to comments is empty.")
 
-    allowed_pairs = (('/*', '*/'),)
+    allowed_pairs = (("/*", "*/"),)
     for p in comments:
         if p not in allowed_pairs:
-            raise NotImplementedError('Can only handle these '
-                                      'multicharacter comments: '
-                                      f'{allowed_pairs}.  To handle '
-                                      'others this class must be extended.')
+            raise NotImplementedError(
+                "Can only handle these "
+                "multicharacter comments: "
+                f"{allowed_pairs}.  To handle "
+                "others this class must be extended."
+            )
 
-    if ('/*', '*/') in comments:
-        if char == '*':
-            if prev_char == '/':
-                return lexeme + '/*', dict(state=Preserve.COMMENT, end='*/')
-            elif next_char == '/':
-                return lexeme + '*/', dict(state=Preserve.FALSE, end=None)
+    if ("/*", "*/") in comments:
+        if char == "*":
+            if prev_char == "/":
+                return lexeme + "/*", dict(state=Preserve.COMMENT, end="*/")
+            elif next_char == "/":
+                return lexeme + "*/", dict(state=Preserve.FALSE, end=None)
             else:
-                return lexeme + '*', preserve
-        elif char == '/':
+                return lexeme + "*", preserve
+        elif char == "/":
             # If part of a comment ignore, and let the char == '*' handler
             # above deal with it, otherwise add it to the lexeme.
-            if prev_char != '*' and next_char != '*':
-                return lexeme + '/', preserve
+            if prev_char != "*" and next_char != "*":
+                return lexeme + "/", preserve
 
     return lexeme, preserve
 
 
-def lex_comment(char: str, prev_char: str, next_char: str,
-                lexeme: str, preserve: dict,
-                c_info: dict) -> tuple((str, dict)):
+def lex_comment(
+    char: str,
+    prev_char: str,
+    next_char: str,
+    lexeme: str,
+    preserve: dict,
+    c_info: dict,
+) -> tuple((str, dict)):
     """Returns a modified *lexeme* string and a modified *preserve*
     dict in a two-tuple.
 
@@ -141,13 +155,19 @@ def lex_comment(char: str, prev_char: str, next_char: str,
     then returns what they return.
     """
 
-    if char in c_info['multi_chars']:
-        return lex_multichar_comments(char, prev_char, next_char,
-                                      lexeme, preserve,
-                                      comments=c_info['multi_comments'])
+    if char in c_info["multi_chars"]:
+        return lex_multichar_comments(
+            char,
+            prev_char,
+            next_char,
+            lexeme,
+            preserve,
+            comments=c_info["multi_comments"],
+        )
     else:
-        return lex_singlechar_comments(char, lexeme, preserve,
-                                       c_info['single_comments'])
+        return lex_singlechar_comments(
+            char, lexeme, preserve, c_info["single_comments"]
+        )
 
 
 def _prev_char(s: str, idx: int):
@@ -183,27 +203,33 @@ def _prepare_comment_tuples(comments: tuple(tuple((str, str)))) -> dict:
     # which seemed excessive.
     d = dict()
     m = list()
-    d['single_comments'] = dict()
-    d['multi_chars'] = set()
+    d["single_comments"] = dict()
+    d["multi_chars"] = set()
     for pair in comments:
         if len(pair[0]) == 1:
-            d['single_comments'][pair[0]] = pair[1]
+            d["single_comments"][pair[0]] = pair[1]
         else:
             m.append(pair)
             for p in pair:
-                d['multi_chars'] |= set(p)
+                d["multi_chars"] |= set(p)
 
-    d['chars'] = set(d['single_comments'].keys())
-    d['chars'] |= d['multi_chars']
-    d['multi_comments'] = tuple(m)
+    d["chars"] = set(d["single_comments"].keys())
+    d["chars"] |= d["multi_chars"]
+    d["multi_comments"] = tuple(m)
 
     # print(d)
     return d
 
 
-def lex_char(char: str, prev_char: str, next_char: str,
-             lexeme: str, preserve: dict,
-             g: PVLGrammar, c_info: dict) -> tuple((str, dict)):
+def lex_char(
+    char: str,
+    prev_char: str,
+    next_char: str,
+    lexeme: str,
+    preserve: dict,
+    g: PVLGrammar,
+    c_info: dict,
+) -> tuple((str, dict)):
     """Returns a modified *lexeme* string and a modified *preserve*
     dict in a two-tuple.
 
@@ -221,26 +247,32 @@ def lex_char(char: str, prev_char: str, next_char: str,
 
     # print(f'lex_char start: char "{char}", lexeme "{lexeme}", "{preserve}"')
 
-    if preserve['state'] != Preserve.FALSE:
-        if preserve['state'] == Preserve.COMMENT:
-            (lexeme,
-             preserve) = lex_comment(char, prev_char, next_char,
-                                     lexeme, preserve, c_info)
-        elif preserve['state'] in (Preserve.UNIT, Preserve.QUOTE,
-                                   Preserve.NONDECIMAL):
-            (lexeme,
-             preserve) = lex_preserve(char, lexeme, preserve)
+    if preserve["state"] != Preserve.FALSE:
+        if preserve["state"] == Preserve.COMMENT:
+            (lexeme, preserve) = lex_comment(
+                char, prev_char, next_char, lexeme, preserve, c_info
+            )
+        elif preserve["state"] in (
+            Preserve.UNIT,
+            Preserve.QUOTE,
+            Preserve.NONDECIMAL,
+        ):
+            (lexeme, preserve) = lex_preserve(char, lexeme, preserve)
         else:
-            raise ValueError('{} is not a '.format(preserve['state']) +
-                             'recognized preservation state.')
-    elif (char == '#' and
-          g.nondecimal_pre_re.fullmatch(lexeme + char) is not None):
+            raise ValueError(
+                "{} is not a ".format(preserve["state"])
+                + "recognized preservation state."
+            )
+    elif (
+        char == "#"
+        and g.nondecimal_pre_re.fullmatch(lexeme + char) is not None
+    ):
         lexeme += char
-        preserve = dict(state=Preserve.NONDECIMAL, end='#')
-    elif char in c_info['chars']:
-        (lexeme,
-         preserve) = lex_comment(char, prev_char, next_char,
-                                 lexeme, preserve, c_info)
+        preserve = dict(state=Preserve.NONDECIMAL, end="#")
+    elif char in c_info["chars"]:
+        (lexeme, preserve) = lex_comment(
+            char, prev_char, next_char, lexeme, preserve, c_info
+        )
     elif char in g.units_delimiters[0]:
         lexeme += char
         preserve = dict(state=Preserve.UNIT, end=g.units_delimiters[1])
@@ -255,8 +287,14 @@ def lex_char(char: str, prev_char: str, next_char: str,
     return lexeme, preserve
 
 
-def lex_continue(char: str, next_char: str, lexeme: str,
-                 token: Token, preserve: dict, g: PVLGrammar) -> bool:
+def lex_continue(
+    char: str,
+    next_char: str,
+    lexeme: str,
+    token: Token,
+    preserve: dict,
+    g: PVLGrammar,
+) -> bool:
     """Return True if accumulation of *lexeme* should continue based
     on the values passed into this function, false otherwise.
 
@@ -269,14 +307,16 @@ def lex_continue(char: str, next_char: str, lexeme: str,
     if not g.char_allowed(next_char):
         return False
 
-    if preserve['state'] != Preserve.FALSE:
+    if preserve["state"] != Preserve.FALSE:
         return True
 
     # Since Numeric objects can begin with a reserved
     # character, the reserved characters may split up
     # the lexeme.
-    if(char in g.numeric_start_chars and
-       Token(char + next_char, grammar=g).is_numeric()):
+    if (
+        char in g.numeric_start_chars
+        and Token(char + next_char, grammar=g).is_numeric()
+    ):
         return True
 
     # Since Non Decimal Numerics can have reserved characters in them.
@@ -285,9 +325,11 @@ def lex_continue(char: str, next_char: str, lexeme: str,
 
     # Since the numeric signs could be in the reserved characters,
     # make sure we can parse scientific notation correctly:
-    if(char.lower() == 'e'
-       and next_char in g.numeric_start_chars
-       and Token(lexeme + next_char + '2', grammar=g).is_numeric()):
+    if (
+        char.lower() == "e"
+        and next_char in g.numeric_start_chars
+        and Token(lexeme + next_char + "2", grammar=g).is_numeric()
+    ):
         return True
 
     # Some datetimes can have trailing numeric tz offsets,
@@ -316,12 +358,17 @@ def lexer(s: str, g=PVLGrammar(), d=PVLDecoder()):
     c_info = _prepare_comment_tuples(g.comments)
     # print(c_info)
 
-    lexeme = ''
+    lexeme = ""
     preserve = dict(state=Preserve.FALSE, end=None)
     for i, char in enumerate(s):
         if not g.char_allowed(char):
-            raise LexerError(f'The character "{char}" (ord: {ord(char)}) '
-                             ' is not allowed by the grammar.', s, i, lexeme)
+            raise LexerError(
+                f'The character "{char}" (ord: {ord(char)}) '
+                " is not allowed by the grammar.",
+                s,
+                i,
+                lexeme,
+            )
 
         prev_char = _prev_char(s, i)
         next_char = _next_char(s, i)
@@ -330,8 +377,9 @@ def lexer(s: str, g=PVLGrammar(), d=PVLDecoder()):
         #            f'prev: {prev_char}, next: {next_char}, '
         #            f'{preserve}'))
 
-        (lexeme, preserve) = lex_char(char, prev_char, next_char,
-                                      lexeme, preserve, g, c_info)
+        (lexeme, preserve) = lex_char(
+            char, prev_char, next_char, lexeme, preserve, g, c_info
+        )
 
         # print(repr(f'       at bot: ->{lexeme}<-,          '
         #            f'                  '
@@ -340,7 +388,7 @@ def lexer(s: str, g=PVLGrammar(), d=PVLDecoder()):
         # Now having dealt with char, decide whether to
         # go on continue accumulating the lexeme, or yield it.
 
-        if lexeme == '':
+        if lexeme == "":
             continue
 
         try:
@@ -355,8 +403,7 @@ def lexer(s: str, g=PVLGrammar(), d=PVLDecoder()):
             # value of *t* ready for the next call of next() on the
             # generator.  This is the magic that allows a user to
             # 'return' a token to the generator.
-            tok = Token(lexeme, grammar=g, decoder=d,
-                        pos=firstpos(lexeme, i))
+            tok = Token(lexeme, grammar=g, decoder=d, pos=firstpos(lexeme, i))
 
             if lex_continue(char, next_char, lexeme, tok, preserve, g):
                 # Any lexeme state that we want to just allow
@@ -365,20 +412,22 @@ def lexer(s: str, g=PVLGrammar(), d=PVLDecoder()):
                 # test true via lex_continue()
                 continue
 
-            elif(next_char is None
-                 or not g.char_allowed(next_char)
-                 or next_char in g.whitespace
-                 or next_char in g.reserved_characters
-                 or s.startswith(tuple(p[0] for p in g.comments), i + 1)
-                 or lexeme.endswith(tuple(p[1] for p in g.comments))
-                 or lexeme in g.reserved_characters
-                 or tok.is_quoted_string()):
+            elif (
+                next_char is None
+                or not g.char_allowed(next_char)
+                or next_char in g.whitespace
+                or next_char in g.reserved_characters
+                or s.startswith(tuple(p[0] for p in g.comments), i + 1)
+                or lexeme.endswith(tuple(p[1] for p in g.comments))
+                or lexeme in g.reserved_characters
+                or tok.is_quoted_string()
+            ):
                 # print(f'yielding {tok}')
                 t = yield tok
                 while t is not None:
                     yield None
                     t = yield t
-                lexeme = ''
+                lexeme = ""
             else:
                 continue
 

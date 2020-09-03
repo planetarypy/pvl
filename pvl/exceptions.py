@@ -29,7 +29,7 @@ def linecount(doc: str, end: int, start: int = 0):
     being line number one) in the string *doc* between the
     positions *start* and *end*.
     """
-    return doc.count('\n', start, end) + 1
+    return doc.count("\n", start, end) + 1
 
 
 class LexerError(ValueError):
@@ -45,13 +45,13 @@ class LexerError(ValueError):
     def __init__(self, msg, doc, pos, lexeme):
         self.pos = firstpos(lexeme, pos)
         lineno = linecount(doc, self.pos)
-        colno = self.pos - doc.rfind('\n', 0, self.pos)
+        colno = self.pos - doc.rfind("\n", 0, self.pos)
         # Assemble a context string that consists of whole
         # words, using fragments is hard to read.
         context_tokens = doc[self.pos - 15: self.pos + 15].split(" ")
         context = " ".join(context_tokens[1:-1])
         errmsg = (
-            f'{msg}: line {lineno} column {colno} (char {pos}) '
+            f"{msg}: line {lineno} column {colno} (char {pos}) "
             f'near "{context}"'
         )
         super().__init__(self, errmsg)
@@ -75,4 +75,5 @@ class ParseError(Exception):
 
 class QuantityError(Exception):
     """A simple exception to distinguish errors from Quantity classes."""
+
     pass

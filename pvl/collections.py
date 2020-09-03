@@ -30,9 +30,7 @@ from abc import abstractmethod
 from collections import namedtuple, abc
 
 
-class MutableMappingSequence(
-    abc.MutableMapping, abc.MutableSequence
-):
+class MutableMappingSequence(abc.MutableMapping, abc.MutableSequence):
     """ABC for a mutable object that has both mapping and
     sequence characteristics.
 
@@ -68,7 +66,6 @@ dict_clear = dict.clear
 
 
 class MappingView(object):
-
     def __init__(self, mapping):
         self._mapping = mapping
 
@@ -76,11 +73,10 @@ class MappingView(object):
         return len(self._mapping)
 
     def __repr__(self):
-        return '{!s}({!r})'.format(type(self).__name__, self._mapping)
+        return "{!s}({!r})".format(type(self).__name__, self._mapping)
 
 
 class KeysView(MappingView):
-
     def __contains__(self, key):
         return key in self._mapping
 
@@ -93,7 +89,7 @@ class KeysView(MappingView):
 
     def __repr__(self):
         keys = [key for key, _ in self._mapping]
-        return '{!s}({!r})'.format(type(self).__name__, keys)
+        return "{!s}({!r})".format(type(self).__name__, keys)
 
     def index(self, key):
         keys = [k for k, _ in self._mapping]
@@ -101,7 +97,6 @@ class KeysView(MappingView):
 
 
 class ItemsView(MappingView):
-
     def __contains__(self, item):
         key, value = item
         return value in self._mapping.getlist(key)
@@ -119,7 +114,6 @@ class ItemsView(MappingView):
 
 
 class ValuesView(MappingView):
-
     def __contains__(self, value):
         for _, v in self._mapping:
             if v == value:
@@ -135,7 +129,7 @@ class ValuesView(MappingView):
 
     def __repr__(self):
         values = [value for _, value in self._mapping]
-        return '{!s}({!r})'.format(type(self).__name__, values)
+        return "{!s}({!r})".format(type(self).__name__, values)
 
     def index(self, value):
         values = [val for _, val in self._mapping]
@@ -214,14 +208,14 @@ class OrderedMultiDict(dict, MutableMappingSequence):
 
     def __repr__(self):
         if not self.__items:
-            return '{!s}([])'.format(type(self).__name__)
+            return "{!s}([])".format(type(self).__name__)
 
         lines = []
         for item in self.__items:
             for line in pprint.pformat(item).splitlines():
-                lines.append('  ' + line)
+                lines.append("  " + line)
 
-        return "{!s}([\n{!s}\n])".format(type(self).__name__, '\n'.join(lines))
+        return "{!s}([\n{!s}\n])".format(type(self).__name__, "\n".join(lines))
 
     get = abc.MutableMapping.get
     update = abc.MutableMapping.update
@@ -245,7 +239,7 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             "The discard(k) function is deprecated in favor of .popall(k), "
             "please begin using it, as .discard(k) may be removed in the "
             "next major patch.",
-            PendingDeprecationWarning
+            PendingDeprecationWarning,
         )
 
         try:
@@ -267,14 +261,14 @@ class OrderedMultiDict(dict, MutableMappingSequence):
     def extend(self, *args, **kwargs):
         """Add key value pairs for an iterable."""
         if len(args) > 1:
-            raise TypeError(f'expected at most 1 arguments, got {len(args)}')
+            raise TypeError(f"expected at most 1 arguments, got {len(args)}")
 
         iterable = args[0] if args else None
         if iterable:
-            if isinstance(iterable, abc.Mapping) or hasattr(iterable, 'items'):
+            if isinstance(iterable, abc.Mapping) or hasattr(iterable, "items"):
                 for key, value in iterable.items():
                     self.append(key, value)
-            elif hasattr(iterable, 'keys'):
+            elif hasattr(iterable, "keys"):
                 for key in iterable.keys():
                     self.append(key, iterable[key])
             else:
@@ -298,7 +292,7 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             "The getlist() function is deprecated in favor of .getall(), "
             "please begin using it, as .getlist() may be removed in the "
             "next major patch.",
-            PendingDeprecationWarning
+            PendingDeprecationWarning,
         )
 
         try:
@@ -320,7 +314,7 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             "pvl 0.x architecture, this concept of "
             "operations for .pop(k) may change in future versions. "
             "Consider using .popall(k) instead.",
-            FutureWarning
+            FutureWarning,
         )
 
         if len(args) == 0 and len(kwargs) == 0:
@@ -336,14 +330,15 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             "compatible with the pvl 0.x architecture, this concept of "
             "operations for .popitem() may change in future versions. "
             "Consider using the list-like .pop(), without an argument instead.",
-            FutureWarning
+            FutureWarning,
         )
         # Yes, I know .pop() without an argument just redirects here, but it
         # won't always.
 
         if not self:
-            raise KeyError('popitem(): {!s} '.format(type(self).__name__) +
-                           'is empty')
+            raise KeyError(
+                "popitem(): {!s} ".format(type(self).__name__) + "is empty"
+            )
 
         key, _ = item = self.__items.pop()
         values = dict_getitem(self, key)
@@ -391,8 +386,7 @@ class OrderedMultiDict(dict, MutableMappingSequence):
 
             # Make sure indexing works with the new item
             if key in self:
-                value_list = [val for k, val in self.__items if
-                              k == key]
+                value_list = [val for k, val in self.__items if k == key]
                 dict_setitem(self, key, value_list)
             else:
                 dict_setitem(self, key, [value])
@@ -410,6 +404,7 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             if isinstance(new_item, OrderedMultiDict):
                 new_item = list(new_item)
             return func(self, key, new_item, instance)
+
         return check_func
 
     def key_index(self, key, instance: int = 0) -> int:
@@ -459,8 +454,8 @@ def _insert_arg_helper(args):
 
         else:
             if len(args[0]) == 2 and (
-                    isinstance(args[0][0], str) or
-                    not isinstance(args[0][0], abc.Sequence)
+                isinstance(args[0][0], str)
+                or not isinstance(args[0][0], abc.Sequence)
             ):
                 kvlist = (args[0],)
             else:
@@ -527,6 +522,7 @@ try:  # noqa: C901
           empty PVLObject derived from PVLMultiDict could test equal,
           but would fail an isinstance() check.
         """
+
         # Also evaluated the boltons.OrderedMultiDict, but its semantics were
         # too different #52
 
@@ -544,8 +540,7 @@ try:  # noqa: C901
                 return f"{self.__class__.__name__}()"
 
             return (
-                    f"{self.__class__.__name__}(" +
-                    str(list(self.items())) + ")"
+                f"{self.__class__.__name__}(" + str(list(self.items())) + ")"
             )
 
         def __str__(self):
@@ -555,12 +550,9 @@ try:  # noqa: C901
             lines = []
             for item in self.items():
                 for line in pprint.pformat(item).splitlines():
-                    lines.append('  ' + line)
+                    lines.append("  " + line)
 
-            return (
-                    f"{self.__class__.__name__}([\n" +
-                    "\n".join(lines) + "\n])"
-            )
+            return f"{self.__class__.__name__}([\n" + "\n".join(lines) + "\n])"
 
         def key_index(self, key, ith: int = 0) -> int:
             """Returns the index of the item in the underlying list
@@ -587,7 +579,7 @@ try:  # noqa: C901
                 )
 
         def _insert_item(
-                self, key, new_item: abc.Iterable, instance: int, is_after: bool
+            self, key, new_item: abc.Iterable, instance: int, is_after: bool
         ):
             """Insert a new item before or after another item."""
             index = self.key_index(key, instance)
@@ -680,12 +672,13 @@ try:  # noqa: C901
     class PVLObjectNew(PVLAggregationNew):
         pass
 
+
 except ImportError:
     warnings.warn(
         "The multidict library is not present, so the new PVLMultiDict "
         "cannot be used. At this time, it is completely optional, and doesn't "
         "impact the use of pvl.",
-        ImportWarning
+        ImportWarning,
     )
 
 
@@ -705,7 +698,7 @@ class PVLObject(PVLAggregation):
     pass
 
 
-class Quantity(namedtuple('Quantity', ['value', 'units'])):
+class Quantity(namedtuple("Quantity", ["value", "units"])):
     """A simple collections.namedtuple object to contain
     a value and units parameter.
 
@@ -715,6 +708,7 @@ class Quantity(namedtuple('Quantity', ['value', 'units'])):
     object.  Please see the documentation on :doc:`quantities`
     for how to use 3rd party Quantity objects with pvl.
     """
+
     pass
 
 
@@ -722,5 +716,5 @@ class Units(Quantity):
     warnings.warn(
         "The pvl.collections.Units object is deprecated, and may be removed at "
         "the next major patch. Please use pvl.collections.Quantity instead.",
-        PendingDeprecationWarning
+        PendingDeprecationWarning,
     )

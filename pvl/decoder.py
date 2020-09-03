@@ -83,10 +83,12 @@ class PVLDecoder(object):
 
          <Simple-Value> ::= (<Date-Time> | <Numeric> | <String>)
         """
-        for d in (self.decode_quoted_string,
-                  self.decode_non_decimal,
-                  self.decode_decimal,
-                  self.decode_datetime):
+        for d in (
+            self.decode_quoted_string,
+            self.decode_non_decimal,
+            self.decode_decimal,
+            self.decode_datetime,
+        ):
             try:
                 return d(value)
             except ValueError:
@@ -108,24 +110,32 @@ class PVLDecoder(object):
         as an unquoted string, based on this decoder's grammar.
         Raises a ValueError otherwise.
         """
-        for coll in (('a comment', chain.from_iterable(self.grammar.comments)),
-                     ('some whitespace', self.grammar.whitespace),
-                     ('a special character', self.grammar.reserved_characters)):
+        for coll in (
+            ("a comment", chain.from_iterable(self.grammar.comments)),
+            ("some whitespace", self.grammar.whitespace),
+            ("a special character", self.grammar.reserved_characters),
+        ):
             for item in coll[1]:
                 if item in value:
-                    raise ValueError('Expected a Simple Value, but encountered '
-                                     f'{coll[0]} in "{self}": "{item}".')
+                    raise ValueError(
+                        "Expected a Simple Value, but encountered "
+                        f'{coll[0]} in "{self}": "{item}".'
+                    )
 
         agg_keywords = self.grammar.aggregation_keywords.items()
         for kw in chain.from_iterable(agg_keywords):
             if kw.casefold() == value.casefold():
-                raise ValueError('Expected a Simple Value, but encountered '
-                                 f'an aggregation keyword: "{value}".')
+                raise ValueError(
+                    "Expected a Simple Value, but encountered "
+                    f'an aggregation keyword: "{value}".'
+                )
 
         for es in self.grammar.end_statements:
             if es.casefold() == value.casefold():
-                raise ValueError('Expected a Simple Value, but encountered '
-                                 f'an End-Statement: "{value}".')
+                raise ValueError(
+                    "Expected a Simple Value, but encountered "
+                    f'an End-Statement: "{value}".'
+                )
 
         # This try block is going to look illogical.  But the decode
         # rules for Unquoted Strings spell out the things that they
@@ -146,9 +156,7 @@ class PVLDecoder(object):
         grammar.  Raises ValueError otherwise.
         """
         for q in self.grammar.quotes:
-            if(value.startswith(q) and
-               value.endswith(q) and
-               len(value) > 1):
+            if value.startswith(q) and value.endswith(q) and len(value) > 1:
                 return str(value[1:-1])
         raise ValueError(f'The object "{value}" is not a PVL Quoted String.')
 
@@ -170,13 +178,15 @@ class PVLDecoder(object):
         grammar, raises ValueError otherwise.
         """
         # Non-Decimal (Binary, Hex, and Octal)
-        for nd_re in (self.grammar.binary_re,
-                      self.grammar.octal_re,
-                      self.grammar.hex_re):
+        for nd_re in (
+            self.grammar.binary_re,
+            self.grammar.octal_re,
+            self.grammar.hex_re,
+        ):
             match = nd_re.fullmatch(value)
             if match is not None:
-                d = match.groupdict('')
-                return int(d['sign'] + d['non_decimal'], base=int(d['radix']))
+                d = match.groupdict("")
+                return int(d["sign"] + d["non_decimal"], base=int(d["radix"]))
         raise ValueError
 
     def decode_datetime(self, value: str):
@@ -217,21 +227,30 @@ class PVLDecoder(object):
         """
         try:
             # datetime.date objects will always be naive, so just return:
-            return for_try_except(ValueError, datetime.strptime,
-                                  repeat(value),
-                                  self.grammar.date_formats).date()
+            return for_try_except(
+                ValueError,
+                datetime.strptime,
+                repeat(value),
+                self.grammar.date_formats,
+            ).date()
         except ValueError:
             # datetime.time and datetime.datetime might be either:
             d = None
             try:
-                d = for_try_except(ValueError, datetime.strptime,
-                                   repeat(value),
-                                   self.grammar.time_formats).time()
+                d = for_try_except(
+                    ValueError,
+                    datetime.strptime,
+                    repeat(value),
+                    self.grammar.time_formats,
+                ).time()
             except ValueError:
                 try:
-                    d = for_try_except(ValueError, datetime.strptime,
-                                       repeat(value),
-                                       self.grammar.datetime_formats)
+                    d = for_try_except(
+                        ValueError,
+                        datetime.strptime,
+                        repeat(value),
+                        self.grammar.datetime_formats,
+                    )
                 except ValueError:
                     pass
             if d is not None:
@@ -250,8 +269,10 @@ class PVLDecoder(object):
         """Returns True if *value* is a time that matches the
         grammar's definition of a leap seconds time (a time string with
         a value of 60 for the seconds value).  False otherwise."""
-        for r in (self.grammar.leap_second_Ymd_re,
-                  self.grammar.leap_second_Yj_re):
+        for r in (
+            self.grammar.leap_second_Ymd_re,
+            self.grammar.leap_second_Yj_re,
+        ):
             if r is not None and r.fullmatch(value) is not None:
                 return True
         else:
@@ -299,17 +320,20 @@ class ODLDecoder(PVLDecoder):
             # if there is a +HH:MM or a -HH:MM suffix that
             # can be stripped, then we're in business.
             # Otherwise ...
-            match = re.fullmatch(r'(?P<dt>.+?)'  # the part before the sign
-                                 r'(?P<sign>[+-])'  # required sign
-                                 r'(?P<hour>0?[0-9]|1[0-2])'  # 0 to 12
-                                 fr'(?:{self.grammar._M_frag})?',  # Minutes
-                                 value)
+            match = re.fullmatch(
+                r"(?P<dt>.+?)"  # the part before the sign
+                r"(?P<sign>[+-])"  # required sign
+                r"(?P<hour>0?[0-9]|1[0-2])"  # 0 to 12
+                fr"(?:{self.grammar._M_frag})?",  # Minutes
+                value,
+            )
             if match is not None:
                 gd = match.groupdict(default=0)
-                dt = super().decode_datetime(gd['dt'])
-                offset = timedelta(hours=int(gd['hour']),
-                                   minutes=int(gd['minute']))
-                if gd['sign'] == '-':
+                dt = super().decode_datetime(gd["dt"])
+                offset = timedelta(
+                    hours=int(gd["hour"]), minutes=int(gd["minute"])
+                )
+                if gd["sign"] == "-":
                     offset = -1 * offset
                 return dt.replace(tzinfo=timezone(offset))
             raise ValueError
@@ -320,8 +344,8 @@ class ODLDecoder(PVLDecoder):
         """
         match = self.grammar.nondecimal_re.fullmatch(value)
         if match is not None:
-            d = match.groupdict('')
-            return int(d['sign'] + d['non_decimal'], base=int(d['radix']))
+            d = match.groupdict("")
+            return int(d["sign"] + d["non_decimal"], base=int(d["radix"]))
         raise ValueError
 
     def decode_quoted_string(self, value: str) -> str:
@@ -336,16 +360,16 @@ class ODLDecoder(PVLDecoder):
 
         # Deal with dash (-) continuation:
         # sp = ''.join(self.grammar.spacing_characters)
-        fe = ''.join(self.grammar.format_effectors)
-        ws = ''.join(self.grammar.whitespace)
-        nodash = re.sub(fr'-[{fe}][{ws}]*', '', s)
+        fe = "".join(self.grammar.format_effectors)
+        ws = "".join(self.grammar.whitespace)
+        nodash = re.sub(fr"-[{fe}][{ws}]*", "", s)
 
         # Originally thought that only format effectors surrounded
         # by whitespace was to be collapsed
         # foo = re.sub(fr'[{sp}]*[{fe}]+[{sp}]*', ' ', nodash)
 
         # But really it collapses all whitespace and strips lead and trail.
-        return re.sub(fr'[{ws}]+', ' ', nodash.strip(ws))
+        return re.sub(fr"[{ws}]+", " ", nodash.strip(ws))
 
 
 class OmniDecoder(ODLDecoder):
@@ -365,19 +389,20 @@ class OmniDecoder(ODLDecoder):
         # positions.
         match = self.grammar.nondecimal_re.fullmatch(value)
         if match is not None:
-            d = match.groupdict('')
-            if 'second_sign' in d:
-                if d['sign'] != '' and d['second_sign'] != '':
-                    raise ValueError(f'The non-decimal value, "{value}", '
-                                     'has two signs.')
-                elif d['sign'] != '':
-                    sign = d['sign']
+            d = match.groupdict("")
+            if "second_sign" in d:
+                if d["sign"] != "" and d["second_sign"] != "":
+                    raise ValueError(
+                        f'The non-decimal value, "{value}", ' "has two signs."
+                    )
+                elif d["sign"] != "":
+                    sign = d["sign"]
                 else:
-                    sign = d['second_sign']
+                    sign = d["second_sign"]
             else:
-                sign = d['sign']
+                sign = d["sign"]
 
-            return int(sign + d['non_decimal'], base=int(d['radix']))
+            return int(sign + d["non_decimal"], base=int(d["radix"]))
         raise ValueError
 
     def decode_datetime(self, value: str):
@@ -393,11 +418,10 @@ class OmniDecoder(ODLDecoder):
         except ValueError:
             try:
                 from dateutil.parser import isoparser
+
                 isop = isoparser()
 
-                if(len(value) > 3
-                   and value[-2] == '+'
-                   and value[-1].isdigit()):
+                if len(value) > 3 and value[-2] == "+" and value[-1].isdigit():
                     # This technically means that we accept slightly more
                     # formats than ISO 8601 strings, since under that
                     # specification, two digits after the '+' are required
@@ -405,8 +429,8 @@ class OmniDecoder(ODLDecoder):
                     # requirement.  If we find only one digit, we'll
                     # just assume it means an hour and insert a zero so
                     # that it can be parsed.
-                    tokens = value.rpartition('+')
-                    value = tokens[0] + '+0' + tokens[-1]
+                    tokens = value.rpartition("+")
+                    value = tokens[0] + "+0" + tokens[-1]
 
                 try:
                     return isop.parse_isodate(value)
@@ -417,8 +441,11 @@ class OmniDecoder(ODLDecoder):
                         return isop.isoparse(value)
 
             except ImportError:
-                warn('The dateutil library is not present, so more '
-                     'exotic date and time formats beyond the PVL/ODL '
-                     'set cannot be parsed.', ImportWarning)
+                warn(
+                    "The dateutil library is not present, so more "
+                    "exotic date and time formats beyond the PVL/ODL "
+                    "set cannot be parsed.",
+                    ImportWarning,
+                )
 
             raise ValueError
