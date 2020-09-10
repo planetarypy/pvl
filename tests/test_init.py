@@ -43,7 +43,7 @@ END"""
 class TestLoad(unittest.TestCase):
     def setUp(self):
         self.simple = data_dir / "pds3" / "simple_image_1.lbl"
-        rawurl = "https://raw.githubusercontent.com/planetarypy/pvl/master/"
+        rawurl = "https://raw.githubusercontent.com/planetarypy/pvl/main/"
         self.url = rawurl + str(self.simple)
         self.simplePVL = pvl.PVLModule(
             {
