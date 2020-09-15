@@ -2,24 +2,36 @@
 pvl
 ===============================
 
-.. image:: https://img.shields.io/pypi/v/pvl.svg?style=flat-square
-    :target: https://pypi.python.org/pypi/pvl
-
-.. image:: https://img.shields.io/travis/planetarypy/pvl.svg?style=flat-square
-        :target: https://travis-ci.org/planetarypy/pvl
-
-.. image:: https://img.shields.io/pypi/dm/pvl.svg?style=flat-square
-        :target: https://pypi.python.org/pypi/pvl
-
 .. image:: https://readthedocs.org/projects/pvl/badge/?version=latest
         :target: https://pvl.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
+
+.. image:: https://img.shields.io/travis/planetarypy/pvl.svg?style=flat-square
+        :target: https://travis-ci.org/planetarypy/pvl
+        :alt: Travis Build Status
+
+.. image:: https://img.shields.io/pypi/v/pvl.svg?style=flat-square
+        :target: https://pypi.python.org/pypi/pvl
+        :alt: PyPI version
+
+.. image:: https://img.shields.io/pypi/dm/pvl.svg?style=flat-square
+        :target: https://pypi.python.org/pypi/pvl
+        :alt: PyPI Downloads/month
+
+.. image:: https://img.shields.io/conda/vn/conda-forge/pvl.svg
+        :target: https://anaconda.org/conda-forge/pvl
+        :alt: conda-forge version
+
+.. image:: https://img.shields.io/conda/dn/conda-forge/pvl.svg
+        :target: https://anaconda.org/conda-forge/pvl
+        :alt: conda-forge downloads
+
 
 Python implementation of a PVL (Parameter Value Language) library.
 
 * Free software: BSD license
 * Documentation: http://pvl.readthedocs.org.
-* Support for Python 3.6 and higher (avaiable via pypi).
+* Support for Python 3.6 and higher (avaiable via pypi and conda).
 * `PlanetaryPy`_ Affiliate Package.
 
 PVL is a markup language, similar to XML, commonly employed for
