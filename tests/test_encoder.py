@@ -248,7 +248,7 @@ END_OBJECT = key"""
         t = datetime.time(
             13, 14, 15, tzinfo=datetime.timezone(datetime.timedelta(hours=0))
         )
-        self.assertRaises(ValueError, self.e.encode_time, t)
+        self.assertEqual("13:14:15Z", self.e.encode_time(t))
 
         t = datetime.time(15, 15, 59, tzinfo=datetime.timezone.utc)
         self.assertEqual("15:15:59Z", self.e.encode_time(t))

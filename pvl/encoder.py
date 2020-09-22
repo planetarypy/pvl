@@ -1043,7 +1043,9 @@ class PDSLabelEncoder(ODLEncoder):
         """
         t = PVLEncoder.encode_time(value)
 
-        if value.tzinfo is None or value.tzinfo.utcoffset(None) == 0:
+        if value.tzinfo is None or value.tzinfo.utcoffset(
+            None
+        ) == datetime.timedelta(0):
             return t + "Z"
         else:
             raise ValueError(
