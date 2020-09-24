@@ -30,6 +30,14 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+1.0.1 (2020-09-21)
+------------------
+
+Fixed
++++++
+* The PDSLabelEncoder was improperly raising an exception if the Python datetime
+  object to encode had a tzinfo component that had zero offset from UTC.
+
 
 1.0.0 (2020-08-23)
 ------------------
