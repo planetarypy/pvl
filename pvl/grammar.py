@@ -255,6 +255,10 @@ class ISISGrammar(PVLGrammar):
     object_pref_keywords = ("Object", "End_Object")
     object_keywords = {"OBJECT": "END_OBJECT"}
 
+    # A single-line comment that starts with the octothorpe (#) is not part of PVL nor ODL,
+    # but it is used when ISIS writes out comments.
+    comments = (("/*", "*/"), ("#", "\n"))
+
     def __init__(self):
         # ISIS allows for + characters in Unquoted String values.
         self.reserved_characters = tuple(
