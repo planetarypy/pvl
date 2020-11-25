@@ -811,11 +811,16 @@ def test_delimiters():
 
 
 def test_isis_output():
-    label = pvl.load(os.path.join(DATA_DIR, "isis_output.txt"))
-    assert label["Results"]["TotalPixels"] == 2048000
+    # Should test that both the ISISGrammar and OmniGrammar can deal with these:
+    for g in (pvl.grammar.OmniGrammar(), pvl.grammar.ISISGrammar()):
+        label = pvl.load(os.path.join(DATA_DIR, "isis_output.txt"), grammar=g)
+        assert label["Results"]["TotalPixels"] == 2048000
 
-    naif = pvl.load(os.path.join(DATA_DIR, "isis_naif.txt"))
-    assert naif["NaifKeywords"]["INS-143400_LIGHTTIME_CORRECTION"] == "LT+S"
+        naif = pvl.load(os.path.join(DATA_DIR, "isis_naif.txt"), grammar=g)
+        assert naif["NaifKeywords"]["INS-143400_LIGHTTIME_CORRECTION"] == "LT+S"
+
+        aleish = pvl.load(os.path.join(DATA_DIR, "isis_octothorpe.txt"), grammar=g)
+        assert aleish["Radiometry"]["NumberOfOverclocks"] == 2
 
 
 def test_cube_label():

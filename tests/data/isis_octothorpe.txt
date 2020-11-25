@@ -1,0 +1,23 @@
+Group = Radiometry
+    # Bitweight Correction Parameters
+    BitweightCorrectionPerformed = "No: Table converted"
+    BitweightFile                = "Not applicable: No bitweight correction"
+
+    # Bias Subtraction Parameters
+    BiasSubtractionPerformed     = Yes
+    BiasSubtractionMethod        = "Overclock fit"
+    NumberOfOverclocks           = 2
+
+    # Dark Current Subtraction Parameters
+    DarkSubtractionPerformed     = Yes
+    DarkParameterFile            = /usgs/cpkgs/isis3/data/cassini/calibration-
+                                   /darkcurrent/nac_median_dark_parameters042-
+                                   28.full.cub
+    BiasDistortionTable          = /usgs/cpkgs/isis3/data/cassini/calibration-
+                                   /darkcurrent/nac_bias_distortion.tab
+
+    # Linearity Correction Parameters
+    LinearityCorrectionPerformed = Yes
+    LinearityCorrectionTable     = /usgs/cpkgs/isis3/data/cassini/calibration-
+                                   /linearize/NAC2.lut
+End_Group
