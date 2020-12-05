@@ -30,10 +30,13 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+1.1.0 (2020-12-04)
+------------------
+
 Added
 +++++
-* Modified pvl_validate to more robustly deal with errors, and also provide
-  more error-reporting via -v and -vv.
+* Modified `pvl_validate` to more robustly deal with errors, and also provide
+  more error-reporting via `-v` and `-vv`.
 * Modified ISISGrammar so that it can parse comments that begin with an octothorpe (#).
 
 Fixed
