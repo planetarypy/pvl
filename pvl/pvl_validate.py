@@ -147,7 +147,7 @@ def pvl_flavor(
     except (LexerError, ParseError) as err:
         logging.error(f"{dialect} load error {filename} {err}")
         loads = False
-    except:
+    except:  # noqa E722
         if verbose <= 1:
             logging.error(
                 f"{dialect} load error {filename}, try -vv for more info."
