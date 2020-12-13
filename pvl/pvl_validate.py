@@ -85,7 +85,8 @@ def arg_parser():
         "--verbose",
         action="count",
         default=0,
-        help="Will report the errors that are encountered.",
+        help="Will report the errors that are encountered.  A second v will "
+             "include tracebacks for non-pvl exceptions. ",
     )
     p.add_argument("--version", action="version", version=pvl.__version__)
     p.add_argument(
@@ -146,8 +147,17 @@ def pvl_flavor(
     except (LexerError, ParseError) as err:
         logging.error(f"{dialect} load error {filename} {err}")
         loads = False
+    except:  # noqa E722
+        if verbose <= 1:
+            logging.error(
+                f"{dialect} load error {filename}, try -vv for more info."
+            )
+        else:
+            logging.exception(f"{dialect} load error {filename}")
+            logging.error(f"End {dialect} load error {filename}")
+        loads = False
 
-    return (loads, encodes)
+    return loads, encodes
 
 
 def report(reports: list, flavors: list) -> str:

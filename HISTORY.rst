@@ -30,6 +30,22 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+1.1.0 (2020-12-04)
+------------------
+
+Added
++++++
+* Modified `pvl_validate` to more robustly deal with errors, and also provide
+  more error-reporting via `-v` and `-vv`.
+* Modified ISISGrammar so that it can parse comments that begin with an octothorpe (#).
+
+Fixed
++++++
+* Altered documentation in grammar.py that was incorrectly indicating that
+  there were parameters that could be passed on object initiation that would
+  alter how those objects behaved.
+
+
 1.0.1 (2020-09-21)
 ------------------
 

@@ -1,5 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Describes the language aspects of PVL dialects."""
+"""Describes the language aspects of PVL dialects.
+
+These grammar objects are not particularly meant to be easily
+user-modifiable during running of an external program, which is why
+they have no arguments at initiation time, nor are there any methods
+or functions to modify them.  This is because these grammar objects
+are used both for reading and writing PVL-text.  As such, objects
+like PVLGrammar and ODLGrammar shouldn't be altered, because if
+they are, then the PVL-text written out with them wouldn't conform
+to the spec.
+
+Certainly, these objects do have attributes that can be altered,
+but unless you've carefully read the code, it isn't recommended.
+
+Maybe someday we'll add a more user-friendly interface to allow that,
+but in the meantime, just leave an Issue on the GitHub repo.
+"""
 
 # Copyright 2019-2020, ``pvl`` library authors.
 #
@@ -15,22 +31,19 @@ class PVLGrammar:
     """Describes a PVL grammar for use by the lexer and parser.
 
     The reference for this grammar is the CCSDS-641.0-B-2 'Blue Book'.
-
-    :param whitespace: Tuple of characters to be recognized as PVL
-        White Space (used to separate syntactic elements and promote
-        readability, but the amount or presence of White Space may
-        not be used to provide different meanings).
-
-    :param reserved_characters: Tuple of characters that may not
-        occur in Parameter Names, Unquoted Strings, or Block Names.
-
-    :param comments: Tuple of two-tuples with each two-tuple containing
-        a pair of character sequences that enclose a comment.
     """
 
     spacing_characters = (" ", "\t")
     format_effectors = ("\n", "\r", "\v", "\f")
+
+    # Tuple of characters to be recognized as PVL White Space
+    # (used to separate syntactic elements and promote readability,
+    # but the amount or presence of White Space may not be used to
+    # provide different meanings).
     whitespace = spacing_characters + format_effectors
+
+    # Tuple of characters that may not occur in Parameter Names,
+    # Unquoted Strings, nor Block Names.
     reserved_characters = (
         "&",
         "<",
@@ -63,6 +76,8 @@ class PVLGrammar:
 
     delimiters = (";",)
 
+    # Tuple of two-tuples with each two-tuple containing a pair of character
+    # sequences that enclose a comment.
     comments = (("/*", "*/"),)
 
     # A note on keywords: they should always be compared with
@@ -239,6 +254,10 @@ class ISISGrammar(PVLGrammar):
     group_keywords = {"GROUP": "END_GROUP"}
     object_pref_keywords = ("Object", "End_Object")
     object_keywords = {"OBJECT": "END_OBJECT"}
+
+    # A single-line comment that starts with the octothorpe (#) is not part
+    # of PVL or ODL, but it is used when ISIS writes out comments.
+    comments = (("/*", "*/"), ("#", "\n"))
 
     def __init__(self):
         # ISIS allows for + characters in Unquoted String values.
