@@ -24,23 +24,18 @@ jobs:
     - uses: actions/checkout@v2
     - with:
         ref: ${{ github.event.pull_request.head.sha }}
-
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-
     - name: Display Python version
       run: python -c "import sys; print(sys.version)"
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install pytest
-
     - name: Install pvl
       run: python -m pip install -e ${{ matrix.install-target }}
-
     - name: Test with pytest
       run: |
         pytest
