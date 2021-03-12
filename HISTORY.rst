@@ -30,6 +30,10 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+Changed
++++++++
+* Improved some build and test functionality.
+
 1.1.0 (2020-12-04)
 ------------------
 
