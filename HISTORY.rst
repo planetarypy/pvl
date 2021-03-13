@@ -30,6 +30,18 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+Added
++++++
+* Added a default_timezone parameter to grammar objects so that they could
+  both communicate whether they allowed a default timezone (if not None),
+  and what it was.
+
+Fixed
++++++
+* The pvl.decoder.ODLdecoder now will return both "aware" and "naive"
+  datetime objects (as appropriate) since "local" times without a
+  timezone are allowed under ODL.
+
 Changed
 +++++++
 * Improved some build and test functionality.

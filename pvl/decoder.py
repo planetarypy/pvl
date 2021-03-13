@@ -199,13 +199,6 @@ class PVLDecoder(object):
         seconds.  However, the Python ``datetime`` classes don't
         support second values for more than 59 seconds.
 
-        Since the PVL Blue Book says that all PVl Date/Time Values
-        are represented in Universal Coordinated Time, then all
-        datetime objects that are returned datetime Python objects
-        should be timezone "aware."  A datetime.date object is always
-        "naive" but any datetime.time or datetime.datetime objects
-        returned from this function will be "aware."
-
         If a time with 60 seconds is encountered, it will not be
         returned as a datetime object (since that is not representable
         via Python datetime objects), but simply as a string.
@@ -255,9 +248,11 @@ class PVLDecoder(object):
                     pass
             if d is not None:
                 if d.utcoffset() is None:
-                    return d.replace(tzinfo=timezone.utc)
-                else:
-                    return d
+                    if value.endswith("Z"):
+                        return d.replace(tzinfo=timezone.utc)
+                    elif self.grammar.default_timezone is not None:
+                        return d.replace(tzinfo=self.grammar.default_timezone)
+                return d
 
         # if we can regex a 60-second time, return str
         if self.is_leap_seconds(value):

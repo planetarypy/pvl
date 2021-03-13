@@ -25,6 +25,7 @@ but in the meantime, just leave an Issue on the GitHub repo.
 
 import re
 from collections import abc
+from datetime import timezone
 
 
 class PVLGrammar:
@@ -114,6 +115,9 @@ class PVLGrammar:
         fr"{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-Fa-f]+)#"
     )
 
+    # The PVL Blue Book says that all PVl Date/Time Values are represented
+    # in Universal Coordinated Time
+    default_timezone = timezone.utc
     _d_formats = ("%Y-%m-%d", "%Y-%j")
     _t_formats = ("%H:%M", "%H:%M:%S", "%H:%M:%S.%f")
     date_formats = _d_formats + tuple(x + "Z" for x in _d_formats)
@@ -183,6 +187,9 @@ class ODLGrammar(PVLGrammar):
     # ODL does not allow times with a seconds value of 60.
     leap_second_Ymd_re = None
     leap_second_Yj_re = None
+
+    # ODL allows "local" times without a timezone specifier.
+    default_timezone = None
 
     # ODL allows the radix to be from 2 to 16, but the optional sign
     # must be after the first octothorpe (#).  Why ODL thought this was
