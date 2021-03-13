@@ -197,11 +197,11 @@ class TestODLDecoder(unittest.TestCase):
                 ("1990-158", datetime.date(1990, 6, 7)),
                 ("2001-001", datetime.date(2001, 1, 1)),
                 ("2001-01-01", datetime.date(2001, 1, 1)),
-                ("12:00", datetime.time(12, tzinfo=utc)),
-                ("12:00:45", datetime.time(12, 0, 45, tzinfo=utc)),
+                ("12:00", datetime.time(12)),
+                ("12:00:45", datetime.time(12, 0, 45)),
                 (
                     "12:00:45.4571",
-                    datetime.time(12, 0, 45, 457100, tzinfo=utc),
+                    datetime.time(12, 0, 45, 457100),
                 ),
                 ("15:24:12Z", datetime.time(15, 24, 12, tzinfo=utc)),
                 ("01:12:22+07", datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
@@ -212,7 +212,7 @@ class TestODLDecoder(unittest.TestCase):
                 ),
                 (
                     "1990-07-04T12:00",
-                    datetime.datetime(1990, 7, 4, 12, tzinfo=utc),
+                    datetime.datetime(1990, 7, 4, 12),
                 ),
                 (
                     "1990-158T15:24:12Z",
