@@ -273,7 +273,7 @@ END_OBJECT = key"""
         t = datetime.time(15, 15, 59, tzinfo=datetime.timezone.utc)
         self.assertEqual("15:15:59", self.e.encode_time(t))
 
-        t = datetime.time(10, 54, 12, 129, tzinfo=datetime.timezone.utc)
+        t = datetime.time(10, 54, 12, 129000, tzinfo=datetime.timezone.utc)
         self.assertEqual("10:54:12.129", self.e.encode_time(t))
 
     def test_encode(self):

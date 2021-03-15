@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, timezone
 from itertools import repeat, chain
 from warnings import warn
 
-from .grammar import PVLGrammar, ODLGrammar
+from .grammar import PVLGrammar, ODLGrammar, PDSGrammar
 from .collections import Quantity
 from .exceptions import QuantityError
 
@@ -189,13 +189,13 @@ class PVLDecoder(object):
                 return int(d["sign"] + d["non_decimal"], base=int(d["radix"]))
         raise ValueError
 
-    def decode_datetime(self, value: str):
+    def decode_datetime(self, value: str):  # noqa: C901
         """Takes a string and attempts to convert it to the appropriate
         Python ``datetime`` ``time``, ``date``, or ``datetime``
         type based on this decoder's grammar, or in one case, a ``str``.
 
         The PVL standard allows for the seconds value to range
-        from zero to 60, so that the 60 can accomodate leap
+        from zero to 60, so that the 60 can accommodate leap
         seconds.  However, the Python ``datetime`` classes don't
         support second values for more than 59 seconds.
 
@@ -366,6 +366,90 @@ class ODLDecoder(PVLDecoder):
         # But really it collapses all whitespace and strips lead and trail.
         return re.sub(fr"[{ws}]+", " ", nodash.strip(ws))
 
+    def decode_unquoted_string(self, value: str) -> str:
+        """Extends parent function to provide the extra enforcement that only
+        ODL Identifier text may be unquoted as a value.
+        """
+        s = super().decode_unquoted_string(value)
+
+        if self.is_identifier(s):
+            return s
+        else:
+            raise ValueError(
+                f"Only text that qualifies as an ODL Identifier may be "
+                f"unquoted as a value, and '{s}' is not."
+            )
+
+    @staticmethod
+    def is_identifier(value):
+        """Returns true if *value* is an ODL Identifier, false otherwise.
+
+        An ODL Identifier is composed of letters, digits, and underscores.
+        The first character must be a letter, and the last must not
+        be an underscore.
+        """
+        if isinstance(value, str):
+            if len(value) == 0:
+                return False
+
+            try:
+                # Ensure we're dealing with ASCII
+                value.encode(encoding="ascii")
+
+                # value can't start with a letter or end with an underbar
+                if not value[0].isalpha() or value.endswith("_"):
+                    return False
+
+                for c in value:
+                    if not (c.isalpha() or c.isdigit() or c == "_"):
+                        return False
+                else:
+                    return True
+
+            except UnicodeError:
+                return False
+        else:
+            return False
+
+
+class PDSLabelDecoder(ODLDecoder):
+    """A decoder based on the rules in the PDS3 Standards Reference
+    (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+    Language Specification and Usage.
+
+    Extends ODLDecoder, and if *grammar* is not specified, it will
+    default to a PDS3Grammar() object.
+    """
+
+    def __init__(self, grammar=None, quantity_cls=None):
+        self.errors = []
+
+        if grammar is None:
+            super().__init__(grammar=PDSGrammar(), quantity_cls=quantity_cls)
+        else:
+            super().__init__(grammar=grammar, quantity_cls=quantity_cls)
+
+    def decode_datetime(self, value: str):
+        """Overrides parent function since PDS3 forbids a timezone
+        specification, and times with a precision more than miliseconds.
+
+        If it cannot decode properly, it will raise a ValueError.
+        """
+
+        t = super(ODLDecoder, self).decode_datetime(value)
+
+        if (
+            hasattr(t, "microsecond")
+            and t.microsecond != round(t.microsecond / 1000) * 1000
+        ):
+            raise ValueError(
+                f"The PDS specification does not allow time values with"
+                f"precision greater than miliseconds, and this has "
+                f"microsecond precision: {t}."
+            )
+
+        return t
+
 
 class OmniDecoder(ODLDecoder):
     """A permissive decoder that attempts to parse all forms of
@@ -444,3 +528,10 @@ class OmniDecoder(ODLDecoder):
                 )
 
             raise ValueError
+
+    def decode_unquoted_string(self, value: str) -> str:
+        """Overrides parent function since the ODLDecoder has a more narrow
+        definition of what is allowable as an unquoted string than the
+        PVLDecoder does.
+        """
+        return super(ODLDecoder, self).decode_unquoted_string(value)

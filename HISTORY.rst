@@ -35,16 +35,32 @@ Added
 * Added a default_timezone parameter to grammar objects so that they could
   both communicate whether they allowed a default timezone (if not None),
   and what it was.
+* Added a pvl.grammar.PDSGrammar class that properly restricts the allowed
+  timezone formats beyond that of the ODLGrammar.
+* Added a pvl.decoder.PDSLabelDecoder class that properly enforces only
+  milisecond time precision (not microsecond as ODL allows).
 
 Fixed
 +++++
-* The pvl.decoder.ODLdecoder now will return both "aware" and "naive"
+* The pvl.decoder.ODLDecoder now will return both "aware" and "naive"
   datetime objects (as appropriate) since "local" times without a
   timezone are allowed under ODL.
+* The pvl.decoder.ODLDecoder will now properly reject any unquoted string
+  that does not parse as an ODL Identifier.
+* The pvl.encoder.PDSLabelEncoder will now properly raise an exception if
+  a time or datetime object cannot be represented with only milisecond
+  precision.
+* The pvl.encoder.ODLEncoder will now properly write out "naive" times and
+  datetimes as PVL-text without assuming they are UTC times and enforcing
+  a timezone offset specifier.
+
 
 Changed
 +++++++
 * Improved some build and test functionality.
+* Moved the is_identifier() static function from the ODLEncoder to the ODLDecoder
+  where it probably should have always been.
+
 
 1.1.0 (2020-12-04)
 ------------------

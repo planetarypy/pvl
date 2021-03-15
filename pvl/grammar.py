@@ -174,7 +174,7 @@ class PVLGrammar:
 
 
 class ODLGrammar(PVLGrammar):
-    """This defines a PDS3 ODL grammar.
+    """This defines an ODL grammar.
 
     The reference for this grammar is the PDS3 Standards Reference
     (version 3.8, 27 Feb 2009) Chapter 12: Object Description
@@ -215,6 +215,27 @@ class ODLGrammar(PVLGrammar):
             return True
         except UnicodeError:
             return False
+
+
+class PDSGrammar(ODLGrammar):
+    """This defines a PDS3 ODL grammar.
+
+    The reference for this grammar is the PDS3 Standards Reference
+    (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+    Language Specification and Usage.
+    """
+
+    # The PDS spec only allows allows miliseconds, not microseconds,
+    # but there is only a %f microseconds time format specifier in
+    # Python, and no miliseconds format specifier, so dealing with
+    # only the miliseconds will have to be enforced at the encoder and
+    # decoder stages.
+    date_formats = PVLGrammar._d_formats
+    time_formats = PVLGrammar._t_formats
+    datetime_formats = list()
+    for d in date_formats:
+        for t in time_formats:
+            datetime_formats.append(f"{d}T{t}")
 
 
 class ISISGrammar(PVLGrammar):

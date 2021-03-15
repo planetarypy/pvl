@@ -19,7 +19,7 @@ import datetime
 import itertools
 import unittest
 
-from pvl.decoder import PVLDecoder, ODLDecoder, for_try_except
+from pvl.decoder import PVLDecoder, ODLDecoder, PDSLabelDecoder, for_try_except
 from pvl.collections import Quantity
 
 
@@ -235,9 +235,10 @@ class TestODLDecoder(unittest.TestCase):
         except ImportError:  # dateutil isn't available.
             pass
 
+
 class TestPDS3Decoder(unittest.TestCase):
     def setUp(self):
-        self.d = PDS3Decoder()
+        self.d = PDSLabelDecoder()
 
     def test_decode_datetime(self):
         utc = datetime.timezone.utc
@@ -250,8 +251,8 @@ class TestPDS3Decoder(unittest.TestCase):
             ("12:00", datetime.time(12)),
             ("12:00:45", datetime.time(12, 0, 45)),
             (
-                "12:00:45.4571",
-                datetime.time(12, 0, 45, 457100),
+                "12:00:45.457",
+                datetime.time(12, 0, 45, 457000),
             ),
             (
                 "1990-07-04T12:00",
@@ -260,7 +261,6 @@ class TestPDS3Decoder(unittest.TestCase):
         ):
             with self.subTest(pair=p):
                 self.assertEqual(p[1], self.d.decode_datetime(p[0]))
-
 
         for t in (
                 "15:24:12Z",
@@ -271,5 +271,5 @@ class TestPDS3Decoder(unittest.TestCase):
                 "2001-001T01:10:39+7",
                 "2001-001T01:10:39.457591+7",
         ):
-            with self.subTest(pair=p):
+            with self.subTest(time=t):
                 self.assertRaises(ValueError, self.d.decode_datetime, t)
