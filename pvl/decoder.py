@@ -9,7 +9,7 @@ referred to as the Blue Book with a date of June 2000.
 A decoder deals with converting strings given to it (typically
 by the parser) to the appropriate Python type.
 """
-# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+# Copyright 2015, 2017, 2019-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
@@ -17,6 +17,7 @@ by the parser) to the appropriate Python type.
 
 import re
 from datetime import datetime, timedelta, timezone
+from decimal import InvalidOperation
 from itertools import repeat, chain
 from warnings import warn
 
@@ -176,7 +177,10 @@ class PVLDecoder(object):
         try:
             return int(value, base=10)
         except ValueError:
-            return self.real_cls(value)
+            try:
+                return self.real_cls(str(value))
+            except InvalidOperation as err:
+                raise ValueError from err
 
     def decode_non_decimal(self, value: str) -> int:
         """Returns a Python ``int`` as decoded from *value*
@@ -301,13 +305,17 @@ class ODLDecoder(PVLDecoder):
     default to an ODLGrammar() object.
     """
 
-    def __init__(self, grammar=None, quantity_cls=None):
+    def __init__(self, grammar=None, quantity_cls=None, real_cls=None):
         self.errors = []
 
         if grammar is None:
-            super().__init__(grammar=ODLGrammar(), quantity_cls=quantity_cls)
-        else:
-            super().__init__(grammar=grammar, quantity_cls=quantity_cls)
+            grammar = ODLGrammar()
+
+        super().__init__(
+            grammar=grammar,
+            quantity_cls=quantity_cls,
+            real_cls=real_cls
+        )
 
     def decode_datetime(self, value: str):
         """Extends parent function to also deal with datetimes
