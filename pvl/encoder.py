@@ -5,7 +5,7 @@ An encoder deals with converting Python objects into
 string values that conform to a PVL specification.
 """
 
-# Copyright 2015, 2019-2020, ``pvl`` library authors.
+# Copyright 2015, 2019-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
@@ -16,6 +16,7 @@ import re
 import textwrap
 
 from collections import abc, namedtuple
+from decimal import Decimal
 from warnings import warn
 
 from .collections import PVLObject, PVLGroup, Quantity
@@ -125,6 +126,9 @@ class PVLEncoder(object):
                 f"instantiated with an argument that is of type "
                 f"group_class ({group_class})."
             )
+
+        # Finally, let's keep track of everything we consider "numerical":
+        self.numeric_types = (int, float, self.decoder.real_cls, Decimal)
 
     def _import_quantities(self):
         warn_str = (
@@ -382,8 +386,8 @@ class PVLEncoder(object):
                 return self.grammar.true_keyword
             else:
                 return self.grammar.false_keyword
-        elif isinstance(value, (int, float)):
-            return repr(value)
+        elif isinstance(value, self.numeric_types):
+            return str(value)
         elif isinstance(value, str):
             return self.encode_string(value)
         else:
@@ -561,8 +565,8 @@ class ODLEncoder(PVLEncoder):
 
         For Python, these correspond to the following:
 
-        * numeric_value: int, float, and Quantity whose value
-          is int or float
+        * numeric_value: any of self.numeric_types, and Quantity whose value
+          is one of the self.numeric_types.
         * date_time_string: datetime objects
         * text_string_value: str
         * symbol_value: str
@@ -570,13 +574,19 @@ class ODLEncoder(PVLEncoder):
         """
         for quant in self.quantities:
             if isinstance(value, quant.cls):
-                if isinstance(getattr(value, quant.value_prop), (int, float)):
+                if isinstance(
+                    getattr(value, quant.value_prop), self.numeric_types
+                ):
                     return True
 
-        if isinstance(
-            value,
-            (int, float, datetime.date, datetime.datetime, datetime.time, str),
-        ):
+        scalar_types = (
+            *self.numeric_types,
+            datetime.date,
+            datetime.datetime,
+            datetime.time,
+            str
+        )
+        if isinstance(value, scalar_types):
             return True
 
         return False
@@ -601,6 +611,15 @@ class ODLEncoder(PVLEncoder):
             for fe in self.grammar.format_effectors:  # Item 2
                 if fe in value:
                     return False
+
+            if len(value) > self.width / 2:
+                # This means that the string is long and it is very
+                # likely to get wrapped and have carriage returns,
+                # and thus "ODL Format Effectors" inserted later.
+                # Unfortunately, without knowing the width of the
+                # parameter term, and the current indent level, this
+                # still may end up being incorrect threshhold.
+                return False
 
             if value.isprintable() and len(value) > 0:  # Item 3
                 return True
@@ -711,7 +730,10 @@ class ODLEncoder(PVLEncoder):
         """
         for quant in self.quantities:
             if isinstance(value, quant.cls):
-                if isinstance(getattr(value, quant.value_prop), (int, float)):
+                if isinstance(
+                    getattr(value, quant.value_prop),
+                    self.numeric_types
+                ):
                     return super().encode_value(value)
                 else:
                     raise ValueError(
