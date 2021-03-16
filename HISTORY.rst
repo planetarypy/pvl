@@ -33,26 +33,29 @@ Unreleased
 Added
 +++++
 * Added a default_timezone parameter to grammar objects so that they could
-  both communicate whether they allowed a default timezone (if not None),
+  both communicate whether they had a default timezone (if not None),
   and what it was.
-* Added a pvl.grammar.PDSGrammar class that properly restricts the allowed
-  timezone formats beyond that of the ODLGrammar.
+* Added a pvl.grammar.PDSGrammar class that specifies the default UTC
+  time offset.
 * Added a pvl.decoder.PDSLabelDecoder class that properly enforces only
-  milisecond time precision (not microsecond as ODL allows).
+  milisecond time precision (not microsecond as ODL allows), and does
+  not allow times with a +HH:MM timezone specifier.  It does assume
+  any time without a timezone specifier is a UTC time.
 
 Fixed
 +++++
-* The pvl.decoder.ODLDecoder now will return both "aware" and "naive"
+* pvl.decoder.ODLDecoder now will return both "aware" and "naive"
   datetime objects (as appropriate) since "local" times without a
   timezone are allowed under ODL.
-* The pvl.decoder.ODLDecoder will now properly reject any unquoted string
+* pvl.decoder.ODLDecoder will now properly reject any unquoted string
   that does not parse as an ODL Identifier.
-* The pvl.encoder.PDSLabelEncoder will now properly raise an exception if
+* pvl.decoder.ODLDecoder will raise an exception if there is a seconds value
+  of 60 (which the PVLDecoder allows)
+* pvl.encoder.ODLEncoder will raise an exception if given a "naive" time
+  object.
+* pvl.encoder.PDSLabelEncoder will now properly raise an exception if
   a time or datetime object cannot be represented with only milisecond
   precision.
-* The pvl.encoder.ODLEncoder will now properly write out "naive" times and
-  datetimes as PVL-text without assuming they are UTC times and enforcing
-  a timezone offset specifier.
 
 
 Changed
