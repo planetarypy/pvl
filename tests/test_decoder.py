@@ -106,6 +106,8 @@ class TestDecoder(unittest.TestCase):
         s = "123.450"
         self.assertEqual(d.decode_decimal(s), Decimal(s))
 
+        self.assertRaises(ValueError, d.decode_decimal, "fruit")
+
     def test_decode_non_decimal(self):
         for p in (
             ("2#0101#", 5),
