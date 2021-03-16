@@ -134,6 +134,7 @@ class TestDecoder(unittest.TestCase):
             ),
             ("01:42:57Z", datetime.time(1, 42, 57, tzinfo=utc)),
             ("2001-12-31T01:59:60.123Z", "2001-12-31T01:59:60.123Z"),
+            ("2001-12-31T01:59:60.123456789", "2001-12-31T01:59:60.123456789"),
             ("01:00:60", "01:00:60"),
         ):
             with self.subTest(pair=p):
@@ -186,13 +187,9 @@ class TestODLDecoder(unittest.TestCase):
         self.d = ODLDecoder()
 
     def test_decode_datetime(self):
-        try:
-            utc = datetime.timezone.utc
-            from dateutil import tz
+        utc = datetime.timezone.utc
 
-            tz_plus_7 = tz.tzoffset("+7", datetime.timedelta(hours=7))
-
-            for p in (
+        for p in (
                 ("1990-07-04", datetime.date(1990, 7, 4)),
                 ("1990-158", datetime.date(1990, 6, 7)),
                 ("2001-001", datetime.date(2001, 1, 1)),
@@ -200,23 +197,31 @@ class TestODLDecoder(unittest.TestCase):
                 ("12:00", datetime.time(12)),
                 ("12:00:45", datetime.time(12, 0, 45)),
                 (
-                    "12:00:45.4571",
-                    datetime.time(12, 0, 45, 457100),
+                        "12:00:45.4571",
+                        datetime.time(12, 0, 45, 457100),
                 ),
                 ("15:24:12Z", datetime.time(15, 24, 12, tzinfo=utc)),
+                ("1990-07-04T12:00", datetime.datetime(1990, 7, 4, 12)),
+                (
+                    "1990-158T15:24:12Z",
+                    datetime.datetime(1990, 6, 7, 15, 24, 12, tzinfo=utc),
+                ),
+        ):
+            with self.subTest(pair=p):
+                self.assertEqual(p[1], self.d.decode_datetime(p[0]))
+
+        self.assertRaises(ValueError, self.d.decode_datetime, "01:00:60")
+
+        try:
+            from dateutil import tz
+            tz_plus_7 = tz.tzoffset("+7", datetime.timedelta(hours=7))
+
+            for p in (
                 ("01:12:22+07", datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
                 ("01:12:22+7", datetime.time(1, 12, 22, tzinfo=tz_plus_7)),
                 (
                     "01:10:39.4575+07",
                     datetime.time(1, 10, 39, 457500, tzinfo=tz_plus_7),
-                ),
-                (
-                    "1990-07-04T12:00",
-                    datetime.datetime(1990, 7, 4, 12),
-                ),
-                (
-                    "1990-158T15:24:12Z",
-                    datetime.datetime(1990, 6, 7, 15, 24, 12, tzinfo=utc),
                 ),
                 (
                     "2001-001T01:10:39+7",
