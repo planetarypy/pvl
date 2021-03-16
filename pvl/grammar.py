@@ -230,12 +230,9 @@ class PDSGrammar(ODLGrammar):
     # Python, and no miliseconds format specifier, so dealing with
     # only the miliseconds will have to be enforced at the encoder and
     # decoder stages.
-    date_formats = PVLGrammar._d_formats
-    time_formats = PVLGrammar._t_formats
-    datetime_formats = list()
-    for d in date_formats:
-        for t in time_formats:
-            datetime_formats.append(f"{d}T{t}")
+
+    # PDSLabels default to UTC:
+    default_timezone = timezone.utc
 
 
 class ISISGrammar(PVLGrammar):

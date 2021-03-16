@@ -737,25 +737,29 @@ class ODLEncoder(PVLEncoder):
         from UTC to be included, and otherwise recommends that times
         be suffixed with a 'Z' to clearly indicate that they are in UTC.
         """
+        if value.tzinfo is None:
+            raise ValueError(
+                f"ODL cannot output local times, and this time does not "
+                f"have a timezone offset: {value}"
+            )
 
         t = super().encode_time(value)
 
-        if value.tzinfo is not None:
-            if value.utcoffset() == datetime.timedelta():
-                return t + "Z"
+        if value.utcoffset() == datetime.timedelta():
+            return t + "Z"
+        else:
+            td_str = str(value.utcoffset())
+            (h, m, s) = td_str.split(":")
+            if s != "00":
+                raise ValueError(
+                    "The datetime value had a timezone offset "
+                    f"with seconds values ({value}) which is "
+                    "not allowed in ODL."
+                )
+            if m == "00":
+                return t + f"+{h:0>2}"
             else:
-                td_str = str(value.utcoffset())
-                (h, m, s) = td_str.split(":")
-                if s != "00":
-                    raise ValueError(
-                        "The datetime value had a timezone offset "
-                        f"with seconds values ({value}) which is "
-                        "not allowed in ODL."
-                    )
-                if m == "00":
-                    return t + f"+{h:0>2}"
-                else:
-                    return t + f"+{h:0>2}:{m}"
+                return t + f"+{h:0>2}:{m}"
 
         return t
 
@@ -1017,7 +1021,7 @@ class PDSLabelEncoder(ODLEncoder):
         return super().encode_set(values)
 
     def encode_time(self, value: datetime.time) -> str:
-        """Extends the PVLEncoder's encode_time() function because
+        """Overrides parent's encode_time() function because
         even though ODL allows for timezones, PDS does not.
 
         Not in the section on times, but at the end of the PDS
@@ -1043,15 +1047,16 @@ class PDSLabelEncoder(ODLEncoder):
         elif value.second:
             s += f":{value:%S}"
 
-        if value.tzinfo is None or value.tzinfo.utcoffset(
-            None
-        ) == datetime.timedelta(0):
-            return s
-        else:
+        if (
+            value.tzinfo is not None and
+            value.utcoffset() != datetime.timedelta()
+        ):
             raise ValueError(
                 "PDS labels should only have UTC times, but "
                 f"this time has a timezone: {value}"
             )
+        else:
+            return s + "Z"
 
 
 class ISISEncoder(PVLEncoder):

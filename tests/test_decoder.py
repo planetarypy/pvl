@@ -253,28 +253,31 @@ class TestPDS3Decoder(unittest.TestCase):
             ("1990-158", datetime.date(1990, 6, 7)),
             ("2001-001", datetime.date(2001, 1, 1)),
             ("2001-01-01", datetime.date(2001, 1, 1)),
-            ("12:00", datetime.time(12)),
-            ("12:00:45", datetime.time(12, 0, 45)),
+            ("12:00", datetime.time(12, tzinfo=utc)),
+            ("12:00:45", datetime.time(12, 0, 45, tzinfo=utc)),
+            ("15:24:12Z", datetime.time(15, 24, 12, tzinfo=utc)),
+            (
+                "1990-158T15:24:12Z",
+                datetime.datetime(1990, 6, 7, 15, 24, 12, tzinfo=utc)),
             (
                 "12:00:45.457",
-                datetime.time(12, 0, 45, 457000),
+                datetime.time(12, 0, 45, 457000, tzinfo=utc),
             ),
             (
                 "1990-07-04T12:00",
-                datetime.datetime(1990, 7, 4, 12),
+                datetime.datetime(1990, 7, 4, 12, tzinfo=utc),
             ),
         ):
             with self.subTest(pair=p):
                 self.assertEqual(p[1], self.d.decode_datetime(p[0]))
 
         for t in (
-                "15:24:12Z",
                 "01:12:22+07",
                 "01:12:22+7",
                 "01:10:39.4575+07",
-                "1990-158T15:24:12Z",
                 "2001-001T01:10:39+7",
                 "2001-001T01:10:39.457591+7",
+                "2001-001T01:10:39.457591",
         ):
             with self.subTest(time=t):
                 self.assertRaises(ValueError, self.d.decode_datetime, t)
