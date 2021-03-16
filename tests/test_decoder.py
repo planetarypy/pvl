@@ -18,6 +18,7 @@
 import datetime
 import itertools
 import unittest
+from decimal import Decimal
 
 from pvl.decoder import PVLDecoder, ODLDecoder, PDSLabelDecoder, for_try_except
 from pvl.collections import Quantity
@@ -99,6 +100,11 @@ class TestDecoder(unittest.TestCase):
         for s in ("2#0101#", "frank"):
             with self.subTest(string=s):
                 self.assertRaises(ValueError, self.d.decode_decimal, s)
+
+    def test_decode_withDecimal(self):
+        d = PVLDecoder(real_cls=Decimal)
+        s = "123.450"
+        self.assertEqual(d.decode_decimal(s), Decimal(s))
 
     def test_decode_non_decimal(self):
         for p in (
