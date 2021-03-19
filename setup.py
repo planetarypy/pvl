@@ -12,11 +12,15 @@ history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 
 setup(
     name='pvl',
-    version='1.1.0',
-    description='Python implementation of PVL (Parameter Value Language)',
+    version='1.2.0-dev',
+    description=(
+        'Python implementation for PVL (Parameter Value Language) '
+        'parsing and encoding.'
+    ),
     long_description=readme + '\n\n' + history,
     author='The PlanetaryPy Developers',
-    author_email='rbeyer@rossbeyer.net',
+    maintainer="Ross Beyer",
+    maintainer_email="rbeyer@rossbeyer.net",
     url='https://github.com/planetarypy/pvl',
     packages=[
         'pvl',
@@ -38,6 +42,12 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Topic :: Text Processing'
     ],
+    extras_require={
+        "allopts": ["astropy", "multidict", "pint", "python-dateutil"],
+        "dateutil":  ["python-dateutil"],
+        "multidict": ["multidict"],
+        "quantities": ["astropy", "pint"],
+    },
     entry_points={"console_scripts": [
         "pvl_translate = pvl.pvl_translate:main",
         "pvl_validate= pvl.pvl_validate:main",
