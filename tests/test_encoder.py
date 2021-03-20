@@ -283,6 +283,13 @@ END_OBJECT = key"""
         t = datetime.time(10, 54, 12, 123456, tzinfo=datetime.timezone.utc)
         self.assertRaises(ValueError, self.e.encode_time, t)
 
+        e = PDSLabelEncoder(time_trailing_z=False)
+        self.assertEqual("01:02", e.encode_time(datetime.time(1, 2)))
+
+    def test_encode_string(self):
+        e = PDSLabelEncoder(symbol_single_quote=False)
+        self.assertEqual('"AB CD"', e.encode_string('AB CD'))
+
     def test_encode(self):
         m = PVLModule(a=PVLGroup(g1=2, g2=3.4), b="c")
 
