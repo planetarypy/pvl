@@ -825,20 +825,34 @@ class PDSLabelEncoder(ODLEncoder):
 
     You are not allowed to chose *end_delimiter* or *newline*
     as the parent class allows, because to be PDS-compliant,
-    those are fixed choices.
+    those are fixed choices.  However, in some cases, the PDS3
+    Standards are asymmetric, allowing for a wider variety of
+    PVL-text on "read" and a more narrow variety of PVL-text
+    on "write".  The default values of the PDSLabelEncoder enforce
+    those strict "write" rules, but if you wish to alter them,
+    but still produce PVL-text that would validate against the PDS3
+    standard, you may alter them.
 
-    In PVL and ODL, the OBJECT and GROUP aggregations are
-    interchangable, but the PDS applies restrictions to what can
-    appear in a GROUP.  If *convert_group_to_object* is True,
-    and a GROUP does not conform to the PDS definition of a GROUP,
-    then it will be written out as an OBJECT.  If it is False,
-    then an exception will be thrown if incompatible GROUPs are
-    encountered.
+    :param convert_group_to_object: Defaults to True, meaning that
+        if a GROUP does not conform to the PDS definition of a
+        GROUP, then it will be written out as an OBJECT.  If it is
+        False, then an exception will be thrown if incompatible
+        GROUPs are encountered. In PVL and ODL, the OBJECT and GROUP
+        aggregations are interchangeable, but the PDS applies
+        restrictions to what can appear in a GROUP.
+    :param tab_replace: Defaults to 4 and indicates the number of
+        space characters to replace horizontal tab characters with
+        (since tabs aren't allowed in PDS labels).  If this is set
+        to zero, tabs will not be replaced with spaces.
+    :param symbol_single_quotes: Defaults to True, and if a Python `str`
+        object qualifies as a PVL Symbol String, it will be written to
+        PVL-text as a single-quoted string.  If False, no special
+        handling is done, and any PVL Symbol String will be treated
+        as a PVL Text String, which is typically enclosed with double-quotes.
+    :param time_trailing_z: defaults to True, and suffixes a "Z" to
+        datetimes and times written to PVL-text as the PDS encoding
+        standard requires.  If False, no trailing "Z" is written.
 
-    *tab_replace* should indicate the number of space characters
-    to replace horizontal tab characters with (since tabs aren't
-    allowed in PDS labels).  If this is set to zero, tabs will not
-    be replaced with spaces.  Defaults to 4.
     """
 
     def __init__(
@@ -850,6 +864,8 @@ class PDSLabelEncoder(ODLEncoder):
         aggregation_end=True,
         convert_group_to_object=True,
         tab_replace=4,
+        symbol_single_quote=True,
+        time_trailing_z=True,
     ):
 
         if grammar is None:
@@ -870,6 +886,8 @@ class PDSLabelEncoder(ODLEncoder):
 
         self.convert_group_to_object = convert_group_to_object
         self.tab_replace = tab_replace
+        self.symbol_single_quote = symbol_single_quote
+        self.time_trailing_z = time_trailing_z
 
     def count_aggs(
         self, module: abc.Mapping, obj_count: int = 0, grp_count: int = 0
@@ -1042,6 +1060,18 @@ class PDSLabelEncoder(ODLEncoder):
 
         return super().encode_set(values)
 
+    def encode_string(self, value):
+        """Extends parent function to treat Symbol Strings as Text Strings,
+        which typically means that they are double-quoted and not
+        single-quoted.
+        """
+        if self.decoder.is_identifier(value):
+            return value
+        elif self.is_symbol(value) and self.symbol_single_quote:
+            return "'" + value + "'"
+        else:
+            return super(ODLEncoder, self).encode_string(value)
+
     def encode_time(self, value: datetime.time) -> str:
         """Overrides parent's encode_time() function because
         even though ODL allows for timezones, PDS does not.
@@ -1070,15 +1100,18 @@ class PDSLabelEncoder(ODLEncoder):
             s += f":{value:%S}"
 
         if (
-            value.tzinfo is not None and
-            value.utcoffset() != datetime.timedelta()
+            value.tzinfo is None or
+            value.tzinfo.utcoffset(None) == datetime.timedelta(0)
         ):
+            if self.time_trailing_z:
+                return s + "Z"
+            else:
+                return s
+        else:
             raise ValueError(
                 "PDS labels should only have UTC times, but "
                 f"this time has a timezone: {value}"
             )
-        else:
-            return s + "Z"
 
 
 class ISISEncoder(PVLEncoder):
