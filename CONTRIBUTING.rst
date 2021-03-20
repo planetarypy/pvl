@@ -62,8 +62,12 @@ Ready to contribute? Here's how to set up `pvl` for local development.
    If you are a conda user::
 
     $ cd pvl/
-    $ conda env create -n pvl -f environment.yml
+    $ conda env create -n pvldev -f environment.yml
+    $ conda activate pvldev
+    $ pip install --no-deps -e .
 
+   The last `pip install` installs pvl in "editable" mode which facilitates
+   testing.
 
 4. Create a branch for local 
    development::
