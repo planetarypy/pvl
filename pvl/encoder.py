@@ -19,9 +19,9 @@ from collections import abc, namedtuple
 from warnings import warn
 
 from .collections import PVLObject, PVLGroup, Quantity
-from .grammar import PVLGrammar, ODLGrammar, ISISGrammar
+from .grammar import PVLGrammar, ODLGrammar, PDSGrammar, ISISGrammar
 from .token import Token
-from .decoder import PVLDecoder, ODLDecoder
+from .decoder import PVLDecoder, ODLDecoder, PDSLabelDecoder
 
 
 class QuantTup(namedtuple("QuantTup", ["cls", "value_prop", "units_prop"])):
@@ -528,6 +528,12 @@ class ODLEncoder(PVLEncoder):
         if decoder is None:
             decoder = ODLDecoder(grammar)
 
+        if not callable(getattr(decoder, "is_identifier", None)):
+            raise TypeError(
+                f"The decoder for an ODLEncoder() must have the "
+                f"is_identifier() function, and this does not: {decoder}"
+            )
+
         super().__init__(
             grammar,
             decoder,
@@ -601,43 +607,12 @@ class ODLEncoder(PVLEncoder):
         else:
             return False
 
-    @staticmethod
-    def is_identifier(value):
-        """Returns true if *value* is an ODL Identifier, false otherwise.
-
-        An ODL Identifier is composed of letters, digits, and underscores.
-        The first character must be a letter, and the last must not
-        be an underscore.
-        """
-        if isinstance(value, str):
-            if len(value) == 0:
-                return False
-
-            try:
-                # Ensure we're dealing with ASCII
-                value.encode(encoding="ascii")
-
-                # value can't start with a letter or end with an underbar
-                if not value[0].isalpha() or value.endswith("_"):
-                    return False
-
-                for c in value:
-                    if not (c.isalpha() or c.isdigit() or c == "_"):
-                        return False
-                else:
-                    return True
-
-            except UnicodeError:
-                return False
-        else:
-            return False
-
     def needs_quotes(self, s: str) -> bool:
         """Return true if *s* is an ODL Identifier, false otherwise.
 
         Overrides parent function.
         """
-        return not self.is_identifier(s)
+        return not self.decoder.is_identifier(s)
 
     def is_assignment_statement(self, s) -> bool:
         """Returns true if *s* is an ODL Assignment Statement, false otherwise.
@@ -646,12 +621,12 @@ class ODLEncoder(PVLEncoder):
         element_identifier or a namespace_identifier
         joined to an element_identifier with a colon.
         """
-        if self.is_identifier(s):
+        if self.decoder.is_identifier(s):
             return True
 
         (ns, _, el) = s.partition(":")
 
-        if self.is_identifier(ns) and self.is_identifier(el):
+        if self.decoder.is_identifier(ns) and self.decoder.is_identifier(el):
             return True
 
         return False
@@ -750,7 +725,7 @@ class ODLEncoder(PVLEncoder):
         """Extends parent function by appropriately quoting Symbol
         Strings.
         """
-        if self.is_identifier(value):
+        if self.decoder.is_identifier(value):
             return value
         elif self.is_symbol(value):
             return "'" + value + "'"
@@ -762,10 +737,15 @@ class ODLEncoder(PVLEncoder):
         from UTC to be included, and otherwise recommends that times
         be suffixed with a 'Z' to clearly indicate that they are in UTC.
         """
+        if value.tzinfo is None:
+            raise ValueError(
+                f"ODL cannot output local times, and this time does not "
+                f"have a timezone offset: {value}"
+            )
 
         t = super().encode_time(value)
 
-        if value.tzinfo is None or value.tzinfo == 0:
+        if value.utcoffset() == datetime.timedelta():
             return t + "Z"
         else:
             td_str = str(value.utcoffset())
@@ -777,9 +757,11 @@ class ODLEncoder(PVLEncoder):
                     "not allowed in ODL."
                 )
             if m == "00":
-                return t + "+" + h
+                return t + f"+{h:0>2}"
             else:
-                return t + f"+{h}:{m}"
+                return t + f"+{h:0>2}:{m}"
+
+        return t
 
     def encode_units(self, value) -> str:
         """Overrides parent function since ODL limits what characters
@@ -787,7 +769,7 @@ class ODLEncoder(PVLEncoder):
         """
 
         # if self.is_identifier(value.strip('*/()-')):
-        if self.is_identifier(re.sub(r"[\s*/()-]", "", value)):
+        if self.decoder.is_identifier(re.sub(r"[\s*/()-]", "", value)):
 
             if "**" in value:
                 exponents = re.findall(r"\*\*.+?", value)
@@ -847,6 +829,12 @@ class PDSLabelEncoder(ODLEncoder):
         convert_group_to_object=True,
         tab_replace=4,
     ):
+
+        if grammar is None:
+            grammar = PDSGrammar()
+
+        if decoder is None:
+            decoder = PDSLabelDecoder(grammar)
 
         super().__init__(
             grammar,
@@ -1033,25 +1021,42 @@ class PDSLabelEncoder(ODLEncoder):
         return super().encode_set(values)
 
     def encode_time(self, value: datetime.time) -> str:
-        """Extends the PVLEncoder's encode_time() function because
+        """Overrides parent's encode_time() function because
         even though ODL allows for timezones, PDS does not.
 
         Not in the section on times, but at the end of the PDS
         ODL document, in section 12.7.3, para 14, it indicates that
         alternate time zones may not be used in a PDS label, only
-        UTC.
-        """
-        t = PVLEncoder.encode_time(value)
+        these:
+        1. YYYY-MM-DDTHH:MM:SS.SSS.
+        2. YYYY-DDDTHH:MM:SS.SSS.
 
-        if value.tzinfo is None or value.tzinfo.utcoffset(
-            None
-        ) == datetime.timedelta(0):
-            return t + "Z"
-        else:
+        """
+        s = f"{value:%H:%M}"
+
+        if value.microsecond:
+            ms = round(value.microsecond / 1000)
+            if value.microsecond != ms * 1000:
+                raise ValueError(
+                    f"PDS labels can only encode time values to the milisecond "
+                    f"precision, and this time ({value}) has too much "
+                    f"precision."
+                )
+            else:
+                s += f":{value:%S}.{ms}"
+        elif value.second:
+            s += f":{value:%S}"
+
+        if (
+            value.tzinfo is not None and
+            value.utcoffset() != datetime.timedelta()
+        ):
             raise ValueError(
                 "PDS labels should only have UTC times, but "
                 f"this time has a timezone: {value}"
             )
+        else:
+            return s + "Z"
 
 
 class ISISEncoder(PVLEncoder):

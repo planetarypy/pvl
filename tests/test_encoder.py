@@ -7,7 +7,7 @@ from pvl.encoder import PVLEncoder, ODLEncoder, PDSLabelEncoder
 from pvl.collections import Quantity, PVLModule, PVLGroup, PVLObject
 
 
-class TestDecoder(unittest.TestCase):
+class TestEncoder(unittest.TestCase):
     def setUp(self):
         self.e = PVLEncoder()
 
@@ -163,7 +163,7 @@ END;"""
             pass
 
 
-class TestODLDecoder(unittest.TestCase):
+class TestODLEncoder(unittest.TestCase):
     def setUp(self):
         self.e = ODLEncoder()
 
@@ -181,6 +181,26 @@ class TestODLDecoder(unittest.TestCase):
             self.assertEqual(p[1], self.e.encode_quantity(p[0]))
         except ImportError:  # astropy isn't available.
             pass
+
+    def test_encode_time(self):
+        t = datetime.time(1, 2)
+        self.assertRaises(ValueError, self.e.encode_time, t)
+
+        t = datetime.time(13, 14, 15,)
+        self.assertRaises(ValueError, self.e.encode_time, t)
+
+        t = datetime.time(
+            13, 14, 15, tzinfo=datetime.timezone(datetime.timedelta(hours=2))
+        )
+        self.assertEqual("13:14:15+02", self.e.encode_time(t))
+
+        t = datetime.time(
+            13, 14, 15, tzinfo=datetime.timezone(datetime.timedelta(hours=0))
+        )
+        self.assertEqual("13:14:15Z", self.e.encode_time(t))
+
+        t = datetime.time(15, 15, 59, tzinfo=datetime.timezone.utc)
+        self.assertEqual("15:15:59Z", self.e.encode_time(t))
 
 
 class TestPDSLabelEncoder(unittest.TestCase):
@@ -240,6 +260,7 @@ END_OBJECT = key"""
         t = datetime.time(13, 14, 15,)
         self.assertEqual("13:14:15Z", self.e.encode_time(t))
 
+        # time objects with offsets other than zero should raise an Exception.
         t = datetime.time(
             13, 14, 15, tzinfo=datetime.timezone(datetime.timedelta(hours=2))
         )
@@ -252,6 +273,13 @@ END_OBJECT = key"""
 
         t = datetime.time(15, 15, 59, tzinfo=datetime.timezone.utc)
         self.assertEqual("15:15:59Z", self.e.encode_time(t))
+
+        t = datetime.time(10, 54, 12, 129000, tzinfo=datetime.timezone.utc)
+        self.assertEqual("10:54:12.129Z", self.e.encode_time(t))
+
+        # time objects with precision greater than milisecond should raise
+        t = datetime.time(10, 54, 12, 123456, tzinfo=datetime.timezone.utc)
+        self.assertRaises(ValueError, self.e.encode_time, t)
 
     def test_encode(self):
         m = PVLModule(a=PVLGroup(g1=2, g2=3.4), b="c")

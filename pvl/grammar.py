@@ -25,6 +25,7 @@ but in the meantime, just leave an Issue on the GitHub repo.
 
 import re
 from collections import abc
+from datetime import timezone
 
 
 class PVLGrammar:
@@ -114,6 +115,9 @@ class PVLGrammar:
         fr"{nondecimal_pre_re.pattern}(?P<non_decimal>[0-9|A-Fa-f]+)#"
     )
 
+    # The PVL Blue Book says that all PVl Date/Time Values are represented
+    # in Universal Coordinated Time
+    default_timezone = timezone.utc
     _d_formats = ("%Y-%m-%d", "%Y-%j")
     _t_formats = ("%H:%M", "%H:%M:%S", "%H:%M:%S.%f")
     date_formats = _d_formats + tuple(x + "Z" for x in _d_formats)
@@ -170,7 +174,7 @@ class PVLGrammar:
 
 
 class ODLGrammar(PVLGrammar):
-    """This defines a PDS3 ODL grammar.
+    """This defines an ODL grammar.
 
     The reference for this grammar is the PDS3 Standards Reference
     (version 3.8, 27 Feb 2009) Chapter 12: Object Description
@@ -183,6 +187,9 @@ class ODLGrammar(PVLGrammar):
     # ODL does not allow times with a seconds value of 60.
     leap_second_Ymd_re = None
     leap_second_Yj_re = None
+
+    # ODL allows "local" times without a timezone specifier.
+    default_timezone = None
 
     # ODL allows the radix to be from 2 to 16, but the optional sign
     # must be after the first octothorpe (#).  Why ODL thought this was
@@ -208,6 +215,24 @@ class ODLGrammar(PVLGrammar):
             return True
         except UnicodeError:
             return False
+
+
+class PDSGrammar(ODLGrammar):
+    """This defines a PDS3 ODL grammar.
+
+    The reference for this grammar is the PDS3 Standards Reference
+    (version 3.8, 27 Feb 2009) Chapter 12: Object Description
+    Language Specification and Usage.
+    """
+
+    # The PDS spec only allows allows miliseconds, not microseconds,
+    # but there is only a %f microseconds time format specifier in
+    # Python, and no miliseconds format specifier, so dealing with
+    # only the miliseconds will have to be enforced at the encoder and
+    # decoder stages.
+
+    # PDSLabels default to UTC:
+    default_timezone = timezone.utc
 
 
 class ISISGrammar(PVLGrammar):

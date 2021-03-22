@@ -25,9 +25,15 @@ from collections import OrderedDict
 
 import pvl
 from .lexer import LexerError
-from .grammar import PVLGrammar, ODLGrammar, ISISGrammar, OmniGrammar
+from .grammar import (
+    PVLGrammar,
+    ODLGrammar,
+    PDSGrammar,
+    ISISGrammar,
+    OmniGrammar,
+)
 from .parser import ParseError, PVLParser, ODLParser, OmniParser
-from .decoder import PVLDecoder, ODLDecoder, OmniDecoder
+from .decoder import PVLDecoder, ODLDecoder, PDSLabelDecoder, OmniDecoder
 from .encoder import PVLEncoder, ODLEncoder, ISISEncoder, PDSLabelEncoder
 
 # Some assembly required for the dialects.
@@ -38,7 +44,8 @@ _pvl_g = PVLGrammar()
 _pvl_d = PVLDecoder(grammar=_pvl_g)
 _odl_g = ODLGrammar()
 _odl_d = ODLDecoder(grammar=_odl_g)
-_odl_p = ODLParser(grammar=_odl_g, decoder=_odl_d)
+_pds_g = PDSGrammar()
+_pds_d = PDSLabelDecoder(grammar=_pds_g)
 _isis_g = ISISGrammar()
 _isis_d = OmniDecoder(grammar=_isis_g)
 _omni_g = OmniGrammar()
@@ -46,13 +53,13 @@ _omni_d = OmniDecoder(grammar=_omni_g)
 
 dialects = OrderedDict(
     PDS3=dict(
-        parser=_odl_p,
-        grammar=_odl_g,
-        decoder=_odl_d,
-        encoder=PDSLabelEncoder(grammar=_odl_g, decoder=_odl_d),
+        parser=ODLParser(grammar=_pds_g, decoder=_pds_d),
+        grammar=_pds_g,
+        decoder=_pds_d,
+        encoder=PDSLabelEncoder(grammar=_pds_g, decoder=_pds_d),
     ),
     ODL=dict(
-        parser=_odl_p,
+        parser=ODLParser(grammar=_odl_g, decoder=_odl_d),
         grammar=_odl_g,
         decoder=_odl_d,
         encoder=ODLEncoder(grammar=_odl_g, decoder=_odl_d),
@@ -86,7 +93,7 @@ def arg_parser():
         action="count",
         default=0,
         help="Will report the errors that are encountered.  A second v will "
-             "include tracebacks for non-pvl exceptions. ",
+        "include tracebacks for non-pvl exceptions. ",
     )
     p.add_argument("--version", action="version", version=pvl.__version__)
     p.add_argument(
