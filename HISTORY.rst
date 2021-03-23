@@ -41,9 +41,24 @@ Added
   milisecond time precision (not microsecond as ODL allows), and does
   not allow times with a +HH:MM timezone specifier.  It does assume
   any time without a timezone specifier is a UTC time.
+* Added a ``real_cls`` parameter to the decoder classes, so that users can specify
+  an arbitrary type with which real numbers in the PVL-text could be returned in
+  the dict-like from the loaders (defaults to ``float`` as you'd expect).
+* The encoders now support a broader range of real types to complement the decoders.
+
+Changed
++++++++
+* Improved some build and test functionality.
+* Moved the is_identifier() static function from the ODLEncoder to the ODLDecoder
+  where it probably should have always been.
+
 
 Fixed
 +++++
+* Very long Python ``str`` objects that otherwise qualified as ODL/PDS3 Symbol Strings,
+  would get written out with single-quotes, but they would then be split across lines
+  via the formatter, so they should be written as Text Strings with double-quotes.
+  Better protections have been put in place.
 * pvl.decoder.ODLDecoder now will return both "aware" and "naive"
   datetime objects (as appropriate) since "local" times without a
   timezone are allowed under ODL.
@@ -56,13 +71,6 @@ Fixed
 * pvl.encoder.PDSLabelEncoder will now properly raise an exception if
   a time or datetime object cannot be represented with only milisecond
   precision.
-
-
-Changed
-+++++++
-* Improved some build and test functionality.
-* Moved the is_identifier() static function from the ODLEncoder to the ODLDecoder
-  where it probably should have always been.
 
 
 1.1.0 (2020-12-04)

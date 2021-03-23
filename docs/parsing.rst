@@ -258,3 +258,44 @@ This is very similar to parsing PVL text from a file, but you use
  Quantity(value=50.784875, units='DEG')
 
 Of course, other kinds of URLs, like file, ftp, rsync, sftp and more can be used.
+
+
+---------------------------
+Return non-standard objects
+---------------------------
+
+The "loaders" return a dict-like filled with Python objects based on the types inferred from the
+PVL-text.  Sometimes you may want the `pvl` library to return different types in the dict-like,
+and `pvl` has some limited capacity for that (so far just real and quantity types).
+
+Normally real number values in the PVL-text will be returned as Python :class:`float` objects.
+However, what if you wanted all of the real values to be returned in the dict-like as Python
+:class:`decimal.Decimal` objects (because you wanted to preserve numeric precision)?  You can
+do that by providing the object type you want via the ``real_cls`` argument of a decoder constructor,
+like so::
+
+ >>> from decimal import Decimal
+ >>> import pvl
+ >>> text = "gigawatts = 1.210"
+ >>>
+ >>> flo = pvl.loads(text)
+ >>> print(flo)
+ PVLModule([
+   ('gigawatts', 1.21)
+ ])
+ >>>
+ >>> print(type(flo["gigawatts"]))
+ <class 'float'>
+ >>> dec = pvl.loads(text, decoder=pvl.decoder.OmniDecoder(real_cls=Decimal))
+ >>> print(dec)
+ PVLModule([
+   ('gigawatts', Decimal('1.210'))
+ ])
+ >>> print(type(dec["gigawatts"]))
+ <class 'decimal.Decimal'>
+
+Any class that can be passed a :class:`str` object to initialize an object can be provided to
+``real_cls``, but it should emit a :class:`ValueError` if it is given a string that should not
+be converted to a real number value.
+
+To learn more about quantity classes in `pvl`, please see :ref:`quantities`.

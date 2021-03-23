@@ -2,6 +2,7 @@
 
 import datetime
 import unittest
+from decimal import Decimal
 
 from pvl.encoder import PVLEncoder, ODLEncoder, PDSLabelEncoder
 from pvl.collections import Quantity, PVLModule, PVLGroup, PVLObject
@@ -84,6 +85,7 @@ class TestEncoder(unittest.TestCase):
             (True, "TRUE"),
             (1.23, "1.23"),
             (42, "42"),
+            (Decimal("12.30"), "12.30"),
             ("ABC", "ABC"),
         )
         for p in pairs:

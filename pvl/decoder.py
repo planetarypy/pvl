@@ -9,7 +9,7 @@ referred to as the Blue Book with a date of June 2000.
 A decoder deals with converting strings given to it (typically
 by the parser) to the appropriate Python type.
 """
-# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+# Copyright 2015, 2017, 2019-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
@@ -17,6 +17,7 @@ by the parser) to the appropriate Python type.
 
 import re
 from datetime import datetime, timedelta, timezone
+from decimal import InvalidOperation
 from itertools import repeat, chain
 from warnings import warn
 
@@ -56,9 +57,12 @@ class PVLDecoder(object):
     :param quantity_cls: defaults to :class:`pvl.collections.Quantity`, but
         could be any class object that takes two arguments, where the
         first is the value, and the second is the units value.
+
+    :param real_cls: defaults to :class:`float`, but could be any class object
+        that can be constructed from a `str` object.
     """
 
-    def __init__(self, grammar=None, quantity_cls=None):
+    def __init__(self, grammar=None, quantity_cls=None, real_cls=None):
         self.errors = []
 
         if grammar is None:
@@ -73,6 +77,11 @@ class PVLDecoder(object):
         else:
             self.quantity_cls = quantity_cls
 
+        if real_cls is None:
+            self.real_cls = float
+        else:
+            self.real_cls = real_cls
+
     def decode(self, value: str):
         """Returns a Python object based on *value*."""
         return self.decode_simple_value(value)
@@ -83,6 +92,15 @@ class PVLDecoder(object):
 
          <Simple-Value> ::= (<Date-Time> | <Numeric> | <String>)
         """
+        if value.casefold() == self.grammar.none_keyword.casefold():
+            return None
+
+        if value.casefold() == self.grammar.true_keyword.casefold():
+            return True
+
+        if value.casefold() == self.grammar.false_keyword.casefold():
+            return False
+
         for d in (
             self.decode_quoted_string,
             self.decode_non_decimal,
@@ -93,15 +111,6 @@ class PVLDecoder(object):
                 return d(value)
             except ValueError:
                 pass
-
-        if value.casefold() == self.grammar.none_keyword.casefold():
-            return None
-
-        if value.casefold() == self.grammar.true_keyword.casefold():
-            return True
-
-        if value.casefold() == self.grammar.false_keyword.casefold():
-            return False
 
         return self.decode_unquoted_string(value)
 
@@ -160,16 +169,18 @@ class PVLDecoder(object):
                 return str(value[1:-1])
         raise ValueError(f'The object "{value}" is not a PVL Quoted String.')
 
-    @staticmethod
-    def decode_decimal(value: str):
-        """Returns a Python ``int`` or ``float`` as appropriate
+    def decode_decimal(self, value: str):
+        """Returns a Python ``int`` or ``self.real_cls`` object, as appropriate
         based on *value*.  Raises a ValueError otherwise.
         """
-        # Returns int or float
+        # Returns int or real_cls
         try:
             return int(value, base=10)
         except ValueError:
-            return float(value)
+            try:
+                return self.real_cls(str(value))
+            except InvalidOperation as err:
+                raise ValueError from err
 
     def decode_non_decimal(self, value: str) -> int:
         """Returns a Python ``int`` as decoded from *value*
@@ -294,13 +305,17 @@ class ODLDecoder(PVLDecoder):
     default to an ODLGrammar() object.
     """
 
-    def __init__(self, grammar=None, quantity_cls=None):
+    def __init__(self, grammar=None, quantity_cls=None, real_cls=None):
         self.errors = []
 
         if grammar is None:
-            super().__init__(grammar=ODLGrammar(), quantity_cls=quantity_cls)
-        else:
-            super().__init__(grammar=grammar, quantity_cls=quantity_cls)
+            grammar = ODLGrammar()
+
+        super().__init__(
+            grammar=grammar,
+            quantity_cls=quantity_cls,
+            real_cls=real_cls
+        )
 
     def decode_datetime(self, value: str):
         """Extends parent function to also deal with datetimes
