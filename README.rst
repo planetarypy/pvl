@@ -35,7 +35,7 @@ Python implementation of a PVL (Parameter Value Language) library.
 * `PlanetaryPy`_ Affiliate Package.
 
 PVL is a markup language, similar to XML, commonly employed for
-entries in the Planetary Database System used by NASA to store
+entries in the Planetary Data System used by NASA to archive
 mission data, among other uses.  This package supports both encoding
 and decoding a variety of PVL 'flavors' including PVL itself, ODL,
 `NASA PDS 3 Labels`_, and `USGS ISIS Cube Labels`_.
