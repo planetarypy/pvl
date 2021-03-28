@@ -12,7 +12,7 @@ to be written out in a particular strict PVL dialect (like PDS3
 labels).
 """
 
-# Copyright 2020, ``pvl`` library authors.
+# Copyright 2020-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the

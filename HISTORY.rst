@@ -30,6 +30,9 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+1.2.0 (2021-03-27)
+------------------
+
 Added
 +++++
 * Added a default_timezone parameter to grammar objects so that they could

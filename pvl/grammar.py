@@ -17,7 +17,7 @@ Maybe someday we'll add a more user-friendly interface to allow that,
 but in the meantime, just leave an Issue on the GitHub repo.
 """
 
-# Copyright 2019-2020, ``pvl`` library authors.
+# Copyright 2019-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
