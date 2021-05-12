@@ -10,6 +10,14 @@ pvl
         :target: https://travis-ci.org/planetarypy/pvl
         :alt: Travis Build Status
 
+.. image:: https://github.com/planetarypy/pvl/workflows/Python%20Testing/badge.svg
+        :target: https://github.com/planetarypy/pvl/actions
+
+
+.. image:: https://codecov.io/gh/planetarypy/pvl/branch/master/graph/badge.svg?token=uWqotcPTGR
+        :target: https://codecov.io/gh/planetarypy/pvl
+    
+
 .. image:: https://img.shields.io/pypi/v/pvl.svg?style=flat-square
         :target: https://pypi.python.org/pypi/pvl
         :alt: PyPI version
