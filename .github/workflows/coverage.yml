@@ -7,7 +7,7 @@ name: Code Coverage
 on: [push, pull_request]
 
 env:
-  python-version: 3.6.1
+  python-version: 3.7
 
 jobs:
   coverage:
