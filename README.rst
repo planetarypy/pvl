@@ -6,10 +6,6 @@ pvl
         :target: https://pvl.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
-.. image:: https://img.shields.io/travis/planetarypy/pvl.svg?style=flat-square
-        :target: https://travis-ci.org/planetarypy/pvl
-        :alt: Travis Build Status
-
 .. image:: https://github.com/planetarypy/pvl/workflows/Python%20Testing/badge.svg
         :target: https://github.com/planetarypy/pvl/actions
 
