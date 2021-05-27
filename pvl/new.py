@@ -26,6 +26,18 @@ be the new PVLMultiDict objects.
 import inspect
 import urllib.request
 
+try:  # noqa: C901
+    # In order to access super class attributes for our derived class, we must
+    # import the native Python version, instead of the default Cython version.
+    from multidict._multidict_py import MultiDict
+except ImportError as err:
+    raise ImportError(
+        "The multidict library is not present, so the new PVLMultiDict is not "
+        "available, and pvl.new can't be imported. In order to do so, install "
+        "the multidict package",
+        ImportWarning,
+    ) from err
+
 from pvl import *  # noqa: F401,F403
 from pvl import get_text_from, decode_by_char
 

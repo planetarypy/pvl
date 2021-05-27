@@ -30,6 +30,11 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+Fixed
++++++
+* Attempting to import pvl/new.py without multidict being available,
+  will now properly yield an ImportError.
+
 1.2.0 (2021-03-27)
 ------------------
 

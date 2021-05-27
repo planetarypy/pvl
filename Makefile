@@ -46,6 +46,9 @@ lint:
 test:
 	python -m pytest --doctest-modules --doctest-glob='*.rst'
 
+test-min:
+	python -m pytest --doctest-modules --ignore=pvl/new.py
+
 test-all:
 	tox
 
