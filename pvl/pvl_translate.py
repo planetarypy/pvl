@@ -80,14 +80,10 @@ def arg_parser(formats):
     return parser
 
 
-def main():
-    args = arg_parser(formats).parse_args()
+def main(argv=None):
+    args = arg_parser(formats).parse_args(argv)
 
     some_pvl = pvl.load(args.infile)
 
     formats[args.output_format].dump(some_pvl, args.outfile)
     return
-
-
-if __name__ == "__main__":
-    sys.exit(main())
