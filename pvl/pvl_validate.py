@@ -102,8 +102,8 @@ def arg_parser():
     return p
 
 
-def main():
-    args = arg_parser().parse_args()
+def main(argv=None):
+    args = arg_parser().parse_args(argv)
 
     logging.basicConfig(
         format="%(levelname)s: %(message)s", level=(60 - 20 * args.verbose)
@@ -252,7 +252,3 @@ def build_line(elements: list, widths: list, sep=" | ") -> str:
         cells.append("{0:^{width}}".format(e, width=w))
 
     return sep.join(cells)
-
-
-if __name__ == "__main__":
-    sys.exit(main())
