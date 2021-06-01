@@ -58,8 +58,8 @@ class Token(str):
             try:
                 return self.decoder.decode_non_decimal(str(self))
             except ValueError:
-                if int(self) == float(self):
-                    return int(self)
+                if int(str(self)) == float(str(self)):
+                    return int(str(self))
 
         raise ValueError(f"The {self:r} cannot be used as an index.")
 
