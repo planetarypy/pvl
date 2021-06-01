@@ -8,7 +8,7 @@ particularly robust, and if it cannot make simple conversions, it
 will raise errors.
 """
 
-# Copyright 2020, ``pvl`` library authors.
+# Copyright 2020-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the

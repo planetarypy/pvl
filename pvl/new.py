@@ -17,7 +17,7 @@ But then, any objects that are returned by the load functions will
 be the new PVLMultiDict objects.
 """
 
-# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+# Copyright 2015, 2017, 2019-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
