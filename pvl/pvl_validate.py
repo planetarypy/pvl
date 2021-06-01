@@ -20,7 +20,6 @@ labels).
 
 import argparse
 import logging
-import sys
 from collections import OrderedDict
 
 import pvl
