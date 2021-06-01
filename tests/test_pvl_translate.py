@@ -45,7 +45,8 @@ class TestMock(unittest.TestCase):
     @patch("pvl.pvl_translate.PVLWriter")
     @patch("pvl.pvl_translate.arg_parser")
     @patch("pvl.load")
-    def test_main(self, m_load, m_parser, m_PVLWriter, m_JSONWriter):
+    @patch("pvl.dump")
+    def test_main(self, m_dump, m_load, m_parser, m_PVLWriter, m_JSONWriter):
         m_parser().parse_args().output_format = "PDS3"
         self.assertIsNone(pvl_trans.main())
 
