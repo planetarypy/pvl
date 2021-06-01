@@ -18,6 +18,7 @@
 import unittest
 
 from pvl.grammar import PVLGrammar
+from pvl.decoder import PVLDecoder
 from pvl.token import Token
 
 
@@ -26,6 +27,11 @@ class TestToken(unittest.TestCase):
         s = "token"
         self.assertEqual(s, Token(s))
         self.assertEqual(s, Token(s, grammar=PVLGrammar()))
+        self.assertEqual(s, Token(s, decoder=PVLDecoder()))
+        self.assertRaises(TypeError, Token, s, grammar="not a grammar")
+        self.assertRaises(
+            TypeError, Token, s, grammar=PVLGrammar(), decoder="not a decoder"
+        )
 
     def test_is_comment(self):
         c = Token("/* comment */")
@@ -178,6 +184,7 @@ class TestToken(unittest.TestCase):
             with self.subTest(string=s):
                 t = Token(s)
                 self.assertTrue(t.is_space())
+                self.assertTrue(t.isspace())
 
         for s in ("not space", ""):
             with self.subTest(string=s):
@@ -185,7 +192,7 @@ class TestToken(unittest.TestCase):
                 self.assertFalse(t.is_space())
 
     def test_is_WSC(self):
-        for s in (" /*com*/  ", "/*c1*/\n/*c2*/"):
+        for s in (" /*com*/  ", "/*c1*/\n/*c2*/", " "):
             with self.subTest(string=s):
                 t = Token(s)
                 self.assertTrue(t.is_WSC())
@@ -202,13 +209,28 @@ class TestToken(unittest.TestCase):
         t = Token("not")
         self.assertFalse(t.is_delimiter())
 
+    def test_is_quote(self):
+        for s in ('"', "'"):
+            with self.subTest(string=s):
+                t = Token(s)
+                self.assertTrue(t.is_quote())
+
+        t = Token("not a quote mark")
+        self.assertFalse(t.is_quote())
+
     def test_is_unquoted_string(self):
         for s in ("Hello", "Product", "Group"):
             with self.subTest(string=s):
                 t = Token(s)
                 self.assertTrue(t.is_unquoted_string())
 
-        for s in ("/*comment*/", "2001-027", '"quoted"'):
+        for s in (
+            "/*comment*/",
+            "second line of comment*/",
+            "2001-027",
+            '"quoted"',
+            "\t"
+        ):
             with self.subTest(string=s):
                 t = Token(s)
                 self.assertFalse(t.is_unquoted_string())
@@ -291,3 +313,26 @@ class TestToken(unittest.TestCase):
         for x in t_list:
             with self.subTest(token=x):
                 self.assertIsInstance(x, Token)
+
+    def test_index(self):
+        s = "3"
+        t = Token(s)
+        self.assertEqual(3, int(t))
+        self.assertEqual(3, t.__index__())
+        self.assertRaises(ValueError, Token("3.4").__index__)
+        self.assertRaises(ValueError, Token("a").__index__)
+
+    def test_float(self):
+        s = "3.14"
+        t = Token(s)
+        self.assertEqual(3.14, float(t))
+
+    def test_lstrip(self):
+        s = "  leftward space "
+        t = Token(s)
+        self.assertEqual("leftward space ", t.lstrip())
+
+    def test_rstrip(self):
+        s = " rightward space  "
+        t = Token(s)
+        self.assertEqual(" rightward space", t.rstrip())
