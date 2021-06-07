@@ -12,6 +12,7 @@ pvl
 
 .. image:: https://codecov.io/gh/planetarypy/pvl/branch/master/graph/badge.svg?token=uWqotcPTGR
         :target: https://codecov.io/gh/planetarypy/pvl
+        :alt: Codecov coverage
     
 
 .. image:: https://img.shields.io/pypi/v/pvl.svg?style=flat-square
@@ -38,7 +39,7 @@ Python implementation of a PVL (Parameter Value Language) library.
 * Support for Python 3.6 and higher (avaiable via pypi and conda).
 * `PlanetaryPy`_ Affiliate Package.
 
-PVL is a markup language, similar to XML, commonly employed for
+PVL is a markup language, like JSON or YAML, commonly employed for
 entries in the Planetary Data System used by NASA to archive
 mission data, among other uses.  This package supports both encoding
 and decoding a variety of PVL 'flavors' including PVL itself, ODL,
@@ -214,7 +215,7 @@ Feedback, issues, and contributions are always gratefully welcomed. See the
 environment.
 
 
-.. _PlanetaryPy: https://github.com/planetarypy
+.. _PlanetaryPy: https://planetarypy.org
 .. _USGS ISIS Cube Labels: http://isis.astrogeology.usgs.gov/
 .. _NASA PDS 3 Labels: https://pds.nasa.gov
 .. _image: https://github.com/planetarypy/pvl/raw/master/tests/data/pattern.cub

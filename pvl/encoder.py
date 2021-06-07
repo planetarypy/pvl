@@ -524,6 +524,8 @@ class ODLEncoder(PVLEncoder):
         aggregation_end=True,
         end_delimiter=False,
         newline="\r\n",
+        group_class=PVLGroup,
+        object_class=PVLObject
     ):
 
         if grammar is None:
@@ -546,6 +548,8 @@ class ODLEncoder(PVLEncoder):
             aggregation_end,
             end_delimiter,
             newline,
+            group_class=group_class,
+            object_class=object_class
         )
 
     def encode(self, module: abc.Mapping) -> str:
@@ -862,6 +866,8 @@ class PDSLabelEncoder(ODLEncoder):
         indent=2,
         width=80,
         aggregation_end=True,
+        group_class=PVLGroup,
+        object_class=PVLObject,
         convert_group_to_object=True,
         tab_replace=4,
         symbol_single_quote=True,
@@ -882,6 +888,8 @@ class PDSLabelEncoder(ODLEncoder):
             aggregation_end,
             end_delimiter=False,
             newline="\r\n",
+            group_class=group_class,
+            object_class=object_class
         )
 
         self.convert_group_to_object = convert_group_to_object
@@ -1147,6 +1155,8 @@ class ISISEncoder(PVLEncoder):
         aggregation_end=True,
         end_delimiter=False,
         newline="\n",
+        group_class=PVLGroup,
+        object_class=PVLObject
     ):
 
         if grammar is None:
@@ -1163,4 +1173,6 @@ class ISISEncoder(PVLEncoder):
             aggregation_end,
             end_delimiter,
             newline,
+            group_class=group_class,
+            object_class=object_class
         )

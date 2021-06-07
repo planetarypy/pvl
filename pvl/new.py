@@ -17,18 +17,33 @@ But then, any objects that are returned by the load functions will
 be the new PVLMultiDict objects.
 """
 
-# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+# Copyright 2015, 2017, 2019-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
 # top level of this library.
 
 import inspect
+import io
 import urllib.request
+from pathlib import Path
+
+try:  # noqa: C901
+    # In order to access super class attributes for our derived class, we must
+    # import the native Python version, instead of the default Cython version.
+    from multidict._multidict_py import MultiDict  # noqa: F401
+except ImportError as err:
+    raise ImportError(
+        "The multidict library is not present, so the new PVLMultiDict is not "
+        "available, and pvl.new can't be imported. In order to do so, install "
+        "the multidict package",
+        ImportWarning,
+    ) from err
 
 from pvl import *  # noqa: F401,F403
 from pvl import get_text_from, decode_by_char
 
+from .encoder import PDSLabelEncoder, PVLEncoder
 from .parser import PVLParser, OmniParser
 from .collections import PVLModuleNew, PVLGroupNew, PVLObjectNew
 
@@ -132,3 +147,63 @@ def loads(s: str, parser=None, grammar=None, decoder=None, **kwargs):
         raise TypeError("The parser must be an instance of pvl.PVLParser.")
 
     return parser.parse(s)
+
+
+def dump(module, path, **kwargs):
+    """Serialize *module* as PVL text to the provided *path*.
+
+    :param module: a ``PVLModule`` or ``dict``-like object to serialize.
+    :param path: an :class:`os.PathLike`
+    :param ``**kwargs``: the keyword arguments to pass to :func:`dumps()`.
+
+    If *path* is an :class:`os.PathLike`, it will attempt to be opened
+    and the serialized module will be written into that file via
+    the :func:`pathlib.Path.write_text()` function, and will return
+    what that function returns.
+
+    If *path* is not an :class:`os.PathLike`, it will be assumed to be an
+    already-opened file object, and ``.write()`` will be applied
+    on that object to write the serialized module, and will return
+    what that function returns.
+    """
+    try:
+        p = Path(path)
+        return p.write_text(dumps(module, **kwargs))
+
+    except TypeError:
+        # Not an os.PathLike, maybe it is an already-opened file object
+        try:
+            if isinstance(path, io.TextIOBase):
+                return path.write(dumps(module, **kwargs))
+            else:
+                return path.write(dumps(module, **kwargs).encode())
+        except AttributeError:
+            # Not a path, not an already-opened file.
+            raise TypeError(
+                "Expected an os.PathLike or an already-opened "
+                "file object for writing, but got neither."
+            )
+
+
+def dumps(module, encoder=None, grammar=None, decoder=None, **kwargs) -> str:
+    """Returns a string where the *module* object has been serialized
+    to PVL syntax.
+
+    :param module: a ``PVLModule`` or ``dict`` like object to serialize.
+    :param encoder: defaults to :class:`pvl.parser.PDSLabelEncoder()`.
+    :param grammar: defaults to :class:`pvl.grammar.ODLGrammar()`.
+    :param decoder: defaults to :class:`pvl.decoder.ODLDecoder()`.
+    :param ``**kwargs``: the keyword arguments to pass to the encoder
+        class if *encoder* is none.
+    """
+    if encoder is None:
+        encoder = PDSLabelEncoder(
+            grammar=grammar,
+            decoder=decoder,
+            group_class=PVLGroupNew,
+            object_class=PVLObjectNew,
+            **kwargs)
+    elif not isinstance(encoder, PVLEncoder):
+        raise TypeError("The encoder must be an instance of pvl.PVLEncoder.")
+
+    return encoder.encode(module)

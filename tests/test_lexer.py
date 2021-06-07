@@ -332,6 +332,22 @@ class TestLexer(unittest.TestCase):
             ),
         )
 
+        self.assertRaises(
+            ValueError,
+            Lexer.lex_char,
+            "a",
+            "b",
+            "c",
+            "",
+            dict(state="bogus preserve state", end="end"),
+            g,
+            dict(
+                chars={"k", "v", "/", "*"},
+                single_comments={"k": "v"},
+                multi_chars={"/", "*"},
+            ),
+        )
+
     def test_lexer_recurse(self):
         def foo(tokens):
             two = list()

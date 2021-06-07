@@ -154,7 +154,10 @@ class PVLGrammar:
         set with some exclusions.
         """
         if len(char) != 1:
-            raise Exception
+            raise ValueError(
+                f"This function only takes single characters and it was given "
+                f"{len(char)} ('{char}')."
+            )
 
         o = ord(char)
 
@@ -207,8 +210,7 @@ class ODLGrammar(PVLGrammar):
         characters than PVL, but appears to allow more control
         characters to be in quoted strings than PVL does.
         """
-        if len(char) != 1:
-            raise Exception
+        super().char_allowed(char)
 
         try:
             char.encode(encoding="ascii")

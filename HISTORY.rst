@@ -30,6 +30,30 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+1.2.1 (2021-05-31)
+------------------
+
+Added
++++++
+* So many tests, increased coverage by about 10%.
+
+Fixed
++++++
+* Attempting to import `pvl.new` without *multidict* being available,
+  will now properly yield an ImportError.
+* The `dump()` and `dumps()` functions now properly overwritten in `pvl.new`.
+* All encoders that descended from PVLEncoder didn't properly have group_class and
+  object_class arguments to their constructors, now they do.
+* The `char_allowed()` function in grammar objects now raises a more useful ValueError
+  than just a generic Exception.
+* The new `collections.PVLMultiDict` wasn't correctly inserting Mapping objects with
+  the `insert_before()` and `insert_after()` methods.
+* The `token.Token` class's `__index__()` function didn't always properly return an
+  index.
+* The `token.Token` class's `__float__()` function would return int objects if the
+  token could be converted to int.  Now always returns floats.
+
+
 1.2.0 (2021-03-27)
 ------------------
 

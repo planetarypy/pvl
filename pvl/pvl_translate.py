@@ -8,7 +8,7 @@ particularly robust, and if it cannot make simple conversions, it
 will raise errors.
 """
 
-# Copyright 2020, ``pvl`` library authors.
+# Copyright 2020-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
@@ -80,14 +80,10 @@ def arg_parser(formats):
     return parser
 
 
-def main():
-    args = arg_parser(formats).parse_args()
+def main(argv=None):
+    args = arg_parser(formats).parse_args(argv)
 
     some_pvl = pvl.load(args.infile)
 
     formats[args.output_format].dump(some_pvl, args.outfile)
     return
-
-
-if __name__ == "__main__":
-    sys.exit(main())

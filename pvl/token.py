@@ -54,10 +54,17 @@ class Token(str):
         return f"{self.__class__.__name__}('{self}', " f"'{self.grammar}')"
 
     def __index__(self):
-        return self.decoder.decode_non_decimal(str(self))
+        if self.is_decimal():
+            try:
+                return self.decoder.decode_non_decimal(str(self))
+            except ValueError:
+                if int(str(self)) == float(str(self)):
+                    return int(str(self))
+
+        raise ValueError(f"The {self:r} cannot be used as an index.")
 
     def __float__(self):
-        return self.decoder.decode_decimal(str(self))
+        return float(self.decoder.decode_decimal(str(self)))
 
     def split(self, sep=None, maxsplit=-1) -> list:
         """Extends ``str.split()`` that calling split() on a Token
@@ -151,9 +158,8 @@ class Token(str):
         return False
 
     def is_quote(self) -> bool:
-        """Return true if the Token is a comment character (or
-        multicharacter comment delimiter) according to the
-        Token's grammar, false otherwise.
+        """Return true if the Token is a quote character
+        according to the Token's grammar, false otherwise.
         """
         if self in self.grammar.quotes:
             return True

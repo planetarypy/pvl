@@ -18,7 +18,7 @@ both a notion of a value and the units for that value.  Again, there
 is no fundamental Python type for a quantity, so we define the Quantity
 class (formerly the Units class).
 """
-# Copyright 2015, 2017, 2019-2020, ``pvl`` library authors.
+# Copyright 2015, 2017, 2019-2021, ``pvl`` library authors.
 #
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
@@ -268,9 +268,6 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             if isinstance(iterable, abc.Mapping) or hasattr(iterable, "items"):
                 for key, value in iterable.items():
                     self.append(key, value)
-            elif hasattr(iterable, "keys"):
-                for key in iterable.keys():
-                    self.append(key, iterable[key])
             else:
                 for key, value in iterable:
                     self.append(key, value)
@@ -392,20 +389,6 @@ class OrderedMultiDict(dict, MutableMappingSequence):
                 dict_setitem(self, key, [value])
 
         return
-
-    def __insert_wrapper(func):
-        """Make sure the arguments given to the insert methods are correct."""
-
-        def check_func(self, key, new_item, instance=0):
-            if key not in self.keys():
-                raise KeyError(f"{key} not a key in label")
-            if not isinstance(new_item, (list, OrderedMultiDict)):
-                raise TypeError("The new item must be a list or PVLModule")
-            if isinstance(new_item, OrderedMultiDict):
-                new_item = list(new_item)
-            return func(self, key, new_item, instance)
-
-        return check_func
 
     def key_index(self, key, instance: int = 0) -> int:
         """Get the index of the key to insert before or after."""
@@ -586,7 +569,7 @@ try:  # noqa: C901
             index = index + 1 if is_after else index
 
             if isinstance(new_item, abc.Mapping):
-                tuple_iter = new_item.items()
+                tuple_iter = tuple(new_item.items())
             else:
                 tuple_iter = new_item
             self.insert(index, tuple_iter)

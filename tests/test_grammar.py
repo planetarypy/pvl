@@ -18,7 +18,7 @@
 import re
 import unittest
 
-from pvl.grammar import PVLGrammar
+from pvl.grammar import PVLGrammar, ODLGrammar
 
 
 class TestLeapSeconds(unittest.TestCase):
@@ -124,11 +124,20 @@ class TestLeapSeconds(unittest.TestCase):
             with self.subTest(string=s):
                 self.assertIsNotNone(self.g.leap_second_Yj_re.fullmatch(s))
 
+
+class TestAllowed(unittest.TestCase):
+
     def test_allowed(self):
+        g = PVLGrammar()
         for c in ("a", "b", " ", "\n"):
             with self.subTest(char=c):
-                self.assertTrue(self.g.char_allowed(c))
+                self.assertTrue(g.char_allowed(c))
 
         for c in ("\b", chr(127)):
             with self.subTest(char=c):
-                self.assertFalse(self.g.char_allowed(c))
+                self.assertFalse(g.char_allowed(c))
+
+        self.assertRaises(ValueError, g.char_allowed, "too long")
+
+        odlg = ODLGrammar()
+        self.assertFalse(odlg.char_allowed("😆"))

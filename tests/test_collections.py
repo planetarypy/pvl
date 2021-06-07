@@ -6,12 +6,18 @@
 # Reuse is permitted under the terms of the license.
 # The AUTHORS file and the LICENSE file are at the
 # top level of this library.
-
+from abc import ABC
 from collections import abc
 import unittest
 
 import pvl
-from pvl.collections import OrderedMultiDict
+from pvl.collections import (
+    KeysView,
+    MappingView,
+    MutableMappingSequence,
+    OrderedMultiDict,
+    ValuesView
+)
 
 
 class DictLike(abc.Mapping):
@@ -26,6 +32,54 @@ class DictLike(abc.Mapping):
 
     def __len__(self):
         return len(self.list)
+
+    def __delitem__(self, key):
+        pass
+
+    def __setitem__(self, key, value):
+        pass
+
+    def insert(self):
+        pass
+
+
+class TestClasses(unittest.TestCase):
+    def test_MutableMappingSequence(self):
+        class Concrete(DictLike, MutableMappingSequence, ABC):
+            def append(self, key, value):
+                super().append(key, value)
+
+            def getall(self, key):
+                super().getall(key)
+
+            def popall(self, key):
+                super().popall(key)
+
+        mms = Concrete()
+        mms.append("key", "value")
+        mms.getall("key")
+        mms.popall("key")
+
+    def test_MappingView(self):
+        m = MappingView([("a", 1), ("b", 2)])
+        self.assertEqual(
+            "MappingView([('a', 1), ('b', 2)])",
+            repr(m)
+        )
+
+    def test_KeysView(self):
+        k = KeysView([("a", 1), ("b", 2)])
+        self.assertEqual(
+            "KeysView(['a', 'b'])",
+            repr(k)
+        )
+
+    def test_ValuesView(self):
+        v = ValuesView([("a", 1), ("b", 2)])
+        self.assertEqual(
+            "ValuesView([1, 2])",
+            repr(v)
+        )
 
 
 class TestMultiDicts(unittest.TestCase):
@@ -493,6 +547,17 @@ class TestMultiDicts(unittest.TestCase):
                     TypeError, module.insert_after, "a", [("fo", "ba"), 2]
                 )
 
+    def test_repr(self):
+        module = OrderedMultiDict([("a", 1), ("b", 2), ("a", 3)])
+        self.assertEqual(
+            """OrderedMultiDict([
+  ('a', 1)
+  ('b', 2)
+  ('a', 3)
+])""",
+            repr(module)
+        )
+
 
 class TestDifferences(unittest.TestCase):
     def test_as_list(self):
@@ -762,5 +827,57 @@ class TestDifferences(unittest.TestCase):
 
             self.assertEqual(newmod, newgrp)
             self.assertEqual(newmod, newobj)
+        except ImportError:
+            pass
+
+
+class TestMultiDict(unittest.TestCase):
+
+    def test_repr(self):
+        try:
+            from pvl.collections import PVLMultiDict
+            the_list = [("a", 1), ("b", 2)]
+            m = PVLMultiDict(the_list)
+            self.assertEqual(
+                "PVLMultiDict([('a', 1), ('b', 2)])",
+                repr(m)
+            )
+
+        except ImportError:
+            pass
+
+    def test_str(self):
+        try:
+            from pvl.collections import PVLMultiDict
+            the_list = [("a", 1), ("b", 2)]
+            m = PVLMultiDict(the_list)
+            self.assertEqual(
+                """PVLMultiDict([
+  ('a', 1)
+  ('b', 2)
+])""",
+                str(m)
+            )
+
+            z = PVLMultiDict()
+            self.assertEqual(
+                "PVLMultiDict()",
+                str(z)
+            )
+
+        except ImportError:
+            pass
+
+    def test_insert(self):
+        try:
+            from pvl.collections import PVLMultiDict
+            the_list = [("a", 1), ("b", 2)]
+            m = PVLMultiDict(the_list)
+            m.insert_after("a", {"z": 10, "y": 9})
+            self.assertEqual(
+                PVLMultiDict([("a", 1), ("z", 10), ("y", 9), ("b", 2)]),
+                m
+            )
+
         except ImportError:
             pass
