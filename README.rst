@@ -9,8 +9,7 @@ pvl
 .. image:: https://github.com/planetarypy/pvl/workflows/Python%20Testing/badge.svg
         :target: https://github.com/planetarypy/pvl/actions
 
-
-.. image:: https://codecov.io/gh/planetarypy/pvl/branch/master/graph/badge.svg?token=uWqotcPTGR
+.. image:: https://codecov.io/gh/planetarypy/pvl/branch/main/graph/badge.svg?token=uWqotcPTGR
         :target: https://codecov.io/gh/planetarypy/pvl
         :alt: Codecov coverage
     
