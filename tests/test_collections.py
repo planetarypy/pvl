@@ -881,3 +881,27 @@ class TestMultiDict(unittest.TestCase):
 
         except ImportError:
             pass
+
+
+class TestQuantity(unittest.TestCase):
+
+    def setUp(self):
+        self.d = pvl.loads("a = 2 <m> b = 1.21 <gW> c = nine <planets>")
+
+    def test_int(self):
+        a = int(self.d["a"])
+        self.assertEqual(2, a)
+
+        b = int(self.d["b"])
+        self.assertEqual(1, b)
+
+        self.assertRaises(ValueError, int, self.d["c"])
+
+    def test_float(self):
+        a = float(self.d["a"])
+        self.assertEqual(2.0, a)
+
+        b = float(self.d["b"])
+        self.assertEqual(1.21, b)
+
+        self.assertRaises(ValueError, float, self.d["c"])
