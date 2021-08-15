@@ -692,7 +692,11 @@ class Quantity(namedtuple("Quantity", ["value", "units"])):
     for how to use 3rd party Quantity objects with pvl.
     """
 
-    pass
+    def __int__(self):
+        return int(self.value)
+
+    def __float__(self):
+        return float(self.value)
 
 
 class Units(Quantity):

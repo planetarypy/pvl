@@ -30,6 +30,13 @@ and the release date, in year-month-day format (see examples below).
 Unreleased
 ----------
 
+Added
++++++
+* pvl.collections.Quantity objects now have __int__() and __float__() functions that
+  will return the int and float versions of their .value parameter to facilitate numeric
+  operations with Quantity objects (Issue 91).
+
+
 1.2.1 (2021-05-31)
 ------------------
 
