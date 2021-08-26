@@ -43,6 +43,14 @@ Fixed
   at and after the non-UTF-8 character were not considered as part
   of the PVL-text.  Characters encoded in latin-1 (ISO/IEC 8859-1)
   should be considered (and don't code as UTF-8), and now are.
+* If the PVL-text *is* decodable as UTF-8, but contained characters beyond the
+  latin-1 set, the OmniGrammar would refuse to parse them (since
+  it was just following the parent PVL specification).  This has
+  been fixed to allow any valid character to be parsed, so that if
+  there are weird characters in the PVL-text, you'll get those weird
+  characters in the returned dict-like.  When the stricter PVL, ODL, or
+  PDS3 dialects are used to "load" PVL-text, they will properly fail to
+  parse this text.
 
 
 1.2.1 (2021-05-31)

@@ -336,3 +336,8 @@ class OmniGrammar(PVLGrammar):
         self.reserved_characters = tuple(
             ISISGrammar.adjust_reserved_characters(self.reserved_characters)
         )
+
+    def char_allowed(self, char):
+        """Takes all characters, could accept bad things, and the user must
+        beware."""
+        return True

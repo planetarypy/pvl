@@ -495,7 +495,18 @@ def test_quotes():
     # The \b character is not an allowed PVL character.
     with pytest.raises(LexerError):
         # pvl.loads("foo = '\\bar'")
-        pvl.loads("foo = '\bar'")
+        pvl_g = pvl.grammar.PVLGrammar()
+        pvl_d = pvl.decoder.PVLDecoder(grammar=pvl_g)
+        pvl.loads(
+            "foo = '\bar'",
+            parser=pvl.parser.PVLParser(grammar=pvl_g, decoder=pvl_d),
+            grammar=pvl_g,
+            decoder=pvl_d
+        )
+
+    # But is allowed in the Omni dialect:
+    omni_label = pvl.loads("foo = '\bar'")
+    assert omni_label["foo"] == "\bar"
 
 
 def test_comments():
