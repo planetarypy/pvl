@@ -131,7 +131,10 @@ def decode_by_char(f: io.RawIOBase) -> str:
             if isinstance(elem, str):
                 s += elem
             else:
-                s += elem.decode()
+                try:
+                    s += elem.decode()
+                except UnicodeError:
+                    s += elem.decode(encoding="latin-1")
     except UnicodeError:
         # Expecting this to mean that we got to the end of decodable
         # bytes, so we're all done, and pass through to return s.

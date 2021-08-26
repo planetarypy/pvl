@@ -32,9 +32,17 @@ Unreleased
 
 Added
 +++++
-* pvl.collections.Quantity objects now have __int__() and __float__() functions that
-  will return the int and float versions of their .value parameter to facilitate numeric
-  operations with Quantity objects (Issue 91).
+* pvl.collections.Quantity objects now have __int__() and __float__()
+  functions that will return the int and float versions of their
+  .value parameter to facilitate numeric operations with Quantity
+  objects (Issue 91).
+
+Fixed
++++++
+* If the PVL-text was not decodable as UTF-8, then all characters
+  at and after the non-UTF-8 character were not considered as part
+  of the PVL-text.  Characters encoded in latin-1 (ISO/IEC 8859-1)
+  should be considered (and don't code as UTF-8), and now are.
 
 
 1.2.1 (2021-05-31)
