@@ -839,7 +839,7 @@ class OmniParser(PVLParser):
         EmptyValueAtLine object.
         """
         # It enables this by checking to see if the next thing is an
-        # '=' which means there was an empty assigment at the previous
+        # '=' which means there was an empty assignment at the previous
         # equals sign, and then unwinding the stack to give the
         # previous assignment the EmptyValueAtLine() object and trying
         # to continue parsing.
