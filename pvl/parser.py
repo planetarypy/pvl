@@ -339,8 +339,18 @@ class PVLParser(object):
                     # t = next(tokens)
                     # print(f'parsing agg block, next token is: {t}')
                     # tokens.send(t)
-                    self.parse_end_aggregation(begin, block_name, tokens)
-                    break
+                    try:
+                        self.parse_end_aggregation(begin, block_name, tokens)
+                        break
+                    except ValueError as ve:
+                        try:
+                            (agg, keep_parsing) = self.parse_module_post_hook(
+                                agg, tokens
+                            )
+                            if not keep_parsing:
+                                raise ve
+                        except Exception:
+                            raise ve
 
         return block_name, agg
 
