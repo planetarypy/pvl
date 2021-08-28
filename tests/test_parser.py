@@ -394,3 +394,10 @@ class TestOmni(unittest.TestCase):
             PVLModule(foo="bar", weird="comments", baz="bang"),
             self.p.parse(some_pvl),
         )
+
+    def test_parse_aggregation_block(self):
+        tokens = Lexer("GROUP = name robert = bob = uncle END_GROUP")
+        self.assertEqual(
+            ("name", PVLGroup(robert="", bob="uncle")),
+            self.p.parse_aggregation_block(tokens)
+        )
