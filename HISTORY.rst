@@ -42,7 +42,14 @@ Fixed
 * If the PVL-text was not decodable as UTF-8, then all characters
   at and after the non-UTF-8 character were not considered as part
   of the PVL-text.  Characters encoded in latin-1 (ISO/IEC 8859-1)
-  should be considered (and don't code as UTF-8), and now are.
+  which don't code as UTF-8 single-byte characters should be
+  considered, and now are.  However, since any single-byte value
+  above 128 can be decoded to a latin-1 character, if there are
+  more than three in a row (which is unlikely given the pattern of
+  language we expect to be parsing), this is considered as the
+  "start of data" and character harvesting will stop.  If you have
+  a valid PVL-text file with this characteristic, consider converting
+  it to UTF before providing it to pvl.load().  Addresses Issue 93.
 * If the PVL-text *is* decodable as UTF-8, but contained characters beyond the
   latin-1 set, the OmniGrammar would refuse to parse them (since
   it was just following the parent PVL specification).  This has
