@@ -18,6 +18,7 @@
 import unittest
 
 from pvl.grammar import PVLGrammar, OmniGrammar
+from pvl.exceptions import LexerError
 
 import pvl.lexer as Lexer
 
@@ -347,6 +348,9 @@ class TestLexer(unittest.TestCase):
                 multi_chars={"/", "*"},
             ),
         )
+
+    def text_lexer_allowed(self):
+        self.assertRaises(LexerError, Lexer.lexer(chr(7)))
 
     def test_lexer_recurse(self):
         def foo(tokens):
