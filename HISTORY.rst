@@ -39,25 +39,13 @@ Added
 
 Fixed
 +++++
-* If the PVL-text was not decodable as UTF-8, then all characters
-  at and after the non-UTF-8 character were not considered as part
-  of the PVL-text.  Characters encoded in latin-1 (ISO/IEC 8859-1)
-  which don't code as UTF-8 single-byte characters should be
-  considered, and now are.  However, since any single-byte value
-  above 128 can be decoded to a latin-1 character, if there are
-  more than three in a row (which is unlikely given the pattern of
-  language we expect to be parsing), this is considered as the
-  "start of data" and character harvesting will stop.  If you have
-  a valid PVL-text file with this characteristic, consider converting
-  it to UTF before providing it to pvl.load().  Addresses Issue 93.
-* If the PVL-text *is* decodable as UTF-8, but contained characters beyond the
-  latin-1 set, the OmniGrammar would refuse to parse them (since
-  it was just following the parent PVL specification).  This has
-  been fixed to allow any valid character to be parsed, so that if
-  there are weird characters in the PVL-text, you'll get those weird
-  characters in the returned dict-like.  When the stricter PVL, ODL, or
-  PDS3 dialects are used to "load" PVL-text, they will properly fail to
-  parse this text.
+* If the PVL-text contained characters beyond the set allowed by the
+  PVL specification, the OmniGrammar would refuse to parse them.
+  This has been fixed to allow any valid character to be parsed,
+  so that if there are weird characters in the PVL-text, you'll get
+  those weird characters in the returned dict-like.  When the
+  stricter PVL, ODL, or PDS3 dialects are used to "load" PVL-text,
+  they will properly fail to parse this text.
 
 
 1.2.1 (2021-05-31)

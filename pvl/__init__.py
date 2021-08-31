@@ -9,6 +9,7 @@
 
 import inspect
 import io
+import re
 import urllib.request
 from pathlib import Path
 
@@ -122,28 +123,18 @@ def decode_by_char(f: io.RawIOBase) -> str:
     The *f* stream will have one character or byte at a time read from it,
     and will attempt to decode each to a string and accumulate
     those individual strings together.  Once the end of the file is found
-    or an element can no longer be decoded, the accumulated string will
+    or an element can no longer be decoded as UTF, the accumulated string will
     be returned.
     """
     s = ""
-    latin_count = 0
     try:
         for elem in iter(lambda: f.read(1), b""):
             if isinstance(elem, str):
                 if elem == "":
                     break
                 s += elem
-                latin_count = 0
             else:
-                try:
-                    s += elem.decode()
-                    latin_count = 0
-                except UnicodeError:
-                    s += elem.decode(encoding="latin-1")
-                    latin_count += 1
-
-            if latin_count > 2:
-                break
+                s += elem.decode()
 
     except UnicodeError:
         # Expecting this to mean that we got to the end of decodable

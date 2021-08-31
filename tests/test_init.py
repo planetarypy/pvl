@@ -256,11 +256,7 @@ class TestDecode(unittest.TestCase):
         stream = io.BytesIO(s.encode(encoding="latin-1"))
         self.assertEqual(s, pvl.decode_by_char(stream))
 
-        some = "A few okay upper latin-1 chars: °."
+        ascii_text = "A few okay upper latin-1 chars: "
+        some = ascii_text + "°."
         stream = io.BytesIO(some.encode(encoding="latin-1"))
-        self.assertEqual(some, pvl.decode_by_char(stream))
-
-        two = "Too many: °Æý"
-        too_many = two + "ýýþ"
-        stream = io.BytesIO(too_many.encode(encoding="latin-1"))
-        self.assertEqual(two, pvl.decode_by_char(stream))
+        self.assertEqual(ascii_text, pvl.decode_by_char(stream))
