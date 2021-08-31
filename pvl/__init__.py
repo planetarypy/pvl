@@ -9,7 +9,6 @@
 
 import inspect
 import io
-import re
 import urllib.request
 from pathlib import Path
 
@@ -39,7 +38,14 @@ __all__ = [
 ]
 
 
-def load(path, parser=None, grammar=None, decoder=None, **kwargs):
+def load(
+        path,
+        parser=None,
+        grammar=None,
+        decoder=None,
+        encoding=None,
+        **kwargs
+):
     """Returns a Python object from parsing the file at *path*.
 
     :param path: an :class:`os.PathLike` which presumably has a
@@ -47,6 +53,8 @@ def load(path, parser=None, grammar=None, decoder=None, **kwargs):
     :param parser: defaults to :class:`pvl.parser.OmniParser()`.
     :param grammar: defaults to :class:`pvl.grammar.OmniGrammar()`.
     :param decoder: defaults to :class:`pvl.decoder.OmniDecoder()`.
+    :param encoding: defaults to None, and has the same meaning as
+        for :func:open().
     :param ``**kwargs``: the keyword arguments that will be passed
         to :func:`loads()` and are described there.
 
@@ -60,7 +68,7 @@ def load(path, parser=None, grammar=None, decoder=None, **kwargs):
     decodable text.
     """
     return loads(
-        get_text_from(path),
+        get_text_from(path, encoding=encoding),
         parser=parser,
         grammar=grammar,
         decoder=decoder,
@@ -68,10 +76,10 @@ def load(path, parser=None, grammar=None, decoder=None, **kwargs):
     )
 
 
-def get_text_from(path) -> str:
+def get_text_from(path, encoding=None) -> str:
     try:
         p = Path(path)
-        return p.read_text()
+        return p.read_text(encoding=encoding)
     except UnicodeDecodeError:
         # This may be the result of an ISIS cube file (or anything else)
         # where the first set of bytes might be decodable, but once the
