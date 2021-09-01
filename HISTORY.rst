@@ -27,8 +27,8 @@ underlined with dashes under Unreleased_ with the version number
 and the release date, in year-month-day format (see examples below).
 
 
-Unreleased
-----------
+Not Yet Released
+----------------
 
 Added
 +++++
@@ -50,6 +50,10 @@ Fixed
   those weird UTF characters in the returned dict-like.  When the
   stricter PVL, ODL, or PDS3 dialects are used to "load" PVL-text,
   they will properly fail to parse this text. (Issue 93).
+* Empty parameters inside groups or objects (but not at the end), would
+  cause the default "Omni" parsing strategy to go into an infinite
+  loop.  Empty parameters in PVL, ODL, and PDS3 are not allowed (as
+  always).  (Issue 95).
 
 
 1.2.1 (2021-05-31)
