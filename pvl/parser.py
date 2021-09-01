@@ -305,7 +305,7 @@ class PVLParser(object):
         """
         raise Exception
 
-    def parse_aggregation_block(self, tokens: abc.Generator):
+    def parse_aggregation_block(self, tokens: abc.Generator):  # noqa: C901
         """Parses the tokens for an Aggregation Block, and returns
         the modcls object that is the result of the parsing and
         decoding.
