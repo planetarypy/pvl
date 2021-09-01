@@ -32,9 +32,24 @@ Unreleased
 
 Added
 +++++
-* pvl.collections.Quantity objects now have __int__() and __float__() functions that
-  will return the int and float versions of their .value parameter to facilitate numeric
-  operations with Quantity objects (Issue 91).
+* pvl.collections.Quantity objects now have __int__() and __float__()
+  functions that will return the int and float versions of their
+  .value parameter to facilitate numeric operations with Quantity
+  objects (Issue 91).
+* pvl.load() now has an `encoding=` parameter that is identical in usage
+  to the parameter passed to `open()`, and will attempt to decode the whole
+  file as if it had been encoded thusly.  If it encounters a decoding error,
+  it will fall back to decoding the bytes one at a time as ASCII text. (Issue 93)
+
+Fixed
++++++
+* If the PVL-text contained characters beyond the set allowed by the
+  PVL specification, the OmniGrammar would refuse to parse them.
+  This has been fixed to allow any valid character to be parsed,
+  so that if there are weird UTF characters in the PVL-text, you'll get
+  those weird UTF characters in the returned dict-like.  When the
+  stricter PVL, ODL, or PDS3 dialects are used to "load" PVL-text,
+  they will properly fail to parse this text. (Issue 93).
 
 
 1.2.1 (2021-05-31)

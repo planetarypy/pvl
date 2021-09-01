@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import unittest
 from unittest.mock import call, create_autospec, mock_open, patch
 
@@ -236,3 +237,26 @@ END\r\n"""
     def test_not_dumpable(self):
         f = 5
         self.assertRaises(TypeError, pvl.dump, self.module, f)
+
+
+class TestDecode(unittest.TestCase):
+
+    def test_str(self):
+        s = "A test string\n"
+        stream = io.StringIO(s)
+        self.assertEqual(s, pvl.decode_by_char(stream))
+
+    def test_utf(self):
+        s = "A test with single-byte UTF characters."
+        stream = io.BytesIO(s.encode())
+        self.assertEqual(s, pvl.decode_by_char(stream))
+
+    def test_latin1(self):
+        s = "A test with single-byte latin-1 characters."
+        stream = io.BytesIO(s.encode(encoding="latin-1"))
+        self.assertEqual(s, pvl.decode_by_char(stream))
+
+        ascii_text = "A few okay upper latin-1 chars: "
+        some = ascii_text + "°."
+        stream = io.BytesIO(some.encode(encoding="latin-1"))
+        self.assertEqual(ascii_text, pvl.decode_by_char(stream))

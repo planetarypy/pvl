@@ -495,7 +495,18 @@ def test_quotes():
     # The \b character is not an allowed PVL character.
     with pytest.raises(LexerError):
         # pvl.loads("foo = '\\bar'")
-        pvl.loads("foo = '\bar'")
+        pvl_g = pvl.grammar.PVLGrammar()
+        pvl_d = pvl.decoder.PVLDecoder(grammar=pvl_g)
+        pvl.loads(
+            "foo = '\bar'",
+            parser=pvl.parser.PVLParser(grammar=pvl_g, decoder=pvl_d),
+            grammar=pvl_g,
+            decoder=pvl_d
+        )
+
+    # But is allowed in the Omni dialect:
+    omni_label = pvl.loads("foo = '\bar'")
+    assert omni_label["foo"] == "\bar"
 
 
 def test_comments():
@@ -823,6 +834,21 @@ def test_isis_output():
         assert aleish["Radiometry"]["NumberOfOverclocks"] == 2
 
 
+def test_utf():
+    utf_file = os.path.join(DATA_DIR, "utf-replacement.lbl")
+    with pytest.raises(TypeError):
+        pvl.load(utf_file, pvl.grammar.PVLGrammar())
+
+    label = pvl.load(utf_file)
+    assert label["LABEL_REVISION_NOTE"] == "V1.0"
+
+
+def test_latin1():
+    latin_file = os.path.join(BROKEN_DIR, "latin-1-degreesymb.pvl")
+    label = pvl.load(latin_file, encoding="latin-1")
+    assert label["LABEL_REVISION_NOTE"] == "V1.0"
+
+
 def test_cube_label():
     with open(os.path.join(DATA_DIR, "pattern.cub"), "rb") as fp:
         label = pvl.load(fp)
@@ -1053,6 +1079,7 @@ def test_broken_labels(label, expected, expected_errors):
         "broken14.lbl",
         "broken15.lbl",
         "broken16.lbl",
+        "latin-1-degreesymb.pvl"
     ],
 )
 def test_broken_labels_LexerError(label):

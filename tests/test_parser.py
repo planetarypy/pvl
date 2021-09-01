@@ -18,6 +18,7 @@
 import datetime
 import unittest
 
+from pvl.grammar import PVLGrammar
 from pvl.parser import PVLParser, ParseError, OmniParser, EmptyValueAtLine
 from pvl.lexer import lexer as Lexer
 from pvl.lexer import LexerError
@@ -334,6 +335,22 @@ class TestParse(unittest.TestCase):
                 self.assertEqual(g[1], self.p.parse(g[0]))
 
         self.assertRaises(ParseError, self.p.parse, "blob")
+
+    def test_init_wlexer(self):
+        p = PVLParser(lexer_fn=Lexer)
+        self.assertIsInstance(p, PVLParser)
+
+    def test_init_raise(self):
+        self.assertRaises(TypeError, PVLParser, grammar="hello")
+        self.assertRaises(
+            TypeError, PVLParser, grammar=PVLGrammar, decoder="hello"
+        )
+        self.assertRaises(TypeError, PVLParser, module_class="hello")
+        self.assertRaises(TypeError, PVLParser, group_class="hello")
+        self.assertRaises(TypeError, PVLParser, object_class="hello")
+
+    def test_aggregation_cls(self):
+        self.assertRaises(ValueError, self.p.aggregation_cls, "not begin")
 
 
 class TestOmni(unittest.TestCase):
