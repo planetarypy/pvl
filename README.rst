@@ -162,7 +162,7 @@ with ``dict``-style access::
     ... ])
     >>> print(module['foo'])
     bar
-    >>> print(module.getlist('foo'))
+    >>> print(module.getall('foo'))
     ['bar', 'remember me?']
     >>> print(module.items())
     ItemsView(PVLModule([
