@@ -54,7 +54,7 @@ def load(
     :param grammar: defaults to :class:`pvl.grammar.OmniGrammar()`.
     :param decoder: defaults to :class:`pvl.decoder.OmniDecoder()`.
     :param encoding: defaults to None, and has the same meaning as
-        for :func:open().
+        for :py:func:`open()`.
     :param ``**kwargs``: the keyword arguments that will be passed
         to :func:`loads()` and are described there.
 
