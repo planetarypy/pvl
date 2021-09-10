@@ -10,7 +10,7 @@ The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
 When updating this file, please add an entry for your change under
-Unreleased_ and one of the following headings:
+`Not Yet Released`_ and one of the following headings:
 
 - Added - for new features.
 - Changed - for changes in existing functionality.
@@ -27,8 +27,8 @@ underlined with dashes under Unreleased_ with the version number
 and the release date, in year-month-day format (see examples below).
 
 
-Unreleased
-----------
+Not Yet Released
+----------------
 
 Added
 +++++
@@ -39,7 +39,7 @@ Added
 * pvl.load() now has an `encoding=` parameter that is identical in usage
   to the parameter passed to `open()`, and will attempt to decode the whole
   file as if it had been encoded thusly.  If it encounters a decoding error,
-  it will fall back to decoding the bytes one at a time as ASCII text. (Issue 93)
+  it will fall back to decoding the bytes one at a time as ASCII text (Issue 93).
 
 Fixed
 +++++
@@ -49,7 +49,11 @@ Fixed
   so that if there are weird UTF characters in the PVL-text, you'll get
   those weird UTF characters in the returned dict-like.  When the
   stricter PVL, ODL, or PDS3 dialects are used to "load" PVL-text,
-  they will properly fail to parse this text. (Issue 93).
+  they will properly fail to parse this text (Issue 93).
+* Empty parameters inside groups or objects (but not at the end), would
+  cause the default "Omni" parsing strategy to go into an infinite
+  loop.  Empty parameters in PVL, ODL, and PDS3 continue to not be
+  allowed (Issue 95).
 
 
 1.2.1 (2021-05-31)

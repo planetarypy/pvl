@@ -305,6 +305,21 @@ class OrderedMultiDict(dict, MutableMappingSequence):
     def pop(self, *args, **kwargs):
         """Removes all items with the specified *key*."""
 
+        if len(args) == 0 and len(kwargs) == 0:
+            if not self:
+                raise KeyError(
+                    "pop(): {!s} ".format(type(self).__name__) + "is empty"
+                )
+
+            key, _ = item = self.__items.pop()
+            values = dict_getitem(self, key)
+            values.pop()
+
+            if not values:
+                dict_delitem(self, key)
+
+            return item
+
         warnings.warn(
             "The pop(k) function removes "
             "all keys with value k to remain backwards compatible with the "
@@ -313,9 +328,6 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             "Consider using .popall(k) instead.",
             FutureWarning,
         )
-
-        if len(args) == 0 and len(kwargs) == 0:
-            return self.popitem()
 
         return self.popall(*args, *kwargs)
 
@@ -329,22 +341,7 @@ class OrderedMultiDict(dict, MutableMappingSequence):
             "Consider using the list-like .pop(), without an argument instead.",
             FutureWarning,
         )
-        # Yes, I know .pop() without an argument just redirects here, but it
-        # won't always.
-
-        if not self:
-            raise KeyError(
-                "popitem(): {!s} ".format(type(self).__name__) + "is empty"
-            )
-
-        key, _ = item = self.__items.pop()
-        values = dict_getitem(self, key)
-        values.pop()
-
-        if not values:
-            dict_delitem(self, key)
-
-        return item
+        return self.pop()
 
     def copy(self):
         return type(self)(self)

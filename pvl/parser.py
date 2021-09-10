@@ -305,7 +305,7 @@ class PVLParser(object):
         """
         raise Exception
 
-    def parse_aggregation_block(self, tokens: abc.Generator):
+    def parse_aggregation_block(self, tokens: abc.Generator):  # noqa: C901
         """Parses the tokens for an Aggregation Block, and returns
         the modcls object that is the result of the parsing and
         decoding.
@@ -339,8 +339,18 @@ class PVLParser(object):
                     # t = next(tokens)
                     # print(f'parsing agg block, next token is: {t}')
                     # tokens.send(t)
-                    self.parse_end_aggregation(begin, block_name, tokens)
-                    break
+                    try:
+                        self.parse_end_aggregation(begin, block_name, tokens)
+                        break
+                    except ValueError as ve:
+                        try:
+                            (agg, keep_parsing) = self.parse_module_post_hook(
+                                agg, tokens
+                            )
+                            if not keep_parsing:
+                                raise ve
+                        except Exception:
+                            raise ve
 
         return block_name, agg
 
@@ -839,7 +849,7 @@ class OmniParser(PVLParser):
         EmptyValueAtLine object.
         """
         # It enables this by checking to see if the next thing is an
-        # '=' which means there was an empty assigment at the previous
+        # '=' which means there was an empty assignment at the previous
         # equals sign, and then unwinding the stack to give the
         # previous assignment the EmptyValueAtLine() object and trying
         # to continue parsing.
