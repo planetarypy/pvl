@@ -19,11 +19,11 @@ When updating this file, please add an entry for your change under
 - Fixed - for any bug fixes.
 - Security - in case of vulnerabilities.
 
-If the heading does not yet exist under Unreleased_, then add it
+If the heading does not yet exist under `Not Yet Released`_, then add it
 as a 3rd level heading, underlined with pluses (see examples below).
 
 When preparing for a public release add a new 2nd level heading,
-underlined with dashes under Unreleased_ with the version number
+underlined with dashes under `Not Yet Released`_ with the version number
 and the release date, in year-month-day format (see examples below).
 
 
