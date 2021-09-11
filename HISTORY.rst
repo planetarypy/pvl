@@ -30,6 +30,9 @@ and the release date, in year-month-day format (see examples below).
 Not Yet Released
 ----------------
 
+1.3.0 (2021-09-10)
+------------------
+
 Added
 +++++
 * pvl.collections.Quantity objects now have __int__() and __float__()
