@@ -11,12 +11,12 @@ to distinguish when someone is using "PVL" to refer to the formal
 specification versus when they are using "PVL" to refer to some
 text that could be parsable as PVL.
 
-It is important to not that ``pvl`` module's approach is: attempt
-read everything, but write out standards-compliant PDS3 labels by
+It is important to not that the ``pvl`` module's approach is: attempt
+to read everything, but write out standards-compliant PDS3 labels by
 default.  That may not be the dialect of PVL-text that you want,
 and if so, you can easily change it by specifying the ``encoder``
 parameter to the ``pvl.dump()`` or ``pvl.dumps()`` functions.  In
-general, you could write ``pvl.dump(dictlike,
+general, you could write ``pvl.dump(somedictlike,
 encoder=pvl.encoder.PVLEncoder())`` to dump out PVL-specification
 PVL-text.  The options are: PVLEncoder(), ODLEncoder(), PDSLabelEncoder()
 (the default), and ISISEncoder().
@@ -28,7 +28,7 @@ to one of the PVL 'dialects' or that could be converted into one
 of them.  We will also use ``pvl`` to refer to this Python library.
 
 In practice, since people are not typcially aware of the formal PVL
-specification, when most people say "PVL" they are referring to
+specification, when most people say "PVL" they are most likely referring to
 generic "PVL text."
 
 
