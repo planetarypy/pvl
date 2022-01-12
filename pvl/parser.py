@@ -326,6 +326,8 @@ class PVLParser(object):
             self.parse_WSC_until(None, tokens)
             try:
                 agg.append(*self.parse_aggregation_block(tokens))
+            except LexerError:
+                raise
             except ValueError:
                 try:
                     agg.append(*self.parse_assignment_statement(tokens))
@@ -342,6 +344,8 @@ class PVLParser(object):
                     try:
                         self.parse_end_aggregation(begin, block_name, tokens)
                         break
+                    except LexerError:
+                        raise
                     except ValueError as ve:
                         try:
                             (agg, keep_parsing) = self.parse_module_post_hook(
@@ -700,7 +704,7 @@ class PVLParser(object):
                     # we need to raise it, and not let it pass.
                     raise
                 except ValueError:
-                    # Getting a ValueError is a normal conseqence of
+                    # Getting a ValueError is a normal consequence of
                     # one of the parsing strategies not working,
                     # this pass allows us to go to the next one.
                     pass

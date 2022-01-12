@@ -30,6 +30,12 @@ and the release date, in year-month-day format (see examples below).
 Not Yet Released
 ----------------
 
+Fixed
++++++
+* Deeply nested Aggregation Blocks (Object or Group) which had mis-matched Block Names
+  should now properly result in LexerErrors instead of resulting in StopIteration Exceptions (Issue 100).
+
+
 1.3.0 (2021-09-10)
 ------------------
 
