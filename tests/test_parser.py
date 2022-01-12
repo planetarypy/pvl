@@ -247,6 +247,8 @@ class TestParse(unittest.TestCase):
         bad_blocks = (
             "Group = name bob = uncle END_OBJECT",
             "GROUP= name = bob = uncle END_GROUP",
+            "OBJECT = L1 V = 123 END_OBJECT = bad",
+            "OBJECT = L1 OBJECT = L2 V = 123 END_OBJECT = bad END_OBJECT = L1"
             "",
         )
         for b in bad_blocks:
