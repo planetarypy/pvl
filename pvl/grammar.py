@@ -333,8 +333,10 @@ class OmniGrammar(PVLGrammar):
     def __init__(self):
         # Handle the fact that ISIS writes out unquoted plus signs.
         # See ISISGrammar for details.
+        # Also add the ASCII NULL ("\0") to the reserved_characters tuple.
         self.reserved_characters = tuple(
-            ISISGrammar.adjust_reserved_characters(self.reserved_characters)
+            ISISGrammar.adjust_reserved_characters(self.reserved_characters) +
+            ["\0", ]
         )
 
     def char_allowed(self, char):

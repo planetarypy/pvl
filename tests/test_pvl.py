@@ -842,6 +842,10 @@ def test_utf():
     label = pvl.load(utf_file)
     assert label["LABEL_REVISION_NOTE"] == "V1.0"
 
+    nulllabel = pvl.loads("foo=bar END\0wont=parse")
+    assert nulllabel["foo"] == "bar"
+    assert len(nulllabel) == 1
+
 
 def test_latin1():
     latin_file = os.path.join(BROKEN_DIR, "latin-1-degreesymb.pvl")
