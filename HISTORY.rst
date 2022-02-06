@@ -30,14 +30,23 @@ and the release date, in year-month-day format (see examples below).
 Not Yet Released
 ----------------
 
+
+1.3.1 (2022-02-05)
+------------------
+
 Fixed
 +++++
-* Deeply nested Aggregation Blocks (Object or Group) which had mis-matched Block Names
-  should now properly result in LexerErrors instead of resulting in StopIteration Exceptions (Issue 100).
-* The default "Omni" parsing strategy, now considers the ASCII NULL character ("\0") a "reserved character."
-  The practical effect is that the ASCII NULL can not be in parameter names or unquoted strings (but would still
-  be successfully parsed in quoted strings). This means that PVL-text that might have incorrectly used ASCII NULLs
-  as delimiters will once again be consumed by our omnivorous parser (Issue 98).
+* Deeply nested Aggregation Blocks (Object or Group) which had mis-matched
+  Block Names should now properly result in LexerErrors instead of
+  resulting in StopIteration Exceptions (Issue 100).
+
+* The default "Omni" parsing strategy, now considers the ASCII NULL character
+  ("\0") a "reserved character." The practical effect is that the
+  ASCII NULL can not be in parameter names or unquoted strings (but
+  would still be successfully parsed in quoted strings). This means
+  that PVL-text that might have incorrectly used ASCII NULLs as
+  delimiters will once again be consumed by our omnivorous parser
+  (Issue 98).
 
 
 1.3.0 (2021-09-10)
