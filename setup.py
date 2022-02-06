@@ -12,7 +12,7 @@ history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 
 setup(
     name='pvl',
-    version='1.3.1-dev',
+    version='1.3.1',
     description=(
         'Python implementation for PVL (Parameter Value Language) '
         'parsing and encoding.'
