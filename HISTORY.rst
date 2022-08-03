@@ -30,6 +30,18 @@ and the release date, in year-month-day format (see examples below).
 Not Yet Released
 ----------------
 
+Fixed
++++++
+* The parser was requesting the next token after an end-statement, even
+  though nothing was done with this token (in the future it could
+  be a comment that should be processed).  In the very rare case
+  where all of the "data" bytes in a file with an attached PVL label
+  (like a .IMG or .cub file) actually convert to UTF with no
+  whitespace characters, that next token will take an unacceptable
+  amount of time to return, if it does at all.  The parser now does
+  not request additional tokens once an end-statement is identified
+  (Issue 104).
+
 
 1.3.1 (2022-02-05)
 ------------------
