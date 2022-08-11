@@ -496,16 +496,29 @@ class PVLParser(object):
                     f'"{end}"'
                 )
 
-            try:
-                t = next(tokens)
-                if t.is_WSC():
-                    # maybe process comment
-                    return
-                else:
-                    tokens.send(t)
-                    return
-            except LexerError:
-                pass
+            # The following commented code was originally put in place to deal
+            # with the possible future situation of being able to process
+            # the possible comment after an end-statement.
+            # In practice, an edge case was discovered (Issue 104) where "data"
+            # after an END statement *all* properly converted to UTF with no
+            # whitespace characters. So this request for the next token
+            # resulted in lexing more than 100 million "valid characters"
+            # and did not return in a prompt manner.  If we ever enable
+            # processing of comments, we'll have to figure out how to handle
+            # this case.  An alternate to removing this code is to leave it
+            # but put in a limit on the size that a lexeme can grow to,
+            # but that implies an additional if-statement for each character.
+            # This is the better solution for now.
+            # try:
+            #     t = next(tokens)
+            #     if t.is_WSC():
+            #         # maybe process comment
+            #         return
+            #     else:
+            #         tokens.send(t)
+            #         return
+            # except LexerError:
+            #     pass
         except StopIteration:
             pass
 
