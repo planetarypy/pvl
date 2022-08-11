@@ -30,6 +30,10 @@ and the release date, in year-month-day format (see examples below).
 Not Yet Released
 ----------------
 
+
+1.3.2 (2022-02-05)
+------------------
+
 Fixed
 +++++
 * The parser was requesting the next token after an end-statement, even
