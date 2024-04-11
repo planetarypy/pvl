@@ -2,7 +2,8 @@
 import sys
 import pprint
 import six
-from collections import Mapping, MutableMapping, namedtuple
+from collections.abc import Mapping, MutableMapping
+from collections import namedtuple
 
 
 PY3 = sys.version_info[0] == 3
