@@ -194,3 +194,143 @@ directly.
 
 Committers are expected to follow this policy and continue to send
 pull requests, go through proper review, etc.
+
+
+Workflow and Deploying
+----------------------
+
+The workflow concept we use in the pvl project is as follows.
+If you are familiar with Git workflows, it is mostly based on a
+Gitflow model, but there is not a separate *develop* branch from
+the *main* branch (at the moment, we don't need that much formalism),
+so *main* is the development branch.
+
+The pvl library follows the `Semantic Versioning 2.0.0
+specification <https://semver.org>`_, such that released pvl
+version numbers follow this pattern: ``{major}.{minor}.{patch}``.
+
+In this section, as a shorthand for ``{major}.{minor}.{patch}``,
+we will use *a.b.c*, but all actual versions in the repo will be
+numeric.  When we talk about version *a.b.c*, consider those letters
+as immutable variables that hold integers, and ``a += 1 == b, c +=
+1 == d``, etc.  So *a.b.c* is some starting state, which could
+represent *1.2.3*, then *a.b.d* would be *1.2.4* or *a.c.0* would
+be *1.3.0*, etc.
+
+Here is an example workflow :
+
++------------------------------------------------+--------+-------+-----------+
+| Bugfix Workflow                                | Branch | Tests | Version   |
++================================================+========+=======+===========+
+| After the commit that releases a.b.c to main   | main   | pass  | a.b.c     |
+| it should have been tagged va.b.c              |        |       |           |
++------------------------------------------------+--------+-------+-----------+
+| **A software bug is discovered.**                                           |
++------------------------------------------------+--------+-------+-----------+
+| Make a *hotfix* branch (could be an external   | hotfix |       |           |
+| PR branch)                                     |        |       |           |
++------------------------------------------------+        +-------+           |
+| First commit should be the 'failing tests'     |        | fail  |           |
+| commit. Craft tests to verify the failure      |        |       |           |
+| mode and commit the tests, without touching    |        |       |           |
+| the main code.  This allows others to see      |        |       |           |
+| exactly what the problems are.                 |        |       |           |
++------------------------------------------------+        |       |           |
+| Make commits on *hotfix* to address issue      |        |       |           |
++------------------------------------------------+        +-------+           |
+| Once tests pass, make a final commit, and it   |        | pass  |           |
+| is ready for merging!                          |        |       |           |
++------------------------------------------------+--------+-------+-----------+
+| External developers can now issue a pull request to get this merged into    |
+| master.                                                                     |
+|                                                                             |
+| What follows is what internal developers do when a PR is received:          |
++------------------------------------------------+--------+-------+-----------+
+| Checkout the proposed *hotfix* branch and      | hotfix |       |           |
+| verify:                                        |        |       |           |
+|                                                |        |       |           |
+| 1. Are there tests that exercise the bug?      |        |       |           |
+| 2. Does ``make lint`` pass?                    |        |       |           |
+| 3. Does ``make test`` pass?                    |        |       |           |
+| 4. Does ``make test-all`` pass?                |        |       |           |
+| 5. Is it based on master?                      |        |       |           |
+|                                                |        |       |           |
+| Iterate with the submitter, if needed.         |        |       |           |
++------------------------------------------------+--------+-------+-----------+
+| When satisfied with the above (no pushing until after the tag step):        |
++------------------------------------------------+--------+-------+-----------+
+| Starting state: ``git checkout master``        | main   | pass  | a.b.c     |
++------------------------------------------------+--------+       |           |
+| ``git branch hotfix``                          | hotfix |       |           |
+|                                                |        |       |           |
+| Checkout hotfix, may need to                   |        |       |           |
+| ``git rebase master`` if master has advanced.  |        |       |           |
++------------------------------------------------+        |       +-----------+
+| Commit with bump2version::                     |        |       | a.b.d-dev |
+|                                                |        |       |           |
+|   bump2version patch                           |        |       |           |
++------------------------------------------------+        +-------+           |
+| Is there a suitable first `failing-tests`      |        | fail  |           |
+| commit?  If not, decide how important it is.   |        | in    |           |
+| If it is important to have those failing tests |        | the   |           |
+| as the first item in the commit history, then  |        | first |           |
+| you'll have to do some commit surgery with     |        | commit|           |
+| ``git rebase -i`` and other things to arrange  |        |       |           |
+| that.                                          |        |       |           |
++------------------------------------------------+        +-------+           |
+| * If there are any new external developers:    |        | pass  |           |
+|   add to ``AUTHORS.rst`` (if they haven't)     |        |       |           |
+| * Edit ``HISTORY.rst`` to describe what        |        |       |           |
+|   happened by reviewing commit messages.       |        |       |           |
+| * If there are any commits in master since     |        |       |           |
+|   the last release, include them in the        |        |       |           |
+|   ``HISTORY.rst`` file, too.                   |        |       |           |
+| * Otherwise check that everything is ready     |        |       |           |
+|   to be merged back into master, and perform   |        |       |           |
+|   a final pre-bump commit.                     |        |       |           |
++------------------------------------------------+        |       |           |
+| Tidy commits with ``git rebase -i master``     |        |       |           |
+| so that the commit history looks like this     |        |       |           |
+| (most recent last):                            |        |       |           |
+|                                                |        |       |           |
+| #. Found a bug, these tests show what's wrong  |        |       |           |
+| #. Bump version: a.b.c → a.b.d-dev             |        |       |           |
+| #. Fixed the bug by doing x, y, and z          |        |       |           |
+|                                                |        |       |           |
+| Additional commits are fine, but any final     |        |       |           |
+| ``HISTORY.rst`` or ``AUTHORS.rst`` changes     |        |       |           |
+| should probably be squashed into the last      |        |       |           |
+| commit.                                        |        |       |           |
++------------------------------------------------+        |       +-----------+
+| This wraps up this branch and readies it for   |        |       | a.b.d     |
+| merging with master::                          |        |       |           |
+|                                                |        |       |           |
+|  bump2version release --tag                    |        |       |           |
+|     --tag-message                              |        |       |           |
+|     'something descriptive'                    |        |       |           |
++------------------------------------------------+--------+       |           |
+| apply to master::                              | main   |       |           |
+|                                                |        |       |           |
+|   git checkout master                          |        |       |           |
+|   git merge hotfix                             |        |       |           |
++------------------------------------------------+        |       |           |
+| ::                                             |        |       |           |
+|                                                |        |       |           |
+|  git push                                      |        |       |           |
+|  git push --tags                               |        |       |           |
++------------------------------------------------+--------+-------+-----------+
+| The topic branch can now be deleted::                                       |
+|                                                                             |
+|   git branch -d hotfix                                                      |
++-----------------------------------------------------------------------------+
+| Go to GitHub repo, ensure that all tests passed.                            |
+|                                                                             |
+| If so, go to "Releases" and "Draft New Release"                             |
+|                                                                             |
+| Give the most recent HISTORY.rst entry as the "description" of the Release. |
+|                                                                             |
+| This should then trigger the upload to PyPI workflow.                       |
++-----------------------------------------------------------------------------+
+| Once PyPI updates, conda-forge should notice and auto-PR an update.         |
++-----------------------------------------------------------------------------+
+ 
