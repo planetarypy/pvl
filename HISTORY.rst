@@ -30,6 +30,12 @@ and the release date, in year-month-day format (see examples below).
 Not Yet Released
 ----------------
 
+Fixed
++++++
+* If there was a bare token in the PVL-text (i.e. a parameter with no value assignment),
+  the returned error message was difficult to understand, should now be clear that
+  it was looking for an equals sign, and didn't find one (Issue 108).
+
 
 1.3.2 (2022-02-05)
 ------------------
