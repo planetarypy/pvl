@@ -390,7 +390,7 @@ class PVLParser(object):
         the name Block Name as a ``str``.
 
         <Begin-Aggregation-Statement-block> ::=
-             <Begin-Aggegation-Statement> <WSC>* '=' <WSC>*
+             <Begin-Aggregation-Statement> <WSC>* '=' <WSC>*
              <Block-Name> [<Statement-Delimiter>]
 
         Where <Block-Name> ::= <Parameter-Name>
@@ -401,13 +401,13 @@ class PVLParser(object):
             if not begin.is_begin_aggregation():
                 tokens.send(begin)
                 raise ValueError(
-                    "Expecting a Begin-Aggegation-Statement, but "
+                    "Expecting a Begin-Aggregation-Statement, but "
                     f"found: {begin}"
                 )
         except StopIteration:
             raise ValueError(
                 "Ran out of tokens before starting to parse "
-                "a Begin-Aggegation-Statement."
+                "a Begin-Aggregation-Statement."
             )
 
         try:
@@ -623,7 +623,7 @@ class PVLParser(object):
                 tokens.send(t)
                 tokens.throw(
                     ValueError,
-                    "While parsing, expected a comma (,)" f'but found: "{t}"',
+                    f'While parsing, expected a comma (,) but found: "{t}"',
                 )
 
     def parse_set(self, tokens: abc.Generator) -> frozenset:
