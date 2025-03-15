@@ -14,11 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha }}
     - name: Set up Python ${{ env.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ env.python-version }}
     - name: Install dependencies
@@ -32,6 +32,7 @@ jobs:
     - name: Test with pytest and generate coverage report
       run: pytest --cov=./pvl --cov-report=xml
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v5
       with:
         fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
