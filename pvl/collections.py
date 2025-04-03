@@ -697,8 +697,12 @@ class Quantity(namedtuple("Quantity", ["value", "units"])):
 
 
 class Units(Quantity):
-    warnings.warn(
-        "The pvl.collections.Units object is deprecated, and may be removed at "
-        "the next major patch. Please use pvl.collections.Quantity instead.",
-        PendingDeprecationWarning,
-    )
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "The pvl.collections.Units object is deprecated, and may be "
+            "removed at the next major patch. Please use "
+            "pvl.collections.Quantity instead.",
+            PendingDeprecationWarning,
+            stacklevel=2
+        )

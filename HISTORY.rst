@@ -35,6 +35,9 @@ Fixed
 * If there was a bare token in the PVL-text (i.e. a parameter with no value assignment),
   the returned error message was difficult to understand, should now be clear that
   it was looking for an equals sign, and didn't find one (Issue 108).
+* Just importing the pvl library would emit the PendingDeprecationWarning about the Units
+  class, even if a user did not import or instantiate the Units class.
+  The warn() was not properly issued from the __init__() function, it now is (Issue 109).
 
 
 1.3.2 (2022-02-05)
