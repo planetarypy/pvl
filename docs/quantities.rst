@@ -17,7 +17,7 @@ In order to avoid optional dependencies, the ``pvl`` library provides
 the :class:`pvl.collections.Quantity` class, implemented as a
 :class:`collections.namedtuple` with a ``value`` and a ``unit``
 parameter.  However, the ``unit`` parameter is just a string and
-so the ``pvl`` quantity objects doesn't have the super-powers that
+so the ``pvl`` quantity object doesn't have the super-powers that
 the ``astropy`` and ``pint`` quntity objects do.
 
 By default, this means that when PVL text is parsed by :func:`pvl.load`
@@ -191,7 +191,7 @@ would prefer to use those objects.  Here is an example::
    ('length', <Quantity(42, 'meter / second')>)
  ])
  >>> print(type(w_pint['length']))
- <class 'pint.quantity.Quantity'>
+ <class 'pint.util.Quantity'>
 
 Just as with :class:`astropy.units.Quantity`, :class:`pint.Quantity` doesn't recognize
 the upper case units, and will raise an error like this::
@@ -220,7 +220,7 @@ a registry on-the-fly, you must use the registry's Quantity to the
    ('INT_UNIT', <Quantity(4, 'meter')>)
  ])
  >>> print(type(label['FLOAT_UNIT']))
- <class 'pint.quantity.build_quantity_class.<locals>.Quantity'>
+ <class 'pint.util.Quantity'>
 
 Similarly, :class:`pint.Quantity` objects can be encoded to PVL text
 by :func:`pvl.dump` or :func:`pvl.dumps`::
